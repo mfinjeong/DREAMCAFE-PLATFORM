@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { SessionStatus, PaymentStatus, PaymentMethod, PCStatus, ConsoleStatus } from "@prisma/client";
+import { SessionStatus, PaymentStatus, PaymentMethod, PCStatus, ConsoleStatus, SessionType, Prisma } from "@prisma/client";
 import { addMemberXP } from "./member.service";
 
 export interface StartSessionInput {
@@ -25,12 +25,12 @@ export async function listSessions(filters: {
   memberId?: string | null;
   limit?: number;
 } = {}) {
-  const where: any = {};
+  const where: Prisma.SessionWhereInput = {};
   if (filters.status && filters.status !== "ALL") {
     where.status = filters.status as SessionStatus;
   }
   if (filters.type && filters.type !== "ALL") {
-    where.type = filters.type;
+    where.type = filters.type as SessionType;
   }
   if (filters.memberId) {
     where.memberId = filters.memberId;

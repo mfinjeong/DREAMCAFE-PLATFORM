@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { PaymentMethod, PaymentStatus, InventoryAction } from "@prisma/client";
+import { PaymentMethod, PaymentStatus, InventoryAction, Prisma } from "@prisma/client";
 import { addMemberXP } from "./member.service";
 
 export interface PosCheckoutInput {
@@ -18,7 +18,7 @@ export async function listTransactions(filters: {
   memberId?: string | null;
   limit?: number;
 } = {}) {
-  const where: any = {};
+  const where: Prisma.TransactionWhereInput = {};
   if (filters.type && filters.type !== "ALL") {
     where.type = filters.type;
   }

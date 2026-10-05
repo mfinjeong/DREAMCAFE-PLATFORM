@@ -29,7 +29,7 @@ export interface MemberUpdateInput {
 }
 
 export async function listMembers(filters: MemberFilterOptions = {}) {
-  const where: any = {};
+  const where: Prisma.MemberWhereInput = {};
 
   if (filters.tier && filters.tier !== "ALL") {
     where.tier = filters.tier as MemberTier;
@@ -115,9 +115,9 @@ export async function createMember(data: MemberCreateInput) {
   const existing = await prisma.member.findFirst({
     where: {
       OR: [
-        { username: { equals: data.username, mode: Prisma.QueryMode.insensitive } },
+        { username: { equals: data.username, mode: "insensitive" } },
         { phoneNumber: data.phoneNumber },
-        ...(data.email ? [{ email: { equals: data.email, mode: Prisma.QueryMode.insensitive } }] : []),
+        ...(data.email ? [{ email: { equals: data.email, mode: "insensitive" as const } }] : []),
       ],
     },
   });
@@ -166,7 +166,7 @@ export async function updateMember(id: string, data: MemberUpdateInput) {
   if (data.username && data.username.toLowerCase() !== existing.username.toLowerCase()) {
     const dup = await prisma.member.findFirst({
       where: {
-        username: { equals: data.username, mode: Prisma.QueryMode.insensitive },
+        username: { equals: data.username, mode: "insensitive" },
         id: { not: id },
       },
     });
@@ -186,7 +186,7 @@ export async function updateMember(id: string, data: MemberUpdateInput) {
   if (data.email && data.email.toLowerCase() !== existing.email?.toLowerCase()) {
     const dup = await prisma.member.findFirst({
       where: {
-        email: { equals: data.email, mode: Prisma.QueryMode.insensitive },
+        email: { equals: data.email, mode: "insensitive" },
         id: { not: id },
       },
     });

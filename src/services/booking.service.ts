@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { BookingStatus, SessionType } from "@prisma/client";
+import { BookingStatus, SessionType, Prisma } from "@prisma/client";
 
 export interface BookingCreateInput {
   memberId: string;
@@ -30,7 +30,7 @@ export async function listBookings(filters: {
   memberId?: string | null;
   type?: string | null;
 } = {}) {
-  const where: any = {};
+  const where: Prisma.BookingWhereInput = {};
   if (filters.status && filters.status !== "ALL") {
     where.status = filters.status as BookingStatus;
   }

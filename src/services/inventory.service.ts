@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { InventoryAction } from "@prisma/client";
+import { InventoryAction, Prisma } from "@prisma/client";
 
 export interface StockAdjustmentInput {
   productId: string;
@@ -13,7 +13,7 @@ export async function listInventoryLogs(filters: {
   productId?: string | null;
   limit?: number;
 } = {}) {
-  const where: any = {};
+  const where: Prisma.InventoryLogWhereInput = {};
   if (filters.productId) {
     where.productId = filters.productId;
   }

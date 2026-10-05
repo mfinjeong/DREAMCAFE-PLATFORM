@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 export interface ProductCreateInput {
   name: string;
@@ -31,7 +32,7 @@ export async function listProducts(filters: {
   search?: string | null;
   activeOnly?: boolean;
 } = {}) {
-  const where: any = {};
+  const where: Prisma.ProductWhereInput = {};
 
   if (filters.categoryId && filters.categoryId !== "ALL") {
     where.categoryId = filters.categoryId;

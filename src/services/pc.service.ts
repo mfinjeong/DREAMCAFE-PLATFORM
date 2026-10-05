@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { PCStatus, StationZone } from "@prisma/client";
+import { PCStatus, StationZone, Prisma } from "@prisma/client";
 
 export interface PCFilterOptions {
   status?: string | null;
@@ -28,7 +28,7 @@ export interface PCUpdateInput extends Partial<PCCreateInput> {
 }
 
 export async function listPCs(filters: PCFilterOptions = {}) {
-  const where: any = {};
+  const where: Prisma.PCWhereInput = {};
 
   if (filters.status && filters.status !== "ALL") {
     where.status = filters.status as PCStatus;
@@ -214,7 +214,7 @@ export async function updatePCStatus(id: string, status: PCStatus) {
     throw new Error("PC Station tidak ditemukan");
   }
 
-  const updateData: any = { status };
+  const updateData: Prisma.PCUpdateInput = { status };
   if (status === PCStatus.AVAILABLE || status === PCStatus.OFFLINE) {
     updateData.currentGame = null;
   }
