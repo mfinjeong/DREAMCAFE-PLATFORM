@@ -1,17 +1,23 @@
 import { NextResponse } from "next/server";
-import { getPCById, updatePC, deletePC, updatePCStatus } from "@/lib/data-store";
+import { getPCById, updatePC, deletePC, updatePCStatus } from "@/services/pc.service";
 import { pcSchema } from "@/lib/validators";
+import { PCStatus } from "@prisma/client";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-  const pc = getPCById(id);
-  if (!pc) {
-    return NextResponse.json({ success: false, message: "PC tidak ditemukan" }, { status: 404 });
+  try {
+    const { id } = await params;
+    const pc = await getPCById(id);
+    if (!pc) {
+      return NextResponse.json({ success: false, message: "PC Station tidak ditemukan" }, { status: 404 });
+    }
+    return NextResponse.json({ success: true, data: pc });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Terjadi kesalahan server";
+    return NextResponse.json({ success: false, message: msg }, { status: 500 });
   }
-  return NextResponse.json({ success: true, data: pc });
 }
 
 export async function PUT(
@@ -30,27 +36,16 @@ export async function PUT(
       );
     }
 
-    const result = updatePC(id, validated.data);
-    if (!result.success) {
-      return NextResponse.json({ success: false, message: result.message }, { status: 400 });
-    }
-
-    return NextResponse.json({ success: true, data: result.pc, message: result.message });
+    const updated = await updatePC(id, validated.data);
+    return NextResponse.json({
+      success: true,
+      data: updated,
+      message: `Station ${updated.stationNumber} berhasil diperbarui`,
+    });
   } catch (err: unknown) {
-    return NextResponse.json({ success: false, message: "Gagal memperbarui PC" }, { status: 500 });
+    const msg = err instanceof Error ? err.message : "Gagal memperbarui PC station";
+    return NextResponse.json({ success: false, message: msg }, { status: 400 });
   }
-}
-
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const result = deletePC(id);
-  if (!result.success) {
-    return NextResponse.json({ success: false, message: result.message }, { status: 400 });
-  }
-  return NextResponse.json({ success: true, message: result.message });
 }
 
 export async function PATCH(
@@ -60,17 +55,34 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    if (!body.status) {
-      return NextResponse.json({ success: false, message: "Status wajib diisi" }, { status: 400 });
+    const { status } = body;
+
+    if (!status || !["AVAILABLE", "IN_USE", "MAINTENANCE", "OFFLINE"].includes(status)) {
+      return NextResponse.json({ success: false, message: "Status station tidak valid" }, { status: 400 });
     }
 
-    const result = updatePCStatus(id, body.status);
-    if (!result.success) {
-      return NextResponse.json({ success: false, message: result.message }, { status: 400 });
-    }
-
-    return NextResponse.json({ success: true, data: result.pc, message: result.message });
+    const updated = await updatePCStatus(id, status as PCStatus);
+    return NextResponse.json({
+      success: true,
+      data: updated,
+      message: `Status ${updated.stationNumber} diubah menjadi ${status}`,
+    });
   } catch (err: unknown) {
-    return NextResponse.json({ success: false, message: "Gagal mengubah status PC" }, { status: 500 });
+    const msg = err instanceof Error ? err.message : "Gagal memperbarui status station";
+    return NextResponse.json({ success: false, message: msg }, { status: 400 });
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    await deletePC(id);
+    return NextResponse.json({ success: true, message: "PC Station berhasil dihapus" });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Gagal menghapus PC station";
+    return NextResponse.json({ success: false, message: msg }, { status: 400 });
   }
 }

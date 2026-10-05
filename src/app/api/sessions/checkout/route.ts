@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { endSessionAndCheckout } from "@/lib/data-store";
+import { checkoutSession } from "@/services/session.service";
 import { endSessionCheckoutSchema } from "@/lib/validators";
 
 export async function POST(request: Request) {
@@ -14,17 +14,19 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = endSessionAndCheckout(validated.data);
-    if (!result.success) {
-      return NextResponse.json({ success: false, message: result.message }, { status: 400 });
-    }
+    const result = await checkoutSession({
+      sessionId: validated.data.sessionId,
+      cashReceived: validated.data.cashReceived,
+      notes: validated.data.notes,
+    });
 
     return NextResponse.json({
       success: true,
-      data: result.transaction,
-      message: result.message,
+      data: result,
+      message: `Checkout biling berhasil (Kembalian: Rp${result.cashChange.toLocaleString("id-ID")})`,
     });
   } catch (err: unknown) {
-    return NextResponse.json({ success: false, message: "Gagal menyelesaikan sesi" }, { status: 500 });
+    const msg = err instanceof Error ? err.message : "Gagal menyelesaikan sesi";
+    return NextResponse.json({ success: false, message: msg }, { status: 400 });
   }
 }

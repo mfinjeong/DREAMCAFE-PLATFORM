@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { checkoutPOS } from "@/lib/data-store";
+import { createPosCheckout } from "@/services/transaction.service";
 import { posCheckoutSchema } from "@/lib/validators";
 
 export async function POST(request: Request) {
@@ -14,17 +14,22 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = checkoutPOS(validated.data);
-    if (!result.success) {
-      return NextResponse.json({ success: false, message: result.message }, { status: 400 });
-    }
+    const result = await createPosCheckout({
+      memberId: validated.data.memberId,
+      items: validated.data.items,
+      cashReceived: validated.data.cashReceived,
+      notes: validated.data.notes,
+    });
 
     return NextResponse.json({
       success: true,
       data: result.transaction,
-      message: result.message,
+      cashReceived: result.cashReceived,
+      cashChange: result.cashChange,
+      message: `Transaksi kasir toko berhasil diproses (Kembalian: Rp${result.cashChange.toLocaleString("id-ID")})`,
     });
   } catch (err: unknown) {
-    return NextResponse.json({ success: false, message: "Gagal memproses transaksi kasir toko" }, { status: 500 });
+    const msg = err instanceof Error ? err.message : "Gagal memproses transaksi kasir toko";
+    return NextResponse.json({ success: false, message: msg }, { status: 400 });
   }
 }
