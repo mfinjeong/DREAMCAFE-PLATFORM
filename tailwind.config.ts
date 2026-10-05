@@ -9,24 +9,24 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "#0c0d11", // Deep dark charcoal, not pure black
+        background: "#0D0E10", // Dark charcoal base, not pure black
         surface: {
-          DEFAULT: "#13151b",  // Primary container surface
-          muted: "#181a22",    // Subtle elevated background
-          hover: "#1e212b",    // Hover state
-          border: "#242735",   // Clean structural border
+          DEFAULT: "#15171A",  // Clean neutral card / container surface
+          subtle: "#111317",   // Sidebar / topbar surface
+          hover: "#1A1D22",    // Hover surface
+          border: "#22252A",   // Subtle gray structural border
         },
         accent: {
-          DEFAULT: "#c52222",  // Deep subtle crimson red
-          hover: "#a81919",
-          active: "#8f1212",
-          subtle: "#1c1214",   // Subtle tinted container background
-          border: "#3d1a1e",   // Subtle red border
+          DEFAULT: "#B4232A",  // Restrained dark red
+          hover: "#961C22",
+          active: "#7F171C",
+          subtle: "#1E1214",   // Subtle dark red background for active states
+          border: "#3B1C20",   // Subtle red border
         },
         typography: {
-          primary: "#f4f4f6",   // High-contrast clean white
-          secondary: "#8f94a3", // Balanced gray secondary
-          muted: "#5a5e6d",     // Low-contrast metadata
+          primary: "#EDEDEE",   // Clean off-white
+          secondary: "#8A909A", // Muted neutral gray
+          muted: "#585C66",     // Low-contrast metadata
         },
       },
       fontFamily: {

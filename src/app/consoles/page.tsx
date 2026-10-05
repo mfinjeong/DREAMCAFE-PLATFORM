@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { ConsoleStation, MemberItem } from "@/lib/types";
-import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { StartSessionModal } from "@/components/modals/StartSessionModal";
 import { EndSessionPaymentModal } from "@/components/modals/EndSessionPaymentModal";
@@ -85,9 +84,9 @@ export default function ConsolesPage() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-wider font-mono">
+        <h2 className="text-xs font-bold text-[#EDEDEE] uppercase tracking-wider font-mono">
           Console Stations
         </h2>
 
@@ -96,10 +95,10 @@ export default function ConsolesPage() {
             <button
               key={t}
               onClick={() => setSelectedType(t)}
-              className={`px-2 py-0.5 rounded text-[11px] transition-colors ${
+              className={`px-2 py-0.5 rounded-[3px] text-[11px] transition-colors cursor-pointer ${
                 selectedType === t
-                  ? "bg-red-600 text-white font-medium"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? "bg-[#B4232A] text-[#EDEDEE] font-medium"
+                  : "text-[#8A909A] hover:text-[#EDEDEE]"
               }`}
             >
               {t}
@@ -108,35 +107,35 @@ export default function ConsolesPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
         {filtered.map((con) => (
           <div
             key={con.id}
-            className="p-3 bg-[#10121a] border border-[#1e222e] rounded flex flex-col justify-between"
+            className="p-3 bg-[#15171A] border border-[#22252A] rounded-[4px] flex flex-col justify-between"
           >
             <div>
               <div className="flex items-start justify-between mb-1">
                 <div>
-                  <span className="text-sm font-bold text-white font-mono block">
+                  <span className="text-sm font-bold text-[#EDEDEE] font-mono block">
                     {con.stationNumber}
                   </span>
-                  <span className="text-[10px] font-mono text-zinc-400">{con.consoleType}</span>
+                  <span className="text-[10px] font-mono text-[#8A909A]">{con.consoleType}</span>
                 </div>
                 <StatusBadge status={con.status} />
               </div>
 
-              <div className="p-2 bg-[#0a0b10] border border-[#181a24] rounded my-2 text-xs space-y-1 font-mono">
-                <div className="flex justify-between text-zinc-400 text-[11px]">
+              <div className="p-2 bg-[#111317] border border-[#22252A] rounded-[4px] my-2 text-xs space-y-1 font-mono">
+                <div className="flex justify-between text-[#8A909A] text-[11px]">
                   <span>Display:</span>
-                  <span className="text-zinc-200 truncate max-w-[120px]">{con.specsDisplay}</span>
+                  <span className="text-[#EDEDEE] truncate max-w-[120px]">{con.specsDisplay}</span>
                 </div>
-                <div className="flex justify-between text-zinc-400 text-[11px]">
+                <div className="flex justify-between text-[#8A909A] text-[11px]">
                   <span>Controllers:</span>
-                  <span className="text-zinc-200">{con.controllersCount}</span>
+                  <span className="text-[#EDEDEE]">{con.controllersCount}</span>
                 </div>
-                <div className="flex justify-between text-zinc-400 text-[11px]">
+                <div className="flex justify-between text-[#8A909A] text-[11px]">
                   <span>Rate:</span>
-                  <span className="text-white font-bold">{formatRupiah(con.hourlyRate)}/hr</span>
+                  <span className="text-[#EDEDEE] font-bold">{formatRupiah(con.hourlyRate)}/hr</span>
                 </div>
               </div>
 
@@ -144,7 +143,7 @@ export default function ConsolesPage() {
                 {con.installedGames.map((g, idx) => (
                   <span
                     key={idx}
-                    className="text-[9px] px-1 py-0.2 rounded bg-[#161821] text-zinc-400 border border-[#232734]"
+                    className="text-[9px] px-1 py-0.5 rounded-[3px] bg-[#111317] text-[#8A909A] border border-[#22252A] font-mono"
                   >
                     {g}
                   </span>
@@ -152,13 +151,13 @@ export default function ConsolesPage() {
               </div>
             </div>
 
-            <div className="pt-2 border-t border-[#181a24]">
+            <div className="pt-2 border-t border-[#22252A]">
               {con.status === "AVAILABLE" ? (
                 <button
                   onClick={() => handleStartSession(con)}
-                  className="w-full bg-[#dc2626] hover:bg-[#b91c1c] text-white text-xs font-semibold py-1.5 px-3 rounded uppercase tracking-wider"
+                  className="w-full bg-[#B4232A] hover:bg-[#961C22] text-[#EDEDEE] text-xs font-semibold py-1.5 px-3 rounded-[4px] uppercase tracking-wider font-mono cursor-pointer"
                 >
-                  START SESSION
+                  START
                 </button>
               ) : con.status === "IN_USE" ? (
                 <button
@@ -172,14 +171,14 @@ export default function ConsolesPage() {
                     });
                     setActiveModal("end");
                   }}
-                  className="w-full bg-[#3b1216] hover:bg-[#50171d] text-red-300 border border-red-900/60 text-xs font-medium py-1.5 px-3 rounded"
+                  className="w-full bg-[#111317] hover:bg-[#1A1D22] text-[#D15E65] border border-[#3B1C20] text-xs font-medium py-1.5 px-3 rounded-[4px] font-mono cursor-pointer"
                 >
                   Checkout
                 </button>
               ) : (
                 <button
                   disabled
-                  className="w-full bg-[#161822] text-zinc-500 text-xs py-1.5 px-3 rounded cursor-not-allowed"
+                  className="w-full bg-[#111317] text-[#585C66] text-xs py-1.5 px-3 rounded-[4px] cursor-not-allowed font-mono"
                 >
                   Maintenance
                 </button>

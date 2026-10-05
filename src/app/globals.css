@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --background: #0c0d11;
-  --foreground: #f4f4f6;
+  --background: #0D0E10;
+  --foreground: #EDEDEE;
 }
 
 body {
@@ -23,21 +23,21 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #0c0d11;
+  background: #0D0E10;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #242735;
-  border-radius: 2px;
+  background: #22252A;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #33384a;
+  background: #2E333B;
 }
 
-/* Subtle focus ring without glow */
+/* Crisp focus ring without glow */
 *:focus-visible {
-  outline: 1px solid #c52222;
+  outline: 1px solid #B4232A;
   outline-offset: 1px;
 }
 

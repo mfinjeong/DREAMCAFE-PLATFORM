@@ -24,42 +24,42 @@ export const TopBar: React.FC = () => {
   const title = pageTitles[pathname] || "Dashboard";
 
   return (
-    <header className="h-12 bg-[#0e1015] border-b border-[#1e212b] px-4 flex items-center justify-between sticky top-0 z-30 select-none">
+    <header className="h-12 bg-[#111317] border-b border-[#22252A] px-4 flex items-center justify-between sticky top-0 z-30 select-none">
       {/* Left: Minimal Page Title */}
       <div className="flex items-center gap-2">
-        <h1 className="text-xs font-bold text-zinc-100 uppercase tracking-wider font-mono">
+        <h1 className="text-xs font-bold text-[#EDEDEE] uppercase tracking-wider font-mono">
           {title}
         </h1>
       </div>
 
       {/* Right: Search, Notifications, Admin Profile */}
       <div className="flex items-center gap-2.5">
-        <div className="relative hidden md:block w-44">
-          <Search className="w-3 h-3 text-[#717684] absolute left-2.5 top-1/2 -translate-y-1/2" />
+        <div className="relative hidden md:block w-48">
+          <Search className="w-3 h-3 text-[#585C66] absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#12141c] border border-[#222634] rounded-[2px] pl-7 pr-2.5 py-1 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-[#b91c1c] transition-colors font-mono"
+            className="w-full bg-[#15171A] border border-[#22252A] rounded-[4px] pl-7 pr-2.5 py-1 text-xs text-[#EDEDEE] placeholder-[#585C66] focus:outline-none focus:border-[#B4232A] transition-colors font-mono"
           />
         </div>
 
         <button
-          className="p-1.5 rounded-[2px] text-[#8a8f9d] hover:text-zinc-200 hover:bg-[#151720] transition-colors relative"
+          className="p-1.5 rounded-[4px] text-[#8A909A] hover:text-[#EDEDEE] hover:bg-[#15171A] transition-colors relative"
           title="Notifications"
         >
           <Bell className="w-3.5 h-3.5" />
-          <span className="w-1.5 h-1.5 rounded-full bg-[#b91c1c] absolute top-1 right-1"></span>
+          <span className="w-1.5 h-1.5 rounded-full bg-[#B4232A] absolute top-1 right-1"></span>
         </button>
 
-        <div className="h-3.5 w-px bg-[#222634]"></div>
+        <div className="h-3.5 w-px bg-[#22252A]"></div>
 
-        <div className="flex items-center gap-1.5 text-xs text-zinc-300">
-          <div className="w-5 h-5 rounded-[2px] bg-[#161822] border border-[#262b3a] flex items-center justify-center text-zinc-400">
+        <div className="flex items-center gap-1.5 text-xs text-[#8A909A]">
+          <div className="w-5 h-5 rounded-[4px] bg-[#15171A] border border-[#22252A] flex items-center justify-center text-[#8A909A]">
             <User className="w-3 h-3" />
           </div>
-          <span className="font-mono text-zinc-200 text-xs hidden sm:inline">Admin</span>
+          <span className="font-mono text-[#EDEDEE] text-xs hidden sm:inline font-medium">Admin</span>
         </div>
       </div>
     </header>

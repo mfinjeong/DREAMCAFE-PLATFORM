@@ -5,7 +5,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { PCStation, PCStatus } from "@/lib/types";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { formatRupiah, formatCountdown } from "@/lib/formatters";
+import { formatRupiah } from "@/lib/formatters";
 
 interface PCDetailModalProps {
   isOpen: boolean;
@@ -52,17 +52,17 @@ export const PCDetailModal: React.FC<PCDetailModalProps> = ({
       subtitle={`Zone: ${pc.zone}`}
       maxWidth="md"
     >
-      <div className="space-y-3.5">
+      <div className="space-y-3">
         {errorMsg && (
-          <div className="p-2 bg-[#221014] border border-[#44181f] rounded text-[11px] text-[#f87171] font-mono">
+          <div className="p-2 bg-[#1E1214] border border-[#3B1C20] rounded-[4px] text-[11px] text-[#D15E65] font-mono">
             {errorMsg}
           </div>
         )}
 
-        {/* Primary Operational Section: Status, Member, Session, Price */}
-        <div className="p-3 bg-[#0e1017] border border-[#1e222e] rounded space-y-2">
+        {/* Primary Operational Section */}
+        <div className="p-3 bg-[#111317] border border-[#22252A] rounded-[4px] space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-mono uppercase text-[#717684] tracking-wider font-semibold">
+            <span className="text-[10px] font-mono uppercase text-[#8A909A] tracking-wider font-semibold">
               Current Session
             </span>
             <StatusBadge status={pc.status} />
@@ -71,40 +71,40 @@ export const PCDetailModal: React.FC<PCDetailModalProps> = ({
           {pc.status === "IN_USE" && pc.activeSession ? (
             <div className="grid grid-cols-2 gap-2 text-xs pt-1 font-mono">
               <div>
-                <span className="text-[10px] text-[#717684] block">Member</span>
-                <span className="text-white font-medium">
+                <span className="text-[10px] text-[#585C66] block">Member</span>
+                <span className="text-[#EDEDEE] font-medium">
                   {pc.activeSession.memberName || pc.activeSession.guestName || "Guest"}
                 </span>
               </div>
               <div>
-                <span className="text-[10px] text-[#717684] block">Active Game</span>
-                <span className="text-white">
+                <span className="text-[10px] text-[#585C66] block">Active Game</span>
+                <span className="text-[#EDEDEE]">
                   {pc.currentGame || pc.activeSession.currentGame || "Game"}
                 </span>
               </div>
               <div>
-                <span className="text-[10px] text-[#717684] block">Duration / Remaining</span>
-                <span className="text-[#f87171]">
+                <span className="text-[10px] text-[#585C66] block">Duration / Remaining</span>
+                <span className="text-[#D15E65]">
                   {pc.activeSession.durationMinutes}m ({pc.activeSession.remainingMinutes}m left)
                 </span>
               </div>
               <div>
-                <span className="text-[10px] text-[#717684] block">Session Amount</span>
-                <span className="text-white font-semibold">
+                <span className="text-[10px] text-[#585C66] block">Session Amount</span>
+                <span className="text-[#EDEDEE] font-semibold">
                   {formatRupiah(pc.activeSession.totalPrice)}
                 </span>
               </div>
             </div>
           ) : (
             <div className="flex items-center justify-between text-xs pt-1 font-mono">
-              <span className="text-[#717684]">
+              <span className="text-[#8A909A]">
                 {pc.status === "AVAILABLE"
                   ? "No active session"
                   : pc.status === "MAINTENANCE"
                   ? "Station under maintenance"
                   : "Station offline"}
               </span>
-              <span className="text-white font-medium">
+              <span className="text-[#EDEDEE] font-medium">
                 Rate: {formatRupiah(pc.hourlyRate)} / hr
               </span>
             </div>
@@ -113,53 +113,53 @@ export const PCDetailModal: React.FC<PCDetailModalProps> = ({
 
         {/* Secondary Section: Hardware Information */}
         <div className="space-y-1.5">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[#717684] block font-semibold">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[#8A909A] block font-semibold">
             Hardware Specifications
           </span>
           <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-            <div className="p-2 bg-[#10121a] border border-[#1e222e] rounded">
-              <span className="text-[9px] text-[#717684] uppercase block">CPU</span>
-              <span className="text-zinc-200 text-[11px] truncate block">{pc.specsCpu}</span>
+            <div className="p-2 bg-[#111317] border border-[#22252A] rounded-[4px]">
+              <span className="text-[9px] text-[#585C66] uppercase block">CPU</span>
+              <span className="text-[#EDEDEE] text-[11px] truncate block">{pc.specsCpu}</span>
             </div>
-            <div className="p-2 bg-[#10121a] border border-[#1e222e] rounded">
-              <span className="text-[9px] text-[#717684] uppercase block">GPU</span>
-              <span className="text-zinc-200 text-[11px] truncate block">{pc.specsGpu}</span>
+            <div className="p-2 bg-[#111317] border border-[#22252A] rounded-[4px]">
+              <span className="text-[9px] text-[#585C66] uppercase block">GPU</span>
+              <span className="text-[#EDEDEE] text-[11px] truncate block">{pc.specsGpu}</span>
             </div>
-            <div className="p-2 bg-[#10121a] border border-[#1e222e] rounded">
-              <span className="text-[9px] text-[#717684] uppercase block">RAM</span>
-              <span className="text-zinc-200 text-[11px]">{pc.specsRam}</span>
+            <div className="p-2 bg-[#111317] border border-[#22252A] rounded-[4px]">
+              <span className="text-[9px] text-[#585C66] uppercase block">RAM</span>
+              <span className="text-[#EDEDEE] text-[11px]">{pc.specsRam}</span>
             </div>
-            <div className="p-2 bg-[#10121a] border border-[#1e222e] rounded">
-              <span className="text-[9px] text-[#717684] uppercase block">Monitor</span>
-              <span className="text-zinc-200 text-[11px] truncate block">{pc.specsMonitor}</span>
+            <div className="p-2 bg-[#111317] border border-[#22252A] rounded-[4px]">
+              <span className="text-[9px] text-[#585C66] uppercase block">Monitor</span>
+              <span className="text-[#EDEDEE] text-[11px] truncate block">{pc.specsMonitor}</span>
             </div>
-            <div className="p-2 bg-[#10121a] border border-[#1e222e] rounded">
-              <span className="text-[9px] text-[#717684] uppercase block">Storage</span>
-              <span className="text-zinc-200 text-[11px]">{pc.specsStorage}</span>
+            <div className="p-2 bg-[#111317] border border-[#22252A] rounded-[4px]">
+              <span className="text-[9px] text-[#585C66] uppercase block">Storage</span>
+              <span className="text-[#EDEDEE] text-[11px]">{pc.specsStorage}</span>
             </div>
-            <div className="p-2 bg-[#10121a] border border-[#1e222e] rounded">
-              <span className="text-[9px] text-[#717684] uppercase block">Peripherals</span>
-              <span className="text-zinc-200 text-[11px] truncate block">{pc.specsPeripherals}</span>
+            <div className="p-2 bg-[#111317] border border-[#22252A] rounded-[4px]">
+              <span className="text-[9px] text-[#585C66] uppercase block">Peripherals</span>
+              <span className="text-[#EDEDEE] text-[11px] truncate block">{pc.specsPeripherals}</span>
             </div>
           </div>
         </div>
 
         {/* Network & Diagnostics */}
-        <div className="p-2 bg-[#0e1017] border border-[#1e222e] rounded flex items-center justify-between text-[11px] font-mono text-[#717684]">
-          <span>IP: <strong className="text-zinc-200 font-normal">{pc.ipAddress || "-"}</strong></span>
-          <span>MAC: <strong className="text-zinc-200 font-normal">{pc.macAddress || "-"}</strong></span>
+        <div className="p-2 bg-[#111317] border border-[#22252A] rounded-[4px] flex items-center justify-between text-[11px] font-mono text-[#8A909A]">
+          <span>IP: <strong className="text-[#EDEDEE] font-normal">{pc.ipAddress || "-"}</strong></span>
+          <span>MAC: <strong className="text-[#EDEDEE] font-normal">{pc.macAddress || "-"}</strong></span>
         </div>
 
-        {/* Status / Maintenance Control */}
-        <div className="pt-2 border-t border-[#1e222e]">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[#717684] block mb-1 font-semibold">
+        {/* Status Control */}
+        <div className="pt-2 border-t border-[#22252A]">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[#8A909A] block mb-1 font-semibold">
             Station Status
           </span>
           <div className="flex items-center gap-2">
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value as PCStatus)}
-              className="flex-1 bg-[#10121a] border border-[#202432] rounded px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-[#b91c1c] font-mono"
+              className="flex-1 bg-[#111317] border border-[#22252A] rounded-[4px] px-2.5 py-1.5 text-xs text-[#EDEDEE] focus:outline-none focus:border-[#B4232A] font-mono"
             >
               <option value="">Select status...</option>
               <option value="AVAILABLE" disabled={pc.status === "AVAILABLE"}>
@@ -184,7 +184,7 @@ export const PCDetailModal: React.FC<PCDetailModalProps> = ({
           </div>
         </div>
 
-        <div className="flex justify-end pt-2 border-t border-[#1e222e]">
+        <div className="flex justify-end pt-2 border-t border-[#22252A]">
           <Button variant="outline" size="sm" onClick={onClose}>
             Close
           </Button>

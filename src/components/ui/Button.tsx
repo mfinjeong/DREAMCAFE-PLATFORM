@@ -16,7 +16,7 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseStyles =
-    "inline-flex items-center justify-center font-medium transition-colors duration-100 rounded-[3px] select-none disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer tracking-wide";
+    "inline-flex items-center justify-center font-medium transition-colors duration-100 rounded-[4px] select-none disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer tracking-wide";
 
   const sizeStyles = {
     sm: "text-xs px-2.5 py-1.5 gap-1.5",
@@ -26,15 +26,15 @@ export const Button: React.FC<ButtonProps> = ({
 
   const variantStyles = {
     primary:
-      "bg-[#b91c1c] hover:bg-[#991b1b] text-white border border-[#dc2626]/40 shadow-sm active:bg-[#7f1d1d]",
+      "bg-[#B4232A] hover:bg-[#961C22] text-[#EDEDEE] border border-[#7F171C] active:bg-[#7F171C]",
     secondary:
-      "bg-[#181a22] hover:bg-[#20232e] text-zinc-200 border border-[#2b3040] active:bg-[#15171e]",
+      "bg-[#15171A] hover:bg-[#1C1F24] text-[#EDEDEE] border border-[#22252A] active:bg-[#111317]",
     danger:
-      "bg-[#5c1319] hover:bg-[#6e181f] text-red-200 border border-red-900/60 active:bg-[#470f14]",
+      "bg-[#4A161A] hover:bg-[#5C1B20] text-[#D15E65] border border-[#701E25] active:bg-[#3D1215]",
     outline:
-      "bg-transparent hover:bg-[#181a22] text-zinc-300 border border-[#2b3040]",
+      "bg-transparent hover:bg-[#15171A] text-[#8A909A] hover:text-[#EDEDEE] border border-[#22252A]",
     ghost:
-      "bg-transparent hover:bg-[#181a22] text-zinc-400 hover:text-zinc-200",
+      "bg-transparent hover:bg-[#15171A] text-[#8A909A] hover:text-[#EDEDEE]",
   };
 
   return (

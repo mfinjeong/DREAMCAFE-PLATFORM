@@ -89,9 +89,9 @@ export default function MembersPage() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-wider font-mono">
+        <h2 className="text-xs font-bold text-[#EDEDEE] uppercase tracking-wider font-mono">
           Members Directory
         </h2>
         <Button variant="primary" size="sm" onClick={() => setCreateModalOpen(true)}>
@@ -101,15 +101,15 @@ export default function MembersPage() {
       </div>
 
       {/* Filter Row */}
-      <div className="bg-[#0e1017] border border-[#1a1d27] rounded px-3 py-2 flex flex-col sm:flex-row gap-2.5 items-center justify-between">
+      <div className="bg-[#15171A] border border-[#22252A] rounded-[4px] px-3 py-2 flex flex-col sm:flex-row gap-2.5 items-center justify-between">
         <div className="relative w-full sm:w-64">
-          <Search className="w-3 h-3 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-3 h-3 text-[#585C66] absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Search code, username, phone..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#12141c] border border-[#202431] rounded pl-7 pr-2.5 py-1 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-red-600"
+            className="w-full bg-[#111317] border border-[#22252A] rounded-[4px] pl-7 pr-2.5 py-1 text-xs text-[#EDEDEE] placeholder-[#585C66] focus:outline-none focus:border-[#B4232A]"
           />
         </div>
 
@@ -118,10 +118,10 @@ export default function MembersPage() {
             <button
               key={tier}
               onClick={() => setSelectedTier(tier)}
-              className={`px-2 py-0.5 rounded text-[11px] transition-colors ${
+              className={`px-2 py-0.5 rounded-[3px] text-[11px] transition-colors cursor-pointer ${
                 selectedTier === tier
-                  ? "bg-red-600 text-white font-medium"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? "bg-[#B4232A] text-[#EDEDEE] font-medium"
+                  : "text-[#8A909A] hover:text-[#EDEDEE]"
               }`}
             >
               {tier}
@@ -147,28 +147,28 @@ export default function MembersPage() {
         <tbody>
           {filteredMembers.map((m) => (
             <TableRow key={m.id}>
-              <TableCell className="font-mono text-[11px] text-zinc-400">
+              <TableCell className="font-mono text-[11px] text-[#8A909A]">
                 {m.memberCode}
               </TableCell>
               <TableCell className="text-xs">
-                <span className="font-bold text-zinc-100 block">@{m.username}</span>
-                <span className="text-[11px] text-zinc-400">{m.fullName}</span>
+                <span className="font-bold text-[#EDEDEE] block">@{m.username}</span>
+                <span className="text-[11px] text-[#8A909A]">{m.fullName}</span>
               </TableCell>
-              <TableCell className="font-mono text-[11px] text-zinc-400">
+              <TableCell className="font-mono text-[11px] text-[#8A909A]">
                 {m.phoneNumber}
               </TableCell>
               <TableCell>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#161821] border border-[#232734] text-zinc-300">
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-[3px] bg-[#111317] border border-[#22252A] text-[#8A909A]">
                   {m.tier}
                 </span>
               </TableCell>
-              <TableCell className="font-mono text-xs font-semibold text-zinc-300">
+              <TableCell className="font-mono text-xs font-semibold text-[#EDEDEE]">
                 {m.dreamRank}
               </TableCell>
-              <TableCell className="font-mono text-xs text-zinc-300">
+              <TableCell className="font-mono text-xs text-[#8A909A]">
                 Lv. {m.level}
               </TableCell>
-              <TableCell className="font-mono text-xs text-zinc-300">
+              <TableCell className="font-mono text-xs text-[#8A909A]">
                 {m.dreamCoins}
               </TableCell>
               <TableCell className="text-right">
@@ -177,7 +177,7 @@ export default function MembersPage() {
                     setSelectedMember(m);
                     setDetailModalOpen(true);
                   }}
-                  className="p-1 rounded bg-[#161821] hover:bg-[#202432] text-zinc-300 border border-[#232734]"
+                  className="p-1 rounded-[4px] bg-[#111317] hover:bg-[#1A1D22] text-[#8A909A] hover:text-[#EDEDEE] border border-[#22252A] cursor-pointer"
                   title="Profile"
                 >
                   <Eye className="w-3.5 h-3.5" />
@@ -197,7 +197,7 @@ export default function MembersPage() {
       >
         <form onSubmit={handleCreateMember} className="space-y-3">
           {errorMsg && (
-            <div className="p-2 bg-[#251014] border border-red-900/60 rounded text-[11px] text-red-400 font-mono">
+            <div className="p-2 bg-[#1E1214] border border-[#3B1C20] rounded-[4px] text-[11px] text-[#D15E65] font-mono">
               {errorMsg}
             </div>
           )}
@@ -251,7 +251,7 @@ export default function MembersPage() {
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-[#1b1e28]">
+          <div className="flex justify-end gap-2 pt-2 border-t border-[#22252A]">
             <Button type="button" variant="outline" size="sm" onClick={() => setCreateModalOpen(false)}>
               Cancel
             </Button>
@@ -272,30 +272,30 @@ export default function MembersPage() {
       >
         {selectedMember && (
           <div className="space-y-3 font-mono text-xs">
-            <div className="p-2.5 bg-[#0a0b10] border border-[#1b1e28] rounded space-y-1">
-              <div className="flex justify-between text-zinc-400">
+            <div className="p-2.5 bg-[#111317] border border-[#22252A] rounded-[4px] space-y-1">
+              <div className="flex justify-between text-[#8A909A]">
                 <span>Code:</span>
-                <span className="text-white">{selectedMember.memberCode}</span>
+                <span className="text-[#EDEDEE]">{selectedMember.memberCode}</span>
               </div>
-              <div className="flex justify-between text-zinc-400">
+              <div className="flex justify-between text-[#8A909A]">
                 <span>Tier:</span>
-                <span className="text-white">{selectedMember.tier}</span>
+                <span className="text-[#EDEDEE]">{selectedMember.tier}</span>
               </div>
-              <div className="flex justify-between text-zinc-400">
+              <div className="flex justify-between text-[#8A909A]">
                 <span>Rank:</span>
-                <span className="text-red-400 font-bold">{selectedMember.dreamRank}</span>
+                <span className="text-[#B4232A] font-bold">{selectedMember.dreamRank}</span>
               </div>
-              <div className="flex justify-between text-zinc-400">
+              <div className="flex justify-between text-[#8A909A]">
                 <span>Level:</span>
-                <span className="text-white">Lv. {selectedMember.level} ({selectedMember.xp} XP)</span>
+                <span className="text-[#EDEDEE]">Lv. {selectedMember.level} ({selectedMember.xp} XP)</span>
               </div>
-              <div className="flex justify-between text-zinc-400">
+              <div className="flex justify-between text-[#8A909A]">
                 <span>Coins:</span>
-                <span className="text-white">{selectedMember.dreamCoins}</span>
+                <span className="text-[#EDEDEE]">{selectedMember.dreamCoins}</span>
               </div>
-              <div className="flex justify-between text-zinc-400">
+              <div className="flex justify-between text-[#8A909A]">
                 <span>Balance:</span>
-                <span className="text-emerald-400 font-bold">{formatRupiah(selectedMember.balance)}</span>
+                <span className="text-[#EDEDEE] font-bold">{formatRupiah(selectedMember.balance)}</span>
               </div>
             </div>
 

@@ -160,61 +160,64 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Top Statistics: Compact, Structured */}
+    <div className="space-y-3.5">
+      {/* Top Statistics: Uniform neutral surface for all cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        <div className="bg-[#12141c] border border-[#202432] rounded-[3px] p-3">
-          <span className="text-[10px] font-mono uppercase text-[#8a8f9d] tracking-wider block font-medium">
+        <div className="bg-[#15171A] border border-[#22252A] rounded-[4px] p-3">
+          <span className="text-[10px] font-mono uppercase text-[#8A909A] tracking-wider block font-medium">
             TOTAL PC
           </span>
-          <span className="text-xl font-bold font-mono text-white mt-1 block">
+          <span className="text-xl font-bold font-mono text-[#EDEDEE] mt-1 block">
             {totalPC}
           </span>
         </div>
 
-        <div className="bg-[#12141c] border border-[#3a1d23] rounded-[3px] p-3">
-          <span className="text-[10px] font-mono uppercase text-[#f87171] tracking-wider block font-medium">
+        <div className="bg-[#15171A] border border-[#22252A] rounded-[4px] p-3">
+          <span className="text-[10px] font-mono uppercase text-[#8A909A] tracking-wider block font-medium flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#B4232A]"></span>
             IN USE
           </span>
-          <span className="text-xl font-bold font-mono text-[#f87171] mt-1 block">
+          <span className="text-xl font-bold font-mono text-[#EDEDEE] mt-1 block">
             {inUseCount}
           </span>
         </div>
 
-        <div className="bg-[#12141c] border border-[#1d3528] rounded-[3px] p-3">
-          <span className="text-[10px] font-mono uppercase text-[#34d399] tracking-wider block font-medium">
+        <div className="bg-[#15171A] border border-[#22252A] rounded-[4px] p-3">
+          <span className="text-[10px] font-mono uppercase text-[#8A909A] tracking-wider block font-medium flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#3D7453]"></span>
             AVAILABLE
           </span>
-          <span className="text-xl font-bold font-mono text-[#34d399] mt-1 block">
+          <span className="text-xl font-bold font-mono text-[#EDEDEE] mt-1 block">
             {availableCount}
           </span>
         </div>
 
-        <div className="bg-[#12141c] border border-[#352a16] rounded-[3px] p-3">
-          <span className="text-[10px] font-mono uppercase text-[#fbbf24] tracking-wider block font-medium">
+        <div className="bg-[#15171A] border border-[#22252A] rounded-[4px] p-3">
+          <span className="text-[10px] font-mono uppercase text-[#8A909A] tracking-wider block font-medium flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#8A6F3C]"></span>
             MAINTENANCE
           </span>
-          <span className="text-xl font-bold font-mono text-[#fbbf24] mt-1 block">
+          <span className="text-xl font-bold font-mono text-[#EDEDEE] mt-1 block">
             {maintenanceCount}
           </span>
         </div>
       </div>
 
       {/* PC STATIONS Control & Filters */}
-      <div className="bg-[#0e1017] border border-[#1e222e] rounded-[3px] px-3 py-2 flex flex-wrap items-center justify-between gap-2 select-none">
+      <div className="bg-[#15171A] border border-[#22252A] rounded-[4px] px-3 py-2 flex flex-wrap items-center justify-between gap-2 select-none">
         <div className="flex items-center gap-1.5 text-xs">
-          <span className="text-xs font-bold font-mono text-zinc-200 uppercase tracking-wider mr-2">
+          <span className="text-xs font-bold font-mono text-[#EDEDEE] uppercase tracking-wider mr-2">
             PC STATIONS
           </span>
-          <span className="text-[#717684] font-mono text-[10px] uppercase mr-1">Zone:</span>
+          <span className="text-[#585C66] font-mono text-[10px] uppercase mr-1">Zone:</span>
           {["ALL", "REGULAR", "VIP", "ARENA"].map((zone) => (
             <button
               key={zone}
               onClick={() => setSelectedZone(zone)}
-              className={`px-2 py-0.5 rounded-[2px] text-[11px] font-mono transition-colors duration-75 ${
+              className={`px-2 py-0.5 rounded-[3px] text-[11px] font-mono transition-colors duration-75 cursor-pointer ${
                 selectedZone === zone
-                  ? "bg-[#b91c1c] text-white font-medium"
-                  : "text-[#8a8f9d] hover:text-white hover:bg-[#161822]"
+                  ? "bg-[#B4232A] text-[#EDEDEE] font-medium"
+                  : "text-[#8A909A] hover:text-[#EDEDEE] hover:bg-[#111317]"
               }`}
             >
               {zone}
@@ -223,15 +226,15 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-1.5 text-xs">
-          <span className="text-[#717684] font-mono text-[10px] uppercase mr-1">Status:</span>
+          <span className="text-[#585C66] font-mono text-[10px] uppercase mr-1">Status:</span>
           {["ALL", "AVAILABLE", "IN_USE", "MAINTENANCE"].map((status) => (
             <button
               key={status}
               onClick={() => setSelectedStatus(status)}
-              className={`px-2 py-0.5 rounded-[2px] text-[11px] font-mono transition-colors duration-75 ${
+              className={`px-2 py-0.5 rounded-[3px] text-[11px] font-mono transition-colors duration-75 cursor-pointer ${
                 selectedStatus === status
-                  ? "bg-[#202432] text-white font-medium"
-                  : "text-[#717684] hover:text-zinc-200"
+                  ? "bg-[#22252A] text-[#EDEDEE] font-medium"
+                  : "text-[#8A909A] hover:text-[#EDEDEE]"
               }`}
             >
               {status === "IN_USE" ? "IN USE" : status}
@@ -239,7 +242,7 @@ export default function DashboardPage() {
           ))}
           <button
             onClick={() => fetchData()}
-            className="p-1 text-[#8a8f9d] hover:text-white ml-2 transition-colors"
+            className="p-1 text-[#8A909A] hover:text-[#EDEDEE] ml-2 transition-colors cursor-pointer"
             title="Refresh"
           >
             <RefreshCw className="w-3 h-3" />
@@ -249,11 +252,11 @@ export default function DashboardPage() {
 
       {/* Main PC Grid */}
       {isLoading ? (
-        <div className="h-44 flex items-center justify-center text-[#717684] text-xs font-mono">
+        <div className="h-44 flex items-center justify-center text-[#8A909A] text-xs font-mono">
           Loading stations...
         </div>
       ) : filteredPCs.length === 0 ? (
-        <div className="h-32 border border-[#1e222e] rounded-[3px] flex items-center justify-center text-[#717684] text-xs font-mono">
+        <div className="h-32 border border-[#22252A] rounded-[4px] flex items-center justify-center text-[#8A909A] text-xs font-mono">
           No stations found
         </div>
       ) : (

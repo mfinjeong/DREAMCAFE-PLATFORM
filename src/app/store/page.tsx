@@ -160,34 +160,36 @@ export default function StorePOSPage() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-wider font-mono">
+        <h2 className="text-xs font-bold text-[#EDEDEE] uppercase tracking-wider font-mono">
           Store & POS (Cash Only)
         </h2>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5">
         {/* Left: Product Catalog */}
-        <div className="lg:col-span-2 space-y-3">
+        <div className="lg:col-span-2 space-y-2.5">
           {/* Filter Bar */}
-          <div className="bg-[#0e1017] border border-[#1a1d27] rounded px-3 py-2 flex flex-col sm:flex-row gap-2 items-center justify-between">
+          <div className="bg-[#15171A] border border-[#22252A] rounded-[4px] px-3 py-2 flex flex-col sm:flex-row gap-2 items-center justify-between">
             <div className="relative w-full sm:w-64">
-              <Search className="w-3 h-3 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-3 h-3 text-[#585C66] absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Search product / barcode..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[#12141c] border border-[#202431] rounded pl-7 pr-2.5 py-1 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-red-600"
+                className="w-full bg-[#111317] border border-[#22252A] rounded-[4px] pl-7 pr-2.5 py-1 text-xs text-[#EDEDEE] placeholder-[#585C66] focus:outline-none focus:border-[#B4232A]"
               />
             </div>
 
             <div className="flex flex-wrap items-center gap-1">
               <button
                 onClick={() => setSelectedCategory("ALL")}
-                className={`px-2 py-0.5 rounded text-[11px] font-mono transition-colors ${
-                  selectedCategory === "ALL" ? "bg-red-600 text-white font-medium" : "text-zinc-400 hover:text-zinc-200"
+                className={`px-2 py-0.5 rounded-[3px] text-[11px] font-mono transition-colors cursor-pointer ${
+                  selectedCategory === "ALL"
+                    ? "bg-[#B4232A] text-[#EDEDEE] font-medium"
+                    : "text-[#8A909A] hover:text-[#EDEDEE]"
                 }`}
               >
                 ALL
@@ -196,8 +198,10 @@ export default function StorePOSPage() {
                 <button
                   key={c.id}
                   onClick={() => setSelectedCategory(c.id)}
-                  className={`px-2 py-0.5 rounded text-[11px] font-mono transition-colors ${
-                    selectedCategory === c.id ? "bg-red-600 text-white font-medium" : "text-zinc-400 hover:text-zinc-200"
+                  className={`px-2 py-0.5 rounded-[3px] text-[11px] font-mono transition-colors cursor-pointer ${
+                    selectedCategory === c.id
+                      ? "bg-[#B4232A] text-[#EDEDEE] font-medium"
+                      : "text-[#8A909A] hover:text-[#EDEDEE]"
                   }`}
                 >
                   {c.name}
@@ -216,30 +220,30 @@ export default function StorePOSPage() {
                 <div
                   key={p.id}
                   onClick={() => !isOut && addToCart(p)}
-                  className={`p-2.5 rounded border bg-[#10121a] flex flex-col justify-between transition-colors select-none ${
+                  className={`p-2.5 rounded-[4px] border bg-[#15171A] flex flex-col justify-between transition-colors select-none ${
                     isOut
-                      ? "opacity-40 border-[#1a1c24] cursor-not-allowed"
-                      : "border-[#1e222e] hover:border-[#2a2f3f] cursor-pointer"
+                      ? "opacity-40 border-[#1C1F24] cursor-not-allowed"
+                      : "border-[#22252A] hover:border-[#31363F] cursor-pointer"
                   }`}
                 >
                   <div>
-                    <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500 mb-1">
+                    <div className="flex items-center justify-between text-[10px] font-mono text-[#8A909A] mb-1">
                       <span className="truncate">{p.categoryName}</span>
-                      <span className={isOut ? "text-red-400" : isLow ? "text-amber-400" : "text-zinc-400"}>
+                      <span className={isOut ? "text-[#D15E65]" : isLow ? "text-[#BFA779]" : "text-[#8A909A]"}>
                         {isOut ? "0" : p.stock}
                       </span>
                     </div>
-                    <div className="text-xs font-medium text-zinc-200 line-clamp-1">
+                    <div className="text-xs font-medium text-[#EDEDEE] line-clamp-1">
                       {p.name}
                     </div>
                   </div>
 
-                  <div className="mt-2 pt-1.5 border-t border-[#181a24] flex items-center justify-between text-xs font-mono">
-                    <span className="font-bold text-white">{formatRupiah(p.price)}</span>
+                  <div className="mt-2 pt-1.5 border-t border-[#1E2126] flex items-center justify-between text-xs font-mono">
+                    <span className="font-bold text-[#EDEDEE]">{formatRupiah(p.price)}</span>
                     <button
                       type="button"
                       disabled={isOut}
-                      className="p-1 rounded bg-[#161822] hover:bg-red-600 text-zinc-300 hover:text-white"
+                      className="p-1 rounded-[3px] bg-[#111317] hover:bg-[#B4232A] text-[#8A909A] hover:text-[#EDEDEE] border border-[#22252A] transition-colors cursor-pointer"
                     >
                       <Plus className="w-3 h-3" />
                     </button>
@@ -251,16 +255,16 @@ export default function StorePOSPage() {
         </div>
 
         {/* Right: POS Cart */}
-        <div className="bg-[#10121a] border border-[#1e222e] rounded p-3 h-fit flex flex-col justify-between">
+        <div className="bg-[#15171A] border border-[#22252A] rounded-[4px] p-3 h-fit flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between pb-2 border-b border-[#1b1e28]">
-              <span className="text-xs font-bold text-zinc-100 uppercase tracking-wider font-mono">
+            <div className="flex items-center justify-between pb-2 border-b border-[#1E2126]">
+              <span className="text-xs font-bold text-[#EDEDEE] uppercase tracking-wider font-mono">
                 Cart ({cart.reduce((a, b) => a + b.quantity, 0)})
               </span>
               {cart.length > 0 && (
                 <button
                   onClick={clearCart}
-                  className="text-[11px] text-zinc-500 hover:text-red-400"
+                  className="text-[11px] text-[#8A909A] hover:text-[#D15E65] cursor-pointer font-mono"
                 >
                   Clear
                 </button>
@@ -268,25 +272,25 @@ export default function StorePOSPage() {
             </div>
 
             {errorMsg && (
-              <div className="my-2 p-1.5 bg-[#251014] border border-red-900/60 rounded text-[11px] text-red-400 font-mono">
+              <div className="my-2 p-1.5 bg-[#1E1214] border border-[#3B1C20] rounded-[4px] text-[11px] text-[#D15E65] font-mono">
                 {errorMsg}
               </div>
             )}
 
             <div className="py-2 space-y-1.5 max-h-48 overflow-y-auto">
               {cart.length === 0 ? (
-                <div className="text-center py-6 text-[11px] text-zinc-600">
+                <div className="text-center py-6 text-[11px] text-[#585C66] font-mono">
                   Cart is empty
                 </div>
               ) : (
                 cart.map((item) => (
                   <div
                     key={item.product.id}
-                    className="p-1.5 bg-[#0a0b10] border border-[#181a24] rounded flex items-center justify-between text-xs"
+                    className="p-1.5 bg-[#111317] border border-[#22252A] rounded-[4px] flex items-center justify-between text-xs"
                   >
                     <div className="truncate min-w-0 flex-1">
-                      <div className="text-zinc-200 truncate">{item.product.name}</div>
-                      <div className="text-[10px] font-mono text-zinc-500">
+                      <div className="text-[#EDEDEE] truncate">{item.product.name}</div>
+                      <div className="text-[10px] font-mono text-[#8A909A]">
                         {formatRupiah(item.product.price)}
                       </div>
                     </div>
@@ -294,22 +298,22 @@ export default function StorePOSPage() {
                     <div className="flex items-center gap-1 shrink-0 ml-2">
                       <button
                         onClick={() => updateQuantity(item.product.id, -1)}
-                        className="p-1 rounded bg-[#161822] text-zinc-400 hover:text-white"
+                        className="p-1 rounded-[3px] bg-[#15171A] text-[#8A909A] hover:text-[#EDEDEE] border border-[#22252A] cursor-pointer"
                       >
                         <Minus className="w-2.5 h-2.5" />
                       </button>
-                      <span className="text-[11px] font-mono font-bold w-4 text-center">
+                      <span className="text-[11px] font-mono font-bold w-4 text-center text-[#EDEDEE]">
                         {item.quantity}
                       </span>
                       <button
                         onClick={() => updateQuantity(item.product.id, 1)}
-                        className="p-1 rounded bg-[#161822] text-zinc-400 hover:text-white"
+                        className="p-1 rounded-[3px] bg-[#15171A] text-[#8A909A] hover:text-[#EDEDEE] border border-[#22252A] cursor-pointer"
                       >
                         <Plus className="w-2.5 h-2.5" />
                       </button>
                       <button
                         onClick={() => removeFromCart(item.product.id)}
-                        className="p-1 text-zinc-600 hover:text-red-400 ml-0.5"
+                        className="p-1 text-[#585C66] hover:text-[#D15E65] ml-0.5 cursor-pointer"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -320,11 +324,11 @@ export default function StorePOSPage() {
             </div>
 
             {/* Member selector */}
-            <div className="pt-2 border-t border-[#1b1e28]">
+            <div className="pt-2 border-t border-[#1E2126]">
               <select
                 value={selectedMemberId}
                 onChange={(e) => setSelectedMemberId(e.target.value)}
-                className="w-full bg-[#12141c] border border-[#202431] rounded px-2 py-1 text-xs text-zinc-300 focus:outline-none"
+                className="w-full bg-[#111317] border border-[#22252A] rounded-[4px] px-2 py-1 text-xs text-[#EDEDEE] focus:outline-none font-mono"
               >
                 <option value="">Guest (Non-Member)</option>
                 {members.map((m) => (
@@ -337,17 +341,17 @@ export default function StorePOSPage() {
           </div>
 
           {/* Checkout Section */}
-          <form onSubmit={handleCheckout} className="pt-2.5 border-t border-[#1b1e28] mt-2 space-y-2">
+          <form onSubmit={handleCheckout} className="pt-2.5 border-t border-[#1E2126] mt-2 space-y-2">
             <div className="flex items-baseline justify-between font-mono">
-              <span className="text-xs text-zinc-400">Total:</span>
-              <span className="text-base font-bold text-white">
+              <span className="text-xs text-[#8A909A]">Total:</span>
+              <span className="text-base font-bold text-[#EDEDEE]">
                 {formatRupiah(cartSubtotal)}
               </span>
             </div>
 
             <div>
               <div className="relative">
-                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono text-zinc-500">
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono text-[#585C66]">
                   Rp
                 </span>
                 <input
@@ -357,7 +361,7 @@ export default function StorePOSPage() {
                   placeholder="Cash Received"
                   value={cashReceived}
                   onChange={(e) => setCashReceived(e.target.value)}
-                  className="w-full bg-[#12141c] border border-[#212635] rounded pl-8 pr-2.5 py-1 text-xs font-mono font-bold text-white focus:outline-none focus:border-red-600"
+                  className="w-full bg-[#111317] border border-[#22252A] rounded-[4px] pl-8 pr-2.5 py-1 text-xs font-mono font-bold text-[#EDEDEE] focus:outline-none focus:border-[#B4232A]"
                   required
                 />
               </div>
@@ -372,7 +376,7 @@ export default function StorePOSPage() {
                     key={i}
                     type="button"
                     onClick={() => setCashReceived(q.val.toString())}
-                    className="py-0.5 bg-[#151722] hover:bg-[#1f2330] border border-[#222634] text-[10px] text-zinc-400 rounded text-center"
+                    className="py-0.5 bg-[#111317] hover:bg-[#1A1D22] border border-[#22252A] text-[10px] text-[#8A909A] hover:text-[#EDEDEE] rounded-[4px] text-center cursor-pointer"
                   >
                     {q.label}
                   </button>
@@ -381,12 +385,12 @@ export default function StorePOSPage() {
             </div>
 
             <div
-              className={`p-2 rounded border flex items-center justify-between font-mono text-xs ${
+              className={`p-2 rounded-[4px] border flex items-center justify-between font-mono text-xs ${
                 cashNum === 0
-                  ? "bg-[#0a0b10] border-[#1b1e28] text-zinc-500"
+                  ? "bg-[#111317] border-[#22252A] text-[#8A909A]"
                   : isInsufficient
-                  ? "bg-[#251014] border-red-900/60 text-red-400"
-                  : "bg-[#0d1f17] border-emerald-900/60 text-emerald-400 font-bold"
+                  ? "bg-[#1E1214] border-[#3B1C20] text-[#D15E65]"
+                  : "bg-[#141715] border-[#232B25] text-[#9CB1A3] font-bold"
               }`}
             >
               <span>Change:</span>
@@ -417,39 +421,39 @@ export default function StorePOSPage() {
       >
         {completedTrx && (
           <div className="space-y-3 font-mono text-xs">
-            <div className="p-2.5 bg-[#0a0b10] rounded border border-[#1b1e28] space-y-1.5">
-              <div className="flex justify-between text-zinc-400">
+            <div className="p-2.5 bg-[#111317] rounded-[4px] border border-[#22252A] space-y-1.5">
+              <div className="flex justify-between text-[#8A909A]">
                 <span>Date:</span>
-                <span className="text-zinc-200">{formatDateTime(completedTrx.createdAt)}</span>
+                <span className="text-[#EDEDEE]">{formatDateTime(completedTrx.createdAt)}</span>
               </div>
-              <div className="flex justify-between text-zinc-400">
+              <div className="flex justify-between text-[#8A909A]">
                 <span>User:</span>
-                <span className="text-zinc-200">{completedTrx.memberName}</span>
+                <span className="text-[#EDEDEE]">{completedTrx.memberName}</span>
               </div>
-              <div className="flex justify-between text-zinc-400">
+              <div className="flex justify-between text-[#8A909A]">
                 <span>Method:</span>
-                <span className="text-zinc-200">CASH ONLY</span>
+                <span className="text-[#EDEDEE]">CASH ONLY</span>
               </div>
 
-              <div className="pt-2 border-t border-[#181a24] space-y-1">
+              <div className="pt-2 border-t border-[#1E2126] space-y-1">
                 {completedTrx.items.map((it) => (
-                  <div key={it.id} className="flex justify-between text-zinc-300">
+                  <div key={it.id} className="flex justify-between text-[#8A909A]">
                     <span>{it.quantity}x {it.description}</span>
-                    <span>{formatRupiah(it.subtotal)}</span>
+                    <span className="text-[#EDEDEE]">{formatRupiah(it.subtotal)}</span>
                   </div>
                 ))}
               </div>
 
-              <div className="pt-2 border-t border-[#181a24] space-y-1">
-                <div className="flex justify-between font-bold text-white">
+              <div className="pt-2 border-t border-[#1E2126] space-y-1">
+                <div className="flex justify-between font-bold text-[#EDEDEE]">
                   <span>Total:</span>
                   <span>{formatRupiah(completedTrx.totalAmount)}</span>
                 </div>
-                <div className="flex justify-between text-zinc-400">
+                <div className="flex justify-between text-[#8A909A]">
                   <span>Cash:</span>
-                  <span>{formatRupiah(completedTrx.cashReceived)}</span>
+                  <span className="text-[#EDEDEE]">{formatRupiah(completedTrx.cashReceived)}</span>
                 </div>
-                <div className="flex justify-between text-emerald-400 font-bold">
+                <div className="flex justify-between text-[#9CB1A3] font-bold">
                   <span>Change:</span>
                   <span>{formatRupiah(completedTrx.cashChange)}</span>
                 </div>

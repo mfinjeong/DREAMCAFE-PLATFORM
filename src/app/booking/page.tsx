@@ -110,9 +110,9 @@ export default function BookingPage() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-wider font-mono">
+        <h2 className="text-xs font-bold text-[#EDEDEE] uppercase tracking-wider font-mono">
           Reservations
         </h2>
         <Button variant="primary" size="sm" onClick={() => setCreateModalOpen(true)}>
@@ -121,18 +121,18 @@ export default function BookingPage() {
         </Button>
       </div>
 
-      <div className="bg-[#0e1017] border border-[#1a1d27] rounded px-3 py-1.5 flex items-center justify-between">
+      <div className="bg-[#15171A] border border-[#22252A] rounded-[4px] px-3 py-1.5 flex items-center justify-between">
         <div className="relative w-full sm:w-64">
-          <Search className="w-3 h-3 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-3 h-3 text-[#585C66] absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Search code, station, user..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#12141c] border border-[#202431] rounded pl-7 pr-2.5 py-1 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-red-600"
+            className="w-full bg-[#111317] border border-[#22252A] rounded-[4px] pl-7 pr-2.5 py-1 text-xs text-[#EDEDEE] placeholder-[#585C66] focus:outline-none focus:border-[#B4232A]"
           />
         </div>
-        <div className="text-[11px] font-mono text-zinc-500">
+        <div className="text-[11px] font-mono text-[#8A909A]">
           Total: {bookings.length}
         </div>
       </div>
@@ -153,25 +153,25 @@ export default function BookingPage() {
         <tbody>
           {filteredBookings.map((b) => (
             <TableRow key={b.id}>
-              <TableCell className="font-mono text-xs font-semibold text-red-400">
+              <TableCell className="font-mono text-xs font-semibold text-[#B4232A]">
                 {b.bookingCode}
               </TableCell>
-              <TableCell className="font-bold text-zinc-100 font-mono">
+              <TableCell className="font-bold text-[#EDEDEE] font-mono">
                 {b.pcStationNumber || b.consoleStationNumber}
               </TableCell>
-              <TableCell className="text-xs text-zinc-200">
+              <TableCell className="text-xs text-[#EDEDEE]">
                 {b.memberName}
               </TableCell>
-              <TableCell className="text-xs text-zinc-400 font-mono">
+              <TableCell className="text-xs text-[#8A909A] font-mono">
                 {b.bookingDate}
               </TableCell>
-              <TableCell className="text-xs font-mono font-medium text-white">
+              <TableCell className="text-xs font-mono font-medium text-[#EDEDEE]">
                 {b.startTime} - {b.endTime}
               </TableCell>
-              <TableCell className="text-xs text-zinc-400 font-mono">
+              <TableCell className="text-xs text-[#8A909A] font-mono">
                 {b.durationHours}h
               </TableCell>
-              <TableCell className="font-mono text-xs font-bold text-zinc-200">
+              <TableCell className="font-mono text-xs font-bold text-[#EDEDEE]">
                 {formatRupiah(b.totalPrice)}
               </TableCell>
               <TableCell>
@@ -191,7 +191,7 @@ export default function BookingPage() {
       >
         <form onSubmit={handleCreateBooking} className="space-y-3">
           {errorMsg && (
-            <div className="p-2 bg-[#251014] border border-red-900/60 rounded text-[11px] text-red-400 font-mono">
+            <div className="p-2 bg-[#1E1214] border border-[#3B1C20] rounded-[4px] text-[11px] text-[#D15E65] font-mono">
               {errorMsg}
             </div>
           )}
@@ -210,7 +210,7 @@ export default function BookingPage() {
             <Select
               label="Type"
               value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+              onChange={(e) => setFormData({ ...formData, type: e.target.value as "PC" | "CONSOLE" })}
               options={[
                 { label: "PC", value: "PC" },
                 { label: "Console", value: "CONSOLE" },
@@ -267,7 +267,7 @@ export default function BookingPage() {
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
           />
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-[#1b1e28]">
+          <div className="flex justify-end gap-2 pt-2 border-t border-[#22252A]">
             <Button type="button" variant="outline" size="sm" onClick={() => setCreateModalOpen(false)}>
               Cancel
             </Button>

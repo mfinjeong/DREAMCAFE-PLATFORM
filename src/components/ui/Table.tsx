@@ -4,13 +4,13 @@ export const Table: React.FC<{ children: React.ReactNode; className?: string }> 
   children,
   className = "",
 }) => (
-  <div className="w-full overflow-x-auto rounded-[3px] border border-[#20232e] bg-[#111319]">
-    <table className={`w-full text-left text-xs text-zinc-300 ${className}`}>{children}</table>
+  <div className="w-full overflow-x-auto rounded-[4px] border border-[#22252A] bg-[#15171A]">
+    <table className={`w-full text-left text-xs text-[#EDEDEE] ${className}`}>{children}</table>
   </div>
 );
 
 export const TableHeader: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <thead className="bg-[#0e0f14] text-[10px] uppercase font-mono tracking-wider text-zinc-400 border-b border-[#20232e]">
+  <thead className="bg-[#111317] text-[10px] uppercase font-mono tracking-wider text-[#8A909A] border-b border-[#22252A]">
     {children}
   </thead>
 );
@@ -19,7 +19,7 @@ export const TableRow: React.FC<{ children: React.ReactNode; className?: string 
   children,
   className = "",
 }) => (
-  <tr className={`border-b border-[#181a22] hover:bg-[#161822] transition-colors duration-75 ${className}`}>
+  <tr className={`border-b border-[#1C1F24] hover:bg-[#1A1D22] transition-colors duration-75 ${className}`}>
     {children}
   </tr>
 );
@@ -27,9 +27,9 @@ export const TableRow: React.FC<{ children: React.ReactNode; className?: string 
 export const TableHead: React.FC<{ children: React.ReactNode; className?: string }> = ({
   children,
   className = "",
-}) => <th className={`px-3 py-2 font-medium text-zinc-300 ${className}`}>{children}</th>;
+}) => <th className={`px-3 py-2 font-medium text-[#EDEDEE] ${className}`}>{children}</th>;
 
 export const TableCell: React.FC<{ children: React.ReactNode; className?: string }> = ({
   children,
   className = "",
-}) => <td className={`px-3 py-2 text-zinc-300 ${className}`}>{children}</td>;
+}) => <td className={`px-3 py-2 text-[#EDEDEE] ${className}`}>{children}</td>;

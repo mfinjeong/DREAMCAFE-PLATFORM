@@ -22,17 +22,17 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-4 max-w-2xl">
+    <div className="space-y-3.5 max-w-2xl">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-wider font-mono">
+        <h2 className="text-xs font-bold text-[#EDEDEE] uppercase tracking-wider font-mono">
           System Settings
         </h2>
       </div>
 
-      <form onSubmit={handleSave} className="space-y-4">
+      <form onSubmit={handleSave} className="space-y-3">
         {/* Hourly Rates */}
-        <div className="p-3.5 bg-[#10121a] border border-[#1e222e] rounded space-y-3">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-semibold block">
+        <div className="p-3.5 bg-[#15171A] border border-[#22252A] rounded-[4px] space-y-3">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[#8A909A] font-semibold block">
             Hourly Rates (Rp/Hr)
           </span>
 
@@ -63,7 +63,7 @@ export default function SettingsPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-[#181a24]">
+          <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-[#1E2126]">
             <Input
               label="Console PS5"
               type="number"
@@ -84,21 +84,21 @@ export default function SettingsPage() {
         </div>
 
         {/* Policy Notice */}
-        <div className="p-3 bg-[#0a0b10] border border-[#1b1e28] rounded text-xs space-y-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold block">
+        <div className="p-3 bg-[#111317] border border-[#22252A] rounded-[4px] text-xs space-y-1">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[#8A909A] font-bold block">
             Payment Mode: CASH ONLY
           </span>
-          <p className="text-[11px] text-zinc-500">
+          <p className="text-[11px] text-[#585C66]">
             DREAMCAFE operates exclusively on physical cash transactions. Online gateways are disabled.
           </p>
         </div>
 
         <div className="flex items-center justify-end gap-2 pt-1">
           {saved && (
-            <span className="text-[11px] font-mono text-emerald-400">Settings Saved</span>
+            <span className="text-[11px] font-mono text-[#9CB1A3]">Settings Saved</span>
           )}
           <Button type="submit" variant="primary" size="sm">
-            Save Settings
+            Save Changes
           </Button>
         </div>
       </form>

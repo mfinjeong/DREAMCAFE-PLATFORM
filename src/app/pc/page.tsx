@@ -180,10 +180,10 @@ export default function PCManagementPage() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       {/* Top Action Bar */}
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-wider font-mono">
+        <h2 className="text-xs font-bold text-[#EDEDEE] uppercase tracking-wider font-mono">
           PC Stations
         </h2>
         <Button variant="primary" size="sm" onClick={handleOpenCreate}>
@@ -193,15 +193,15 @@ export default function PCManagementPage() {
       </div>
 
       {/* Filter Row */}
-      <div className="bg-[#0e1017] border border-[#1a1d27] rounded px-3 py-2 flex flex-col sm:flex-row gap-2.5 items-center justify-between">
+      <div className="bg-[#15171A] border border-[#22252A] rounded-[4px] px-3 py-2 flex flex-col sm:flex-row gap-2.5 items-center justify-between">
         <div className="relative w-full sm:w-64">
-          <Search className="w-3 h-3 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-3 h-3 text-[#585C66] absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Search station or specs..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#12141c] border border-[#202431] rounded pl-7 pr-2.5 py-1 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-red-600"
+            className="w-full bg-[#111317] border border-[#22252A] rounded-[4px] pl-7 pr-2.5 py-1 text-xs text-[#EDEDEE] placeholder-[#585C66] focus:outline-none focus:border-[#B4232A]"
           />
         </div>
 
@@ -209,7 +209,7 @@ export default function PCManagementPage() {
           <select
             value={zoneFilter}
             onChange={(e) => setZoneFilter(e.target.value)}
-            className="bg-[#12141c] border border-[#202431] rounded px-2 py-1 text-xs text-zinc-300 focus:outline-none"
+            className="bg-[#111317] border border-[#22252A] rounded-[4px] px-2 py-1 text-xs text-[#EDEDEE] focus:outline-none"
           >
             <option value="ALL">All Zones</option>
             <option value="REGULAR">REGULAR</option>
@@ -220,7 +220,7 @@ export default function PCManagementPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-[#12141c] border border-[#202431] rounded px-2 py-1 text-xs text-zinc-300 focus:outline-none"
+            className="bg-[#111317] border border-[#22252A] rounded-[4px] px-2 py-1 text-xs text-[#EDEDEE] focus:outline-none"
           >
             <option value="ALL">All Status</option>
             <option value="AVAILABLE">AVAILABLE</option>
@@ -247,28 +247,28 @@ export default function PCManagementPage() {
         <tbody>
           {filteredPCs.map((pc) => (
             <TableRow key={pc.id}>
-              <TableCell className="font-bold text-zinc-100 font-mono">
+              <TableCell className="font-bold text-[#EDEDEE] font-mono">
                 {pc.stationNumber}
               </TableCell>
-              <TableCell className="font-mono text-[11px] text-zinc-400">
+              <TableCell className="font-mono text-[11px] text-[#8A909A]">
                 {pc.zone}
               </TableCell>
-              <TableCell className="font-mono text-zinc-200">
+              <TableCell className="font-mono text-[#EDEDEE]">
                 {formatRupiah(pc.hourlyRate)}
               </TableCell>
               <TableCell>
                 <StatusBadge status={pc.status} />
               </TableCell>
-              <TableCell className="text-[11px] text-zinc-400 font-mono">
+              <TableCell className="text-[11px] text-[#8A909A] font-mono">
                 {pc.specsGpu} • {pc.specsCpu}
               </TableCell>
               <TableCell className="text-xs">
                 {pc.status === "IN_USE" ? (
-                  <span className="text-red-400 font-medium">
+                  <span className="text-[#D15E65] font-medium font-mono">
                     {pc.activeSession?.memberName || "Guest"} ({pc.currentGame || "Game"})
                   </span>
                 ) : (
-                  <span className="text-zinc-600">-</span>
+                  <span className="text-[#585C66] font-mono">-</span>
                 )}
               </TableCell>
               <TableCell className="text-right">
@@ -278,21 +278,21 @@ export default function PCManagementPage() {
                       setSelectedPC(pc);
                       setDetailModalOpen(true);
                     }}
-                    className="p-1 text-zinc-400 hover:text-zinc-100 bg-[#161821] rounded border border-[#232734]"
+                    className="p-1 text-[#8A909A] hover:text-[#EDEDEE] bg-[#111317] rounded-[4px] border border-[#22252A] cursor-pointer"
                     title="Detail"
                   >
                     <Eye className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => handleOpenEdit(pc)}
-                    className="p-1 text-zinc-400 hover:text-zinc-100 bg-[#161821] rounded border border-[#232734]"
+                    className="p-1 text-[#8A909A] hover:text-[#EDEDEE] bg-[#111317] rounded-[4px] border border-[#22252A] cursor-pointer"
                     title="Edit"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => handleDeletePC(pc.id, pc.stationNumber)}
-                    className="p-1 text-red-400 hover:text-red-300 bg-[#251014] rounded border border-red-900/60"
+                    className="p-1 text-[#D15E65] hover:text-[#EDEDEE] bg-[#1E1214] rounded-[4px] border border-[#3B1C20] cursor-pointer disabled:opacity-30"
                     title="Delete"
                     disabled={pc.status === "IN_USE"}
                   >
@@ -314,7 +314,7 @@ export default function PCManagementPage() {
       >
         <form onSubmit={handleSavePC} className="space-y-3">
           {actionError && (
-            <div className="p-2 bg-[#251014] border border-red-900/60 rounded text-[11px] text-red-400 font-mono">
+            <div className="p-2 bg-[#1E1214] border border-[#3B1C20] rounded-[4px] text-[11px] text-[#D15E65] font-mono">
               {actionError}
             </div>
           )}
@@ -397,7 +397,7 @@ export default function PCManagementPage() {
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-[#1b1e28]">
+          <div className="flex justify-end gap-2 pt-2 border-t border-[#22252A]">
             <Button type="button" variant="outline" size="sm" onClick={() => setEditModalOpen(false)}>
               Cancel
             </Button>

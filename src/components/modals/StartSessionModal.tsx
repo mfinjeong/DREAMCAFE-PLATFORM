@@ -97,18 +97,20 @@ export const StartSessionModal: React.FC<StartSessionModalProps> = ({
     >
       <form onSubmit={handleSubmit} className="space-y-3">
         {errorMessage && (
-          <div className="p-2 bg-[#261014] border border-red-900/80 rounded text-[11px] text-red-400 font-mono">
+          <div className="p-2 bg-[#1E1214] border border-[#3B1C20] rounded-[4px] text-[11px] text-[#D15E65] font-mono">
             {errorMessage}
           </div>
         )}
 
         {/* Member or Guest Toggle */}
-        <div className="grid grid-cols-2 gap-1.5 p-0.5 bg-[#14161f] border border-[#212532] rounded">
+        <div className="grid grid-cols-2 gap-1 p-0.5 bg-[#111317] border border-[#22252A] rounded-[4px]">
           <button
             type="button"
             onClick={() => setMemberType("member")}
-            className={`py-1 text-xs font-medium rounded transition-colors ${
-              memberType === "member" ? "bg-[#202534] text-white" : "text-zinc-400 hover:text-zinc-200"
+            className={`py-1 text-xs font-medium rounded-[3px] transition-colors cursor-pointer ${
+              memberType === "member"
+                ? "bg-[#22252A] text-[#EDEDEE]"
+                : "text-[#8A909A] hover:text-[#EDEDEE]"
             }`}
           >
             Member
@@ -116,8 +118,10 @@ export const StartSessionModal: React.FC<StartSessionModalProps> = ({
           <button
             type="button"
             onClick={() => setMemberType("guest")}
-            className={`py-1 text-xs font-medium rounded transition-colors ${
-              memberType === "guest" ? "bg-[#202534] text-white" : "text-zinc-400 hover:text-zinc-200"
+            className={`py-1 text-xs font-medium rounded-[3px] transition-colors cursor-pointer ${
+              memberType === "guest"
+                ? "bg-[#22252A] text-[#EDEDEE]"
+                : "text-[#8A909A] hover:text-[#EDEDEE]"
             }`}
           >
             Guest
@@ -145,7 +149,7 @@ export const StartSessionModal: React.FC<StartSessionModalProps> = ({
         )}
 
         <div>
-          <label className="block text-[10px] font-mono uppercase tracking-wider text-zinc-400 mb-1">
+          <label className="block text-[10px] font-mono uppercase tracking-wider text-[#8A909A] mb-1 font-medium">
             Duration
           </label>
           <div className="grid grid-cols-5 gap-1.5">
@@ -154,10 +158,10 @@ export const StartSessionModal: React.FC<StartSessionModalProps> = ({
                 key={opt.value}
                 type="button"
                 onClick={() => setDurationMinutes(opt.value)}
-                className={`py-1.5 px-1 rounded text-xs font-mono transition-colors text-center border ${
+                className={`py-1.5 px-1 rounded-[4px] text-xs font-mono transition-colors text-center border cursor-pointer ${
                   durationMinutes === opt.value
-                    ? "bg-[#202534] border-red-600 text-white font-bold"
-                    : "bg-[#12141c] border-[#202431] text-zinc-400 hover:text-zinc-200"
+                    ? "bg-[#1E1214] border-[#B4232A] text-[#EDEDEE] font-bold"
+                    : "bg-[#111317] border-[#22252A] text-[#8A909A] hover:text-[#EDEDEE]"
                 }`}
               >
                 {opt.label}
@@ -173,13 +177,13 @@ export const StartSessionModal: React.FC<StartSessionModalProps> = ({
         />
 
         {/* Total Price Summary */}
-        <div className="p-2.5 bg-[#0a0b10] border border-[#1b1e28] rounded flex items-center justify-between font-mono">
-          <span className="text-zinc-400 text-xs">Total:</span>
-          <span className="text-sm font-bold text-white">{formatRupiah(totalPrice)}</span>
+        <div className="p-2.5 bg-[#111317] border border-[#22252A] rounded-[4px] flex items-center justify-between font-mono">
+          <span className="text-[#8A909A] text-xs">Total:</span>
+          <span className="text-sm font-bold text-[#EDEDEE]">{formatRupiah(totalPrice)}</span>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#1b1e28]">
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#22252A]">
           <Button type="button" variant="outline" size="sm" onClick={onClose}>
             Cancel
           </Button>

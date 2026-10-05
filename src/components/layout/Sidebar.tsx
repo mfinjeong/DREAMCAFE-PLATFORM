@@ -38,11 +38,11 @@ export const Sidebar: React.FC = () => {
   const pathname = usePathname();
 
   return (
-    <aside className="w-52 bg-[#0e1015] border-r border-[#1e212b] flex flex-col shrink-0 h-screen sticky top-0 select-none">
+    <aside className="w-52 bg-[#111317] border-r border-[#22252A] flex flex-col shrink-0 h-screen sticky top-0 select-none">
       {/* Brand Header */}
-      <div className="h-12 flex items-center px-4 border-b border-[#1e212b]">
-        <span className="text-xs font-bold tracking-widest text-zinc-100 uppercase font-mono">
-          DREAM<span className="text-[#b91c1c]">CAFE</span>
+      <div className="h-12 flex items-center px-4 border-b border-[#22252A]">
+        <span className="text-xs font-bold tracking-widest text-[#EDEDEE] uppercase font-mono">
+          DREAM<span className="text-[#B4232A]">CAFE</span>
         </span>
       </div>
 
@@ -57,15 +57,15 @@ export const Sidebar: React.FC = () => {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-[2px] text-xs transition-colors duration-75 ${
+              className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-[4px] text-xs transition-colors duration-75 ${
                 isActive
-                  ? "bg-[#1d1316] text-white font-medium border-l-2 border-[#b91c1c]"
-                  : "text-[#8a8f9d] hover:text-zinc-200 hover:bg-[#151720]"
+                  ? "bg-[#1E1214] text-[#EDEDEE] font-medium border-l-2 border-[#B4232A]"
+                  : "text-[#8A909A] hover:text-[#EDEDEE] hover:bg-[#15171A]"
               }`}
             >
               <Icon
                 className={`w-3.5 h-3.5 shrink-0 ${
-                  isActive ? "text-[#f87171]" : "text-[#717684]"
+                  isActive ? "text-[#B4232A]" : "text-[#585C66]"
                 }`}
               />
               <span>{item.label}</span>
@@ -75,18 +75,18 @@ export const Sidebar: React.FC = () => {
       </nav>
 
       {/* Settings at the bottom */}
-      <div className="p-2 border-t border-[#1e212b]">
+      <div className="p-2 border-t border-[#22252A]">
         <Link
           href="/settings"
-          className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-[2px] text-xs transition-colors duration-75 ${
+          className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-[4px] text-xs transition-colors duration-75 ${
             pathname === "/settings"
-              ? "bg-[#1d1316] text-white font-medium border-l-2 border-[#b91c1c]"
-              : "text-[#8a8f9d] hover:text-zinc-200 hover:bg-[#151720]"
+              ? "bg-[#1E1214] text-[#EDEDEE] font-medium border-l-2 border-[#B4232A]"
+              : "text-[#8A909A] hover:text-[#EDEDEE] hover:bg-[#15171A]"
           }`}
         >
           <Settings
             className={`w-3.5 h-3.5 shrink-0 ${
-              pathname === "/settings" ? "text-[#f87171]" : "text-[#717684]"
+              pathname === "/settings" ? "text-[#B4232A]" : "text-[#585C66]"
             }`}
           />
           <span>Settings</span>

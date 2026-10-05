@@ -18,38 +18,38 @@ export default function ReportsPage() {
     .reduce((acc, t) => acc + t.totalAmount, 0);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-wider font-mono">
+        <h2 className="text-xs font-bold text-[#EDEDEE] uppercase tracking-wider font-mono">
           Financial Reports (Cash Only)
         </h2>
       </div>
 
-      {/* Metric Cards */}
+      {/* Metric Cards: Uniform neutral surfaces */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-        <div className="p-3 bg-[#10121a] border border-[#1e222e] rounded">
-          <span className="text-[10px] font-mono uppercase text-zinc-400 font-semibold block tracking-wider">
+        <div className="p-3 bg-[#15171A] border border-[#22252A] rounded-[4px]">
+          <span className="text-[10px] font-mono uppercase text-[#8A909A] font-semibold block tracking-wider">
             Total Revenue (Cash)
           </span>
-          <span className="text-xl font-bold font-mono text-white mt-1 block">
+          <span className="text-xl font-bold font-mono text-[#EDEDEE] mt-1 block">
             {formatRupiah(totalRevenue)}
           </span>
         </div>
 
-        <div className="p-3 bg-[#10121a] border border-[#1e222e] rounded">
-          <span className="text-[10px] font-mono uppercase text-zinc-400 font-semibold block tracking-wider">
+        <div className="p-3 bg-[#15171A] border border-[#22252A] rounded-[4px]">
+          <span className="text-[10px] font-mono uppercase text-[#8A909A] font-semibold block tracking-wider">
             Station Sessions
           </span>
-          <span className="text-xl font-bold font-mono text-white mt-1 block">
+          <span className="text-xl font-bold font-mono text-[#EDEDEE] mt-1 block">
             {formatRupiah(sessionRevenue)}
           </span>
         </div>
 
-        <div className="p-3 bg-[#10121a] border border-[#1e222e] rounded">
-          <span className="text-[10px] font-mono uppercase text-zinc-400 font-semibold block tracking-wider">
+        <div className="p-3 bg-[#15171A] border border-[#22252A] rounded-[4px]">
+          <span className="text-[10px] font-mono uppercase text-[#8A909A] font-semibold block tracking-wider">
             Store & POS
           </span>
-          <span className="text-xl font-bold font-mono text-white mt-1 block">
+          <span className="text-xl font-bold font-mono text-[#EDEDEE] mt-1 block">
             {formatRupiah(storeRevenue)}
           </span>
         </div>
@@ -57,7 +57,7 @@ export default function ReportsPage() {
 
       {/* Transaction History */}
       <div className="space-y-2">
-        <span className="text-xs font-mono uppercase tracking-wider text-zinc-400 block font-semibold">
+        <span className="text-xs font-mono uppercase tracking-wider text-[#8A909A] block font-semibold">
           Transaction Records
         </span>
         <Table>
@@ -76,28 +76,28 @@ export default function ReportsPage() {
           <tbody>
             {transactions.map((trx) => (
               <TableRow key={trx.id}>
-                <TableCell className="font-mono text-xs font-semibold text-white">
+                <TableCell className="font-mono text-xs font-semibold text-[#EDEDEE]">
                   {trx.invoiceNumber}
                 </TableCell>
-                <TableCell className="text-[11px] font-mono text-zinc-400">
+                <TableCell className="text-[11px] font-mono text-[#8A909A]">
                   {formatDateTime(trx.createdAt)}
                 </TableCell>
-                <TableCell className="text-xs text-zinc-200">
+                <TableCell className="text-xs text-[#EDEDEE]">
                   {trx.memberName || "Guest"}
                 </TableCell>
-                <TableCell className="font-mono text-[10px] text-zinc-400">
+                <TableCell className="font-mono text-[10px] text-[#8A909A]">
                   {trx.type}
                 </TableCell>
-                <TableCell className="font-mono text-xs font-bold text-white">
+                <TableCell className="font-mono text-xs font-bold text-[#EDEDEE]">
                   {formatRupiah(trx.totalAmount)}
                 </TableCell>
-                <TableCell className="font-mono text-xs text-zinc-400">
+                <TableCell className="font-mono text-xs text-[#8A909A]">
                   {formatRupiah(trx.cashReceived)}
                 </TableCell>
-                <TableCell className="font-mono text-xs text-emerald-400">
+                <TableCell className="font-mono text-xs text-[#9CB1A3] font-medium">
                   {formatRupiah(trx.cashChange)}
                 </TableCell>
-                <TableCell className="text-xs text-zinc-500">{trx.cashierName}</TableCell>
+                <TableCell className="text-xs text-[#585C66]">{trx.cashierName}</TableCell>
               </TableRow>
             ))}
           </tbody>
