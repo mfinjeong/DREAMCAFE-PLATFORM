@@ -1,0 +1,11 @@
+{
+  "/api/pc/route": "app/api/pc/route.js",
+  "/api/members/route": "app/api/members/route.js",
+  "/api/consoles/route": "app/api/consoles/route.js",
+  "/api/bookings/route": "app/api/bookings/route.js",
+  "/api/products/route": "app/api/products/route.js",
+  "/page": "app/page.js",
+  "/pc/page": "app/pc/page.js",
+  "/store/page": "app/store/page.js",
+  "/booking/page": "app/booking/page.js"
+}
