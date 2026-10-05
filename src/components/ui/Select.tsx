@@ -23,18 +23,18 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         <select
           ref={ref}
           id={selectId}
-          className={`w-full bg-[#12141d] border ${
-            error ? "border-red-600" : "border-[#212635] focus:border-red-600"
-          } rounded px-2.5 py-1.5 text-xs text-zinc-100 transition-colors focus:outline-none disabled:opacity-50 ${className}`}
+          className={`w-full bg-[#0e1017] border ${
+            error ? "border-red-600" : "border-[#242838] focus:border-[#b91c1c]"
+          } rounded-[2px] px-2.5 py-1.5 text-xs text-zinc-100 transition-colors focus:outline-none disabled:opacity-50 disabled:bg-[#12141c] ${className}`}
           {...props}
         >
           {options.map((opt) => (
-            <option key={opt.value} value={opt.value} className="bg-[#12141d] text-zinc-100">
+            <option key={opt.value} value={opt.value} className="bg-[#12141c] text-zinc-100">
               {opt.label}
             </option>
           ))}
         </select>
-        {error && <p className="mt-1 text-[11px] text-red-400 font-mono">{error}</p>}
+        {error && <p className="mt-1 text-[10px] text-red-400 font-mono">{error}</p>}
       </div>
     );
   }

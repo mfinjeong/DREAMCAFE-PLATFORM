@@ -161,57 +161,60 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4">
-      {/* 4 Statistics: TOTAL PC, IN USE, AVAILABLE, MAINTENANCE */}
+      {/* Top Statistics: Compact, Structured */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        <div className="bg-[#10121a] border border-[#1e222e] rounded p-3">
-          <span className="text-[10px] font-mono uppercase text-zinc-400 block tracking-wider font-semibold">
+        <div className="bg-[#12141c] border border-[#202432] rounded-[3px] p-3">
+          <span className="text-[10px] font-mono uppercase text-[#8a8f9d] tracking-wider block font-medium">
             TOTAL PC
           </span>
-          <span className="text-xl font-bold font-mono text-zinc-100 mt-1 block">
+          <span className="text-xl font-bold font-mono text-white mt-1 block">
             {totalPC}
           </span>
         </div>
 
-        <div className="bg-[#10121a] border border-[#1e222e] rounded p-3">
-          <span className="text-[10px] font-mono uppercase text-red-400 block tracking-wider font-semibold">
+        <div className="bg-[#12141c] border border-[#3a1d23] rounded-[3px] p-3">
+          <span className="text-[10px] font-mono uppercase text-[#f87171] tracking-wider block font-medium">
             IN USE
           </span>
-          <span className="text-xl font-bold font-mono text-red-400 mt-1 block">
+          <span className="text-xl font-bold font-mono text-[#f87171] mt-1 block">
             {inUseCount}
           </span>
         </div>
 
-        <div className="bg-[#10121a] border border-[#1e222e] rounded p-3">
-          <span className="text-[10px] font-mono uppercase text-emerald-400 block tracking-wider font-semibold">
+        <div className="bg-[#12141c] border border-[#1d3528] rounded-[3px] p-3">
+          <span className="text-[10px] font-mono uppercase text-[#34d399] tracking-wider block font-medium">
             AVAILABLE
           </span>
-          <span className="text-xl font-bold font-mono text-emerald-400 mt-1 block">
+          <span className="text-xl font-bold font-mono text-[#34d399] mt-1 block">
             {availableCount}
           </span>
         </div>
 
-        <div className="bg-[#10121a] border border-[#1e222e] rounded p-3">
-          <span className="text-[10px] font-mono uppercase text-amber-400 block tracking-wider font-semibold">
+        <div className="bg-[#12141c] border border-[#352a16] rounded-[3px] p-3">
+          <span className="text-[10px] font-mono uppercase text-[#fbbf24] tracking-wider block font-medium">
             MAINTENANCE
           </span>
-          <span className="text-xl font-bold font-mono text-amber-400 mt-1 block">
+          <span className="text-xl font-bold font-mono text-[#fbbf24] mt-1 block">
             {maintenanceCount}
           </span>
         </div>
       </div>
 
-      {/* Filter Row: Simple and compact */}
-      <div className="bg-[#0e1017] border border-[#1a1d27] rounded px-3 py-2 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1 text-xs">
-          <span className="text-zinc-500 font-mono text-[10px] mr-1.5 uppercase">Zone:</span>
+      {/* PC STATIONS Control & Filters */}
+      <div className="bg-[#0e1017] border border-[#1e222e] rounded-[3px] px-3 py-2 flex flex-wrap items-center justify-between gap-2 select-none">
+        <div className="flex items-center gap-1.5 text-xs">
+          <span className="text-xs font-bold font-mono text-zinc-200 uppercase tracking-wider mr-2">
+            PC STATIONS
+          </span>
+          <span className="text-[#717684] font-mono text-[10px] uppercase mr-1">Zone:</span>
           {["ALL", "REGULAR", "VIP", "ARENA"].map((zone) => (
             <button
               key={zone}
               onClick={() => setSelectedZone(zone)}
-              className={`px-2 py-0.5 rounded text-[11px] font-mono font-medium transition-colors ${
+              className={`px-2 py-0.5 rounded-[2px] text-[11px] font-mono transition-colors duration-75 ${
                 selectedZone === zone
-                  ? "bg-red-600 text-white"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? "bg-[#b91c1c] text-white font-medium"
+                  : "text-[#8a8f9d] hover:text-white hover:bg-[#161822]"
               }`}
             >
               {zone}
@@ -219,16 +222,16 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        <div className="flex items-center gap-1 text-xs">
-          <span className="text-zinc-500 font-mono text-[10px] mr-1.5 uppercase">Status:</span>
+        <div className="flex items-center gap-1.5 text-xs">
+          <span className="text-[#717684] font-mono text-[10px] uppercase mr-1">Status:</span>
           {["ALL", "AVAILABLE", "IN_USE", "MAINTENANCE"].map((status) => (
             <button
               key={status}
               onClick={() => setSelectedStatus(status)}
-              className={`px-2 py-0.5 rounded text-[11px] font-mono font-medium transition-colors ${
+              className={`px-2 py-0.5 rounded-[2px] text-[11px] font-mono transition-colors duration-75 ${
                 selectedStatus === status
-                  ? "bg-zinc-800 text-zinc-100"
-                  : "text-zinc-500 hover:text-zinc-300"
+                  ? "bg-[#202432] text-white font-medium"
+                  : "text-[#717684] hover:text-zinc-200"
               }`}
             >
               {status === "IN_USE" ? "IN USE" : status}
@@ -236,7 +239,7 @@ export default function DashboardPage() {
           ))}
           <button
             onClick={() => fetchData()}
-            className="p-1 text-zinc-400 hover:text-zinc-100 ml-2"
+            className="p-1 text-[#8a8f9d] hover:text-white ml-2 transition-colors"
             title="Refresh"
           >
             <RefreshCw className="w-3 h-3" />
@@ -244,17 +247,17 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* PC Stations Grid */}
+      {/* Main PC Grid */}
       {isLoading ? (
-        <div className="h-40 flex items-center justify-center text-zinc-500 text-xs font-mono">
-          Loading...
+        <div className="h-44 flex items-center justify-center text-[#717684] text-xs font-mono">
+          Loading stations...
         </div>
       ) : filteredPCs.length === 0 ? (
-        <div className="h-32 border border-[#1a1d27] rounded flex items-center justify-center text-zinc-500 text-xs">
-          No stations match filter.
+        <div className="h-32 border border-[#1e222e] rounded-[3px] flex items-center justify-center text-[#717684] text-xs font-mono">
+          No stations found
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
           {filteredPCs.map((pc) => (
             <PCStationCard
               key={pc.id}

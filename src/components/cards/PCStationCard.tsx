@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { PCStation } from "@/lib/types";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatRupiah, formatCountdown } from "@/lib/formatters";
 
 interface PCStationCardProps {
@@ -16,8 +17,6 @@ export const PCStationCard: React.FC<PCStationCardProps> = ({
   pc,
   onStartSession,
   onViewDetail,
-  onEndSession,
-  onAddTime,
 }) => {
   // Live ticking countdown calculation
   const [secondsRemaining, setSecondsRemaining] = useState<number>(() => {
@@ -42,102 +41,88 @@ export const PCStationCard: React.FC<PCStationCardProps> = ({
   }, [pc.status]);
 
   return (
-    <div className="bg-[#10121a] border border-[#1e222e] rounded p-3 flex flex-col justify-between select-none">
-      {/* Station Number & Zone */}
+    <div
+      className={`rounded-[3px] border bg-[#12141c] p-3 flex flex-col justify-between transition-colors ${
+        pc.status === "IN_USE"
+          ? "border-[#3a1d23]"
+          : pc.status === "MAINTENANCE"
+          ? "border-[#382b13]"
+          : "border-[#202432] hover:border-[#2d3245]"
+      }`}
+    >
+      {/* Top: Station & Status */}
       <div className="flex items-start justify-between">
         <div>
-          <span className="text-sm font-bold text-zinc-100 block font-mono">
+          <span className="text-sm font-bold text-white font-mono tracking-tight block">
             {pc.stationNumber}
           </span>
-          <span className="text-[10px] uppercase font-mono text-zinc-400 tracking-wider">
+          <span className="text-[10px] font-mono text-[#8a8f9d] uppercase tracking-wider block">
             {pc.zone}
           </span>
         </div>
-
-        {/* Status Indicator */}
-        <span
-          className={`text-[10px] font-mono uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border ${
-            pc.status === "IN_USE"
-              ? "text-red-400 bg-[#221014] border-red-900/60"
-              : pc.status === "AVAILABLE"
-              ? "text-emerald-400 bg-[#0d1f17] border-emerald-900/60"
-              : pc.status === "MAINTENANCE"
-              ? "text-amber-400 bg-[#1f190e] border-amber-900/60"
-              : "text-zinc-500 bg-[#14151b] border-zinc-800"
-          }`}
-        >
-          {pc.status === "IN_USE" ? "IN USE" : pc.status}
-        </span>
+        <StatusBadge status={pc.status} />
       </div>
 
-      {/* Main Body */}
-      <div className="my-3 py-2 border-t border-b border-[#1a1d28] min-h-[76px] flex flex-col justify-center text-xs">
+      {/* Middle: Content tailored exactly to operator scanability */}
+      <div className="my-2.5 py-2 border-t border-b border-[#1c1f2b] min-h-[70px] flex flex-col justify-center">
         {pc.status === "IN_USE" ? (
           <div className="space-y-1">
-            <div className="font-semibold text-zinc-100 truncate">
-              {pc.activeSession?.memberName || pc.activeSession?.guestName || "User"}
+            <div className="font-semibold text-white text-xs truncate">
+              {pc.activeSession?.memberName || pc.activeSession?.guestName || "Guest"}
             </div>
-            <div className="text-zinc-400 text-[11px] truncate">
+            <div className="text-[#8a8f9d] text-[11px] truncate">
               {pc.currentGame || pc.activeSession?.currentGame || "Game"}
             </div>
-            <div className="flex items-center justify-between pt-1 text-[11px] font-mono">
-              <span className="text-red-400 font-semibold">{formatCountdown(secondsRemaining)}</span>
-              <span className="text-zinc-300 font-medium">
+            <div className="flex items-center justify-between pt-0.5 font-mono text-[11px]">
+              <span className="text-[#f87171] font-semibold">
+                {formatCountdown(secondsRemaining)}
+              </span>
+              <span className="text-zinc-200">
                 {formatRupiah(pc.activeSession?.totalPrice || pc.hourlyRate)}
               </span>
             </div>
           </div>
         ) : pc.status === "AVAILABLE" ? (
-          <div className="text-zinc-400 text-center py-1">
-            <span className="text-zinc-400 text-xs font-mono">AVAILABLE</span>
+          <div className="py-1">
+            <span className="text-xs font-mono text-[#8a8f9d] block">
+              {formatRupiah(pc.hourlyRate)} / hour
+            </span>
           </div>
         ) : pc.status === "MAINTENANCE" ? (
-          <div className="text-amber-400/90 text-center py-1 text-xs font-mono">
-            MAINTENANCE
+          <div className="py-1">
+            <span className="text-xs text-[#fbbf24]/90 block">
+              Under maintenance
+            </span>
           </div>
         ) : (
-          <div className="text-zinc-500 text-center py-1 text-xs font-mono">
-            OFFLINE
+          <div className="py-1">
+            <span className="text-xs text-[#717684] block">
+              Offline
+            </span>
           </div>
         )}
       </div>
 
-      {/* Action Buttons */}
+      {/* Bottom: Action */}
       <div>
         {pc.status === "AVAILABLE" ? (
           <button
             onClick={() => onStartSession?.(pc)}
-            className="w-full bg-[#dc2626] hover:bg-[#b91c1c] text-white text-xs font-semibold py-1.5 px-3 rounded transition-colors uppercase tracking-wider"
+            className="w-full bg-[#b91c1c] hover:bg-[#991b1b] text-white text-xs font-semibold py-1.5 px-3 rounded-[2px] transition-colors uppercase tracking-wider font-mono"
           >
-            START SESSION
+            START
           </button>
         ) : pc.status === "IN_USE" ? (
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => onViewDetail?.(pc)}
-              className="flex-1 bg-[#181a24] hover:bg-[#202432] text-zinc-200 border border-[#272b3a] text-xs font-medium py-1 px-2 rounded transition-colors"
-            >
-              DETAIL
-            </button>
-            <button
-              onClick={() => onAddTime?.(pc)}
-              className="bg-[#181a24] hover:bg-[#202432] text-zinc-300 border border-[#272b3a] text-xs font-mono py-1 px-2 rounded transition-colors"
-              title="Add Time"
-            >
-              +TIME
-            </button>
-            <button
-              onClick={() => onEndSession?.(pc)}
-              className="bg-[#3b1216] hover:bg-[#50171d] text-red-300 border border-red-900/60 text-xs font-medium py-1 px-2 rounded transition-colors"
-              title="End Session"
-            >
-              END
-            </button>
-          </div>
+          <button
+            onClick={() => onViewDetail?.(pc)}
+            className="w-full bg-[#181a24] hover:bg-[#222533] text-zinc-200 border border-[#2b3040] text-xs font-medium py-1.5 px-3 rounded-[2px] transition-colors uppercase tracking-wider font-mono"
+          >
+            DETAIL
+          </button>
         ) : (
           <button
             onClick={() => onViewDetail?.(pc)}
-            className="w-full bg-[#181a24] hover:bg-[#202432] text-zinc-300 border border-[#272b3a] text-xs font-medium py-1 px-3 rounded transition-colors"
+            className="w-full bg-[#181a24] hover:bg-[#222533] text-zinc-300 border border-[#2b3040] text-xs font-medium py-1.5 px-3 rounded-[2px] transition-colors uppercase tracking-wider font-mono"
           >
             VIEW
           </button>

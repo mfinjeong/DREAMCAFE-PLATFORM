@@ -45,30 +45,30 @@ export const Modal: React.FC<ModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75">
       <div
-        className={`w-full ${maxWidthStyles[maxWidth]} bg-[#0f1118] border border-[#232734] rounded shadow-xl overflow-hidden flex flex-col max-h-[90vh]`}
+        className={`w-full ${maxWidthStyles[maxWidth]} bg-[#12141c] border border-[#262b3a] rounded-[3px] shadow-2xl overflow-hidden flex flex-col max-h-[92vh]`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#1f2330] bg-[#0c0d13]">
+        <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[#202432] bg-[#0e1017]">
           <div>
-            <h3 className="text-xs font-bold text-zinc-100 uppercase tracking-wider flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-red-600 rounded-sm"></span>
+            <h3 className="text-xs font-semibold text-zinc-100 uppercase tracking-wider font-mono flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 bg-[#b91c1c] rounded-[1px]"></span>
               {title}
             </h3>
-            {subtitle && <p className="text-[11px] text-zinc-400 mt-0.5">{subtitle}</p>}
+            {subtitle && <p className="text-[11px] text-zinc-400 mt-0.5 font-mono">{subtitle}</p>}
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded text-zinc-500 hover:text-zinc-200 transition-colors"
+            className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-[#1a1d27] transition-colors"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-4 overflow-y-auto text-xs">{children}</div>
+        <div className="p-3.5 overflow-y-auto text-xs">{children}</div>
       </div>
     </div>
   );

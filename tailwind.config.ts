@@ -9,37 +9,44 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "#0b0e14",
+        background: "#0c0d11", // Deep dark charcoal, not pure black
         surface: {
-          DEFAULT: "#111622",
-          elevated: "#161d2d",
-          hover: "#1b2336",
-        },
-        card: {
-          DEFAULT: "#131926",
-          border: "#1e293b",
-          hover: "#182030",
+          DEFAULT: "#13151b",  // Primary container surface
+          muted: "#181a22",    // Subtle elevated background
+          hover: "#1e212b",    // Hover state
+          border: "#242735",   // Clean structural border
         },
         accent: {
-          DEFAULT: "#dc2626", // subtle red accent
-          hover: "#b91c1c",
-          muted: "#991b1b",
-          subtle: "rgba(220, 38, 38, 0.12)",
-          glow: "rgba(220, 38, 38, 0.25)",
+          DEFAULT: "#c52222",  // Deep subtle crimson red
+          hover: "#a81919",
+          active: "#8f1212",
+          subtle: "#1c1214",   // Subtle tinted container background
+          border: "#3d1a1e",   // Subtle red border
         },
-        status: {
-          available: "#10b981", // emerald
-          inuse: "#3b82f6",     // blue
-          maintenance: "#f59e0b", // amber
-          offline: "#6b7280",   // gray
+        typography: {
+          primary: "#f4f4f6",   // High-contrast clean white
+          secondary: "#8f94a3", // Balanced gray secondary
+          muted: "#5a5e6d",     // Low-contrast metadata
         },
-        charcoal: {
-          900: "#090c10",
-          800: "#0d1117",
-          700: "#161b22",
-          600: "#21262d",
-          500: "#30363d",
-        },
+      },
+      fontFamily: {
+        sans: [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          '"Segoe UI"',
+          "Roboto",
+          '"Helvetica Neue"',
+          "Arial",
+          "sans-serif",
+        ],
+        mono: [
+          '"JetBrains Mono"',
+          '"SF Mono"',
+          "Consolas",
+          '"Liberation Mono"',
+          "Menlo",
+          "monospace",
+        ],
       },
     },
   },
