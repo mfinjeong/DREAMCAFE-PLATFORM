@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { PCStatus, StationZone, Prisma } from "@prisma/client";
+import { PCStatus, StationZone, Prisma, SessionStatus } from "@prisma/client";
+import { pcSchema } from "@/lib/validators";
 
 export interface PCFilterOptions {
   status?: string | null;
@@ -7,25 +8,8 @@ export interface PCFilterOptions {
   search?: string | null;
 }
 
-export interface PCCreateInput {
-  stationNumber: string;
-  name: string;
-  zone: StationZone;
-  status?: PCStatus;
-  hourlyRate: number;
-  specsCpu: string;
-  specsGpu: string;
-  specsRam: string;
-  specsMonitor: string;
-  specsStorage?: string;
-  specsPeripherals?: string;
-  ipAddress?: string | null;
-  macAddress?: string | null;
-}
-
-export interface PCUpdateInput extends Partial<PCCreateInput> {
-  currentGame?: string | null;
-}
+export type PCCreateInput = Prisma.PCUncheckedCreateInput;
+export type PCUpdateInput = Prisma.PCUncheckedUpdateInput;
 
 export async function listPCs(filters: PCFilterOptions = {}) {
   const where: Prisma.PCWhereInput = {};
@@ -160,29 +144,32 @@ export async function getPCById(id: string) {
 }
 
 export async function createPC(data: PCCreateInput) {
+  // Validate input with Zod
+  const validated = pcSchema.parse(data);
+
   const existing = await prisma.pC.findUnique({
-    where: { stationNumber: data.stationNumber },
+    where: { stationNumber: validated.stationNumber },
   });
 
   if (existing) {
-    throw new Error(`Nomor station ${data.stationNumber} sudah terdaftar`);
+    throw new Error(`Nomor station ${validated.stationNumber} sudah terdaftar`);
   }
 
   return await prisma.pC.create({
     data: {
-      stationNumber: data.stationNumber,
-      name: data.name,
-      zone: data.zone,
-      status: data.status || PCStatus.AVAILABLE,
-      hourlyRate: data.hourlyRate,
-      specsCpu: data.specsCpu,
-      specsGpu: data.specsGpu,
-      specsRam: data.specsRam,
-      specsMonitor: data.specsMonitor,
-      specsStorage: data.specsStorage || "1TB NVMe SSD",
-      specsPeripherals: data.specsPeripherals || "Mechanical Keyboard + Mouse",
-      ipAddress: data.ipAddress,
-      macAddress: data.macAddress,
+      stationNumber: validated.stationNumber,
+      name: validated.name,
+      zone: validated.zone as StationZone,
+      status: (validated.status as PCStatus) || PCStatus.AVAILABLE,
+      hourlyRate: validated.hourlyRate,
+      specsCpu: validated.specsCpu,
+      specsGpu: validated.specsGpu,
+      specsRam: validated.specsRam,
+      specsMonitor: validated.specsMonitor,
+      specsStorage: validated.specsStorage || "1TB NVMe SSD",
+      specsPeripherals: validated.specsPeripherals || "Mechanical Keyboard + Mouse",
+      ipAddress: validated.ipAddress || null,
+      macAddress: validated.macAddress || null,
     },
   });
 }
@@ -193,25 +180,55 @@ export async function updatePC(id: string, data: PCUpdateInput) {
     throw new Error("PC Station tidak ditemukan");
   }
 
-  if (data.stationNumber && data.stationNumber !== existing.stationNumber) {
+  // Validate partial input with Zod
+  const validated = pcSchema.partial().parse(data);
+
+  if (validated.stationNumber && validated.stationNumber !== existing.stationNumber) {
     const duplicate = await prisma.pC.findUnique({
-      where: { stationNumber: data.stationNumber },
+      where: { stationNumber: validated.stationNumber },
     });
     if (duplicate) {
-      throw new Error(`Nomor station ${data.stationNumber} sudah digunakan oleh station lain`);
+      throw new Error(`Nomor station ${validated.stationNumber} sudah digunakan oleh station lain`);
     }
   }
 
+  const updatePayload: Prisma.PCUpdateInput = {
+    ...data,
+  };
+  if (validated.zone) updatePayload.zone = validated.zone as StationZone;
+  if (validated.status) updatePayload.status = validated.status as PCStatus;
+
   return await prisma.pC.update({
     where: { id },
-    data,
+    data: updatePayload,
   });
 }
 
 export async function updatePCStatus(id: string, status: PCStatus) {
-  const pc = await prisma.pC.findUnique({ where: { id } });
+  const pc = await prisma.pC.findUnique({
+    where: { id },
+    include: {
+      sessions: { where: { status: SessionStatus.ACTIVE } },
+    },
+  });
+
   if (!pc) {
     throw new Error("PC Station tidak ditemukan");
+  }
+
+  const allowedStatuses = [PCStatus.AVAILABLE, PCStatus.IN_USE, PCStatus.MAINTENANCE, PCStatus.OFFLINE];
+  if (!allowedStatuses.includes(status)) {
+    throw new Error(`Status PC '${status}' tidak valid`);
+  }
+
+  // Transition rule: cannot manually leave IN_USE while active session is running
+  if (pc.status === PCStatus.IN_USE && status !== PCStatus.IN_USE && pc.sessions.length > 0) {
+    throw new Error(`PC ${pc.stationNumber} sedang memiliki sesi aktif. Selesaikan sesi terlebih dahulu sebelum mengubah status.`);
+  }
+
+  // Transition rule: cannot manually switch to IN_USE without starting a session
+  if (pc.status !== PCStatus.IN_USE && status === PCStatus.IN_USE && pc.sessions.length === 0) {
+    throw new Error(`Status IN_USE hanya dapat diaktifkan melalui sistem mulai sesi.`);
   }
 
   const updateData: Prisma.PCUpdateInput = { status };

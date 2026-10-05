@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { MemberTier, DreamRank, Prisma } from "@prisma/client";
+import { memberSchema, updateMemberSchema } from "@/lib/validators";
 
 export interface MemberFilterOptions {
   search?: string | null;
@@ -9,8 +10,8 @@ export interface MemberFilterOptions {
 
 export interface MemberCreateInput {
   fullName: string;
-  username: string;
-  phoneNumber: string;
+  username?: string | null;
+  phoneNumber?: string | null;
   email?: string | null;
   tier?: MemberTier;
   balance?: number;
@@ -20,7 +21,7 @@ export interface MemberCreateInput {
 export interface MemberUpdateInput {
   fullName?: string;
   username?: string;
-  phoneNumber?: string;
+  phoneNumber?: string | null;
   email?: string | null;
   tier?: MemberTier;
   balance?: number;
@@ -110,27 +111,50 @@ export async function getMemberById(id: string) {
   };
 }
 
-export async function createMember(data: MemberCreateInput) {
-  // Check duplicate username or phone
-  const existing = await prisma.member.findFirst({
-    where: {
-      OR: [
-        { username: { equals: data.username, mode: "insensitive" } },
-        { phoneNumber: data.phoneNumber },
-        ...(data.email ? [{ email: { equals: data.email, mode: "insensitive" as const } }] : []),
-      ],
-    },
-  });
+export async function searchMembers(query: string) {
+  return await listMembers({ search: query });
+}
 
-  if (existing) {
-    if (existing.username.toLowerCase() === data.username.toLowerCase()) {
-      throw new Error(`Username '${data.username}' sudah terdaftar`);
+export async function createMember(data: MemberCreateInput) {
+  // Validate input with Zod
+  const validated = memberSchema.parse(data);
+
+  // Generate username if not provided
+  let username = validated.username?.trim();
+  if (!username) {
+    const base = validated.fullName.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 10) || "member";
+    const rand = Math.floor(100 + Math.random() * 900);
+    username = `${base}${rand}`;
+  }
+
+  const phoneNumber = validated.phoneNumber && validated.phoneNumber.trim().length > 0 ? validated.phoneNumber.trim() : null;
+  const email = validated.email && validated.email.trim().length > 0 ? validated.email.trim() : null;
+
+  // Check unique constraints for username
+  const existingUsername = await prisma.member.findFirst({
+    where: { username: { equals: username, mode: "insensitive" } },
+  });
+  if (existingUsername) {
+    throw new Error(`Username '${username}' sudah terdaftar`);
+  }
+
+  // Check unique constraints for phone if provided
+  if (phoneNumber) {
+    const existingPhone = await prisma.member.findFirst({
+      where: { phoneNumber },
+    });
+    if (existingPhone) {
+      throw new Error(`Nomor telepon '${phoneNumber}' sudah terdaftar`);
     }
-    if (existing.phoneNumber === data.phoneNumber) {
-      throw new Error(`Nomor telepon '${data.phoneNumber}' sudah terdaftar`);
-    }
-    if (data.email && existing.email?.toLowerCase() === data.email.toLowerCase()) {
-      throw new Error(`Email '${data.email}' sudah terdaftar`);
+  }
+
+  // Check unique constraints for email if provided
+  if (email) {
+    const existingEmail = await prisma.member.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+    });
+    if (existingEmail) {
+      throw new Error(`Email '${email}' sudah terdaftar`);
     }
   }
 
@@ -141,17 +165,17 @@ export async function createMember(data: MemberCreateInput) {
   return await prisma.member.create({
     data: {
       memberCode,
-      fullName: data.fullName,
-      username: data.username,
-      phoneNumber: data.phoneNumber,
-      email: data.email || null,
-      tier: data.tier || MemberTier.REGULAR,
-      balance: data.balance || 0,
+      fullName: validated.fullName,
+      username,
+      phoneNumber,
+      email,
+      tier: (validated.tier as MemberTier) || MemberTier.REGULAR,
+      balance: validated.balance || 0,
       dreamCoins: 100, // Sign-up bonus
       xp: 0,
       level: 1,
       dreamRank: DreamRank.UNRANKED,
-      notes: data.notes || null,
+      notes: validated.notes || null,
     },
   });
 }
@@ -162,40 +186,60 @@ export async function updateMember(id: string, data: MemberUpdateInput) {
     throw new Error("Member tidak ditemukan");
   }
 
+  // Validate input with Zod
+  const validated = updateMemberSchema.parse(data);
+
+  const phoneNumber = validated.phoneNumber !== undefined
+    ? (validated.phoneNumber && validated.phoneNumber.trim().length > 0 ? validated.phoneNumber.trim() : null)
+    : undefined;
+  const email = validated.email !== undefined
+    ? (validated.email && validated.email.trim().length > 0 ? validated.email.trim() : null)
+    : undefined;
+
   // Check unique constraints if changing username, phone, or email
-  if (data.username && data.username.toLowerCase() !== existing.username.toLowerCase()) {
+  if (validated.username && validated.username.toLowerCase() !== existing.username.toLowerCase()) {
     const dup = await prisma.member.findFirst({
       where: {
-        username: { equals: data.username, mode: "insensitive" },
+        username: { equals: validated.username, mode: "insensitive" },
         id: { not: id },
       },
     });
-    if (dup) throw new Error(`Username '${data.username}' sudah digunakan`);
+    if (dup) throw new Error(`Username '${validated.username}' sudah digunakan`);
   }
 
-  if (data.phoneNumber && data.phoneNumber !== existing.phoneNumber) {
+  if (phoneNumber && phoneNumber !== existing.phoneNumber) {
     const dup = await prisma.member.findFirst({
       where: {
-        phoneNumber: data.phoneNumber,
+        phoneNumber,
         id: { not: id },
       },
     });
-    if (dup) throw new Error(`Nomor telepon '${data.phoneNumber}' sudah digunakan`);
+    if (dup) throw new Error(`Nomor telepon '${phoneNumber}' sudah digunakan`);
   }
 
-  if (data.email && data.email.toLowerCase() !== existing.email?.toLowerCase()) {
+  if (email && email.toLowerCase() !== existing.email?.toLowerCase()) {
     const dup = await prisma.member.findFirst({
       where: {
-        email: { equals: data.email, mode: "insensitive" },
+        email: { equals: email, mode: "insensitive" },
         id: { not: id },
       },
     });
-    if (dup) throw new Error(`Email '${data.email}' sudah digunakan`);
+    if (dup) throw new Error(`Email '${email}' sudah digunakan`);
   }
+
+  const updateData: Prisma.MemberUpdateInput = {};
+  if (validated.fullName !== undefined) updateData.fullName = validated.fullName;
+  if (validated.username !== undefined) updateData.username = validated.username;
+  if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+  if (email !== undefined) updateData.email = email;
+  if (validated.tier !== undefined) updateData.tier = validated.tier as MemberTier;
+  if (validated.balance !== undefined) updateData.balance = validated.balance;
+  if (validated.notes !== undefined) updateData.notes = validated.notes;
+  if (validated.avatarUrl !== undefined) updateData.avatarUrl = validated.avatarUrl;
 
   return await prisma.member.update({
     where: { id },
-    data,
+    data: updateData,
   });
 }
 

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { SessionStatus, PaymentStatus, PaymentMethod, PCStatus, ConsoleStatus, SessionType, Prisma } from "@prisma/client";
+import { SessionStatus, PaymentStatus, PaymentMethod, PCStatus, ConsoleStatus, SessionType, Prisma, InventoryAction } from "@prisma/client";
 import { addMemberXP } from "./member.service";
 
 export interface StartSessionInput {
@@ -12,8 +12,14 @@ export interface StartSessionInput {
   notes?: string | null;
 }
 
+export interface CheckoutProductItem {
+  productId: string;
+  quantity: number;
+}
+
 export interface CheckoutSessionInput {
   sessionId: string;
+  products?: CheckoutProductItem[];
   cashReceived: number;
   cashierName?: string;
   notes?: string | null;
@@ -120,6 +126,16 @@ export async function getSessionById(id: string) {
 export async function startSession(data: StartSessionInput) {
   const type = data.type || "PC";
 
+  // Validate member if provided
+  if (data.memberId) {
+    const member = await prisma.member.findUnique({
+      where: { id: data.memberId },
+    });
+    if (!member) {
+      throw new Error("Member tidak ditemukan (ID tidak valid)");
+    }
+  }
+
   // Validate station and prevent duplicate session
   let hourlyRate = 10000;
   let stationNumber = "";
@@ -133,11 +149,20 @@ export async function startSession(data: StartSessionInput) {
     });
 
     if (!pc) {
-      throw new Error("PC Station tidak ditemukan");
+      throw new Error("PC Station tidak ditemukan (ID tidak valid)");
     }
 
-    if (pc.status !== PCStatus.AVAILABLE || pc.sessions.length > 0) {
-      throw new Error(`Station ${pc.stationNumber} sedang tidak tersedia (Status: ${pc.status})`);
+    if (pc.status === PCStatus.IN_USE) {
+      throw new Error(`Station ${pc.stationNumber} sedang digunakan (Status: IN_USE)`);
+    }
+    if (pc.status === PCStatus.MAINTENANCE) {
+      throw new Error(`Station ${pc.stationNumber} sedang dalam pemeliharaan (Status: MAINTENANCE)`);
+    }
+    if (pc.status === PCStatus.OFFLINE) {
+      throw new Error(`Station ${pc.stationNumber} sedang offline (Status: OFFLINE)`);
+    }
+    if (pc.sessions.length > 0) {
+      throw new Error(`PC ${pc.stationNumber} sudah memiliki sesi aktif yang sedang berjalan`);
     }
 
     hourlyRate = pc.hourlyRate;
@@ -151,22 +176,31 @@ export async function startSession(data: StartSessionInput) {
     });
 
     if (!con) {
-      throw new Error("Console Station tidak ditemukan");
+      throw new Error("Console Station tidak ditemukan (ID tidak valid)");
     }
 
-    if (con.status !== ConsoleStatus.AVAILABLE || con.sessions.length > 0) {
-      throw new Error(`Station ${con.stationNumber} sedang tidak tersedia (Status: ${con.status})`);
+    if (con.status === ConsoleStatus.IN_USE) {
+      throw new Error(`Station ${con.stationNumber} sedang digunakan (Status: IN_USE)`);
+    }
+    if (con.status === ConsoleStatus.MAINTENANCE) {
+      throw new Error(`Station ${con.stationNumber} sedang dalam pemeliharaan (Status: MAINTENANCE)`);
+    }
+    if (con.status === ConsoleStatus.OFFLINE) {
+      throw new Error(`Station ${con.stationNumber} sedang offline (Status: OFFLINE)`);
+    }
+    if (con.sessions.length > 0) {
+      throw new Error(`Console ${con.stationNumber} sudah memiliki sesi aktif yang sedang berjalan`);
     }
 
     hourlyRate = con.hourlyRate;
     stationNumber = con.stationNumber;
   }
 
-  // Calculate server-authoritative price
+  // Calculate server-authoritative price using integer Rupiah arithmetic
   const durationMinutes = Math.max(15, data.durationMinutes);
-  const totalPrice = Math.ceil((durationMinutes / 60) * hourlyRate);
+  const totalPrice = Math.round((durationMinutes * hourlyRate) / 60);
 
-  // Generate unique session number
+  // Generate unique session number: SES-YYYYMMDD-XXX
   const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const count = await prisma.session.count();
   const sessionNumber = `SES-${dateStr}-${String(count + 1).padStart(3, "0")}`;
@@ -233,7 +267,7 @@ export async function addSessionTime(sessionId: string, additionalMinutes: numbe
 
   const newDuration = session.durationMinutes + additionalMinutes;
   const newRemaining = session.remainingMinutes + additionalMinutes;
-  const additionalPrice = Math.ceil((additionalMinutes / 60) * session.hourlyRate);
+  const additionalPrice = Math.round((additionalMinutes * session.hourlyRate) / 60);
   const newTotalPrice = session.totalPrice + additionalPrice;
 
   return await prisma.session.update({
@@ -249,6 +283,7 @@ export async function addSessionTime(sessionId: string, additionalMinutes: numbe
 export async function stopSession(sessionId: string) {
   const session = await prisma.session.findUnique({
     where: { id: sessionId },
+    include: { pc: true, console: true },
   });
 
   if (!session) {
@@ -256,15 +291,50 @@ export async function stopSession(sessionId: string) {
   }
 
   if (session.status !== SessionStatus.ACTIVE) {
-    throw new Error("Sesi sudah tidak aktif");
+    throw new Error("Sesi sudah tidak aktif atau sudah selesai");
   }
 
-  return await prisma.session.update({
-    where: { id: sessionId },
-    data: {
-      remainingMinutes: 0,
-      endTime: new Date(),
-    },
+  const endedAt = new Date();
+  const durationMs = endedAt.getTime() - new Date(session.startTime).getTime();
+  let durationMinutes = Math.round(durationMs / 60000);
+  if (durationMinutes < 1) {
+    durationMinutes = session.durationMinutes || 1;
+  }
+  const totalPrice = Math.round((durationMinutes * session.hourlyRate) / 60);
+
+  return await prisma.$transaction(async (tx) => {
+    // Update session status to COMPLETED
+    const updatedSession = await tx.session.update({
+      where: { id: sessionId },
+      data: {
+        status: SessionStatus.COMPLETED,
+        remainingMinutes: 0,
+        endTime: endedAt,
+        durationMinutes,
+        totalPrice,
+      },
+    });
+
+    // Update PC or Console status to AVAILABLE
+    if (session.pcId) {
+      await tx.pC.update({
+        where: { id: session.pcId },
+        data: {
+          status: PCStatus.AVAILABLE,
+          currentGame: null,
+        },
+      });
+    } else if (session.consoleId) {
+      await tx.console.update({
+        where: { id: session.consoleId },
+        data: {
+          status: ConsoleStatus.AVAILABLE,
+          currentGame: null,
+        },
+      });
+    }
+
+    return updatedSession;
   });
 }
 
@@ -283,14 +353,78 @@ export async function checkoutSession(data: CheckoutSessionInput) {
   }
 
   // Prevent double checkout
-  if (session.status === SessionStatus.COMPLETED) {
+  if (session.status === SessionStatus.COMPLETED && session.paymentStatus === PaymentStatus.PAID) {
     throw new Error("Sesi ini sudah diselesaikan dan dibayar sebelumnya");
   }
 
-  // Server-side authoritative total amount
-  const totalAmount = session.totalPrice;
+  if (session.status === SessionStatus.CANCELLED) {
+    throw new Error("Sesi sudah dibatalkan");
+  }
 
-  // CASH-ONLY validation
+  // 1. Calculate session price and duration
+  const endedAt = session.endTime || new Date();
+  let durationMinutes = session.durationMinutes;
+  let sessionPrice = session.totalPrice;
+
+  if (session.status === SessionStatus.ACTIVE) {
+    const durationMs = endedAt.getTime() - new Date(session.startTime).getTime();
+    durationMinutes = Math.round(durationMs / 60000);
+    if (durationMinutes < 1) {
+      durationMinutes = session.durationMinutes || 1;
+    }
+    sessionPrice = Math.round((durationMinutes * session.hourlyRate) / 60);
+  }
+
+  // 2. Validate and calculate products if any
+  let productsTotal = 0;
+  const verifiedProducts: {
+    productId: string;
+    productName: string;
+    unitPrice: number;
+    quantity: number;
+    subtotal: number;
+    previousStock: number;
+    newStock: number;
+  }[] = [];
+
+  if (data.products && data.products.length > 0) {
+    for (const item of data.products) {
+      if (item.quantity <= 0) {
+        throw new Error("Kuantitas produk harus lebih dari 0");
+      }
+
+      const product = await prisma.product.findUnique({
+        where: { id: item.productId },
+      });
+
+      if (!product) {
+        throw new Error(`Produk dengan ID '${item.productId}' tidak ditemukan`);
+      }
+
+      if (product.stock < item.quantity) {
+        throw new Error(
+          `Stok produk '${product.name}' tidak mencukupi (Tersedia: ${product.stock}, Diminta: ${item.quantity})`
+        );
+      }
+
+      const subtotal = product.price * item.quantity;
+      productsTotal += subtotal;
+      verifiedProducts.push({
+        productId: product.id,
+        productName: product.name,
+        unitPrice: product.price,
+        quantity: item.quantity,
+        subtotal,
+        previousStock: product.stock,
+        newStock: product.stock - item.quantity,
+      });
+    }
+  }
+
+  // 3. Authoritative total amount
+  const totalAmount = sessionPrice + productsTotal;
+
+  // 4. CASH-ONLY validation
   if (data.cashReceived < totalAmount) {
     const shortage = totalAmount - data.cashReceived;
     throw new Error(
@@ -312,13 +446,33 @@ export async function checkoutSession(data: CheckoutSessionInput) {
     : "Station";
 
   return await prisma.$transaction(async (tx) => {
-    // 1. Create Transaction (Cash Only, PAID)
+    // A. Deduct product stocks and record inventory logs
+    for (const p of verifiedProducts) {
+      await tx.product.update({
+        where: { id: p.productId },
+        data: { stock: p.newStock },
+      });
+
+      await tx.inventoryLog.create({
+        data: {
+          productId: p.productId,
+          action: InventoryAction.STOCK_OUT,
+          quantity: p.quantity,
+          previousStock: p.previousStock,
+          newStock: p.newStock,
+          reason: `Penjualan Kasir Checkout Sesi (${invoiceNumber})`,
+          recordedBy: data.cashierName || "Admin",
+        },
+      });
+    }
+
+    // B. Create Transaction (Cash Only, PAID)
     const transaction = await tx.transaction.create({
       data: {
         invoiceNumber,
         memberId: session.memberId,
         cashierName: data.cashierName || "Admin",
-        type: "SESSION",
+        type: verifiedProducts.length > 0 ? "MIXED" : "SESSION",
         subtotal: totalAmount,
         tax: 0,
         discount: 0,
@@ -327,33 +481,42 @@ export async function checkoutSession(data: CheckoutSessionInput) {
         cashChange,
         paymentMethod: PaymentMethod.CASH,
         status: PaymentStatus.PAID,
-        notes: data.notes || `Pembayaran biling ${stationName} (${session.durationMinutes} menit)`,
+        notes: data.notes || `Pembayaran biling ${stationName} (${durationMinutes} menit)${verifiedProducts.length > 0 ? " + Produk" : ""}`,
         items: {
           create: [
             {
-              description: `Sewa Station ${stationName} - ${session.durationMinutes} Menit`,
-              unitPrice: totalAmount,
+              description: `Sewa Station ${stationName} - ${durationMinutes} Menit`,
+              unitPrice: sessionPrice,
               quantity: 1,
-              subtotal: totalAmount,
+              subtotal: sessionPrice,
             },
+            ...verifiedProducts.map((p) => ({
+              productId: p.productId,
+              description: p.productName,
+              unitPrice: p.unitPrice,
+              quantity: p.quantity,
+              subtotal: p.subtotal,
+            })),
           ],
         },
       },
     });
 
-    // 2. Mark Session COMPLETED & PAID
+    // C. Mark Session COMPLETED & PAID
     const updatedSession = await tx.session.update({
       where: { id: session.id },
       data: {
         status: SessionStatus.COMPLETED,
         paymentStatus: PaymentStatus.PAID,
         remainingMinutes: 0,
-        endTime: new Date(),
+        durationMinutes,
+        totalPrice: sessionPrice,
+        endTime: endedAt,
         transactionId: transaction.id,
       },
     });
 
-    // 3. Return Station to AVAILABLE
+    // D. Return Station to AVAILABLE
     if (session.pcId) {
       await tx.pC.update({
         where: { id: session.pcId },
@@ -376,13 +539,15 @@ export async function checkoutSession(data: CheckoutSessionInput) {
       session: updatedSession,
       transaction,
       totalAmount,
+      sessionPrice,
+      productsTotal,
       cashReceived: data.cashReceived,
       cashChange,
     };
   }).then(async (result) => {
     // Add Member XP and DreamCoins if member session
     if (session.memberId) {
-      const xpEarned = Math.floor(session.durationMinutes * 5); // 5 XP per minute played
+      const xpEarned = Math.floor(durationMinutes * 5) + Math.floor(productsTotal / 1000);
       await addMemberXP(session.memberId, xpEarned);
     }
     return result;

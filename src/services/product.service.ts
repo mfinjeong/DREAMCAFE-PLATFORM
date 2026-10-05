@@ -31,6 +31,7 @@ export async function listProducts(filters: {
   categoryId?: string | null;
   search?: string | null;
   activeOnly?: boolean;
+  lowStockOnly?: boolean;
 } = {}) {
   const where: Prisma.ProductWhereInput = {};
 
@@ -56,7 +57,7 @@ export async function listProducts(filters: {
     },
   });
 
-  return products.map((p) => ({
+  let mapped = products.map((p) => ({
     id: p.id,
     name: p.name,
     barcode: p.barcode,
@@ -73,6 +74,12 @@ export async function listProducts(filters: {
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
   }));
+
+  if (filters.lowStockOnly) {
+    mapped = mapped.filter((p) => p.isLowStock);
+  }
+
+  return mapped;
 }
 
 export async function getProductById(id: string) {
@@ -146,4 +153,32 @@ export async function updateProduct(id: string, data: ProductUpdateInput) {
     data,
     include: { category: true },
   });
+}
+
+export async function getLowStockProducts() {
+  const products = await prisma.product.findMany({
+    where: { isActive: true },
+    include: { category: true },
+    orderBy: { stock: "asc" },
+  });
+
+  return products
+    .filter((p) => p.stock <= p.minStockAlert)
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      barcode: p.barcode,
+      categoryId: p.categoryId,
+      categoryName: p.category.name,
+      price: p.price,
+      costPrice: p.costPrice,
+      stock: p.stock,
+      minStockAlert: p.minStockAlert,
+      unit: p.unit,
+      imageUrl: p.imageUrl,
+      isActive: p.isActive,
+      isLowStock: true,
+      createdAt: p.createdAt.toISOString(),
+      updatedAt: p.updatedAt.toISOString(),
+    }));
 }
