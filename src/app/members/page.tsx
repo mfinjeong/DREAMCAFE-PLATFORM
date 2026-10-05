@@ -89,11 +89,14 @@ export default function MembersPage() {
   });
 
   return (
-    <div className="space-y-3.5">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xs font-bold text-[#EDEDEE] uppercase tracking-wider font-mono">
-          Members Directory
-        </h2>
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-3.5 bg-persona-red persona-slash rounded-[1px]"></span>
+          <h2 className="text-xs font-bold text-[#F2F3F5] uppercase tracking-wider font-sans">
+            Members Directory & Rankings
+          </h2>
+        </div>
         <Button variant="primary" size="sm" onClick={() => setCreateModalOpen(true)}>
           <Plus className="w-3.5 h-3.5 mr-1" />
           Add Member
@@ -101,27 +104,27 @@ export default function MembersPage() {
       </div>
 
       {/* Filter Row */}
-      <div className="bg-[#15171A] border border-[#22252A] rounded-[4px] px-3 py-2 flex flex-col sm:flex-row gap-2.5 items-center justify-between">
+      <div className="bg-surface border border-surface-border rounded-[8px] px-3.5 py-2.5 flex flex-col sm:flex-row gap-2.5 items-center justify-between">
         <div className="relative w-full sm:w-64">
-          <Search className="w-3 h-3 text-[#585C66] absolute left-2.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Search code, username, phone..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#111317] border border-[#22252A] rounded-[4px] pl-7 pr-2.5 py-1 text-xs text-[#EDEDEE] placeholder-[#585C66] focus:outline-none focus:border-[#B4232A]"
+            className="w-full bg-surface-muted border border-surface-border rounded-[6px] pl-8 pr-2.5 py-1 text-xs text-[#F2F3F5] placeholder-text-muted focus:outline-none focus:border-persona-red"
           />
         </div>
 
-        <div className="flex items-center gap-1.5 font-mono text-xs">
+        <div className="flex items-center gap-1.5 font-sans text-xs">
           {["ALL", "REGULAR", "VIP", "PRO"].map((tier) => (
             <button
               key={tier}
               onClick={() => setSelectedTier(tier)}
-              className={`px-2 py-0.5 rounded-[3px] text-[11px] transition-colors cursor-pointer ${
+              className={`px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors cursor-pointer ${
                 selectedTier === tier
-                  ? "bg-[#B4232A] text-[#EDEDEE] font-medium"
-                  : "text-[#8A909A] hover:text-[#EDEDEE]"
+                  ? "bg-persona-red text-white"
+                  : "text-text-secondary hover:text-[#F2F3F5] hover:bg-surface-hover"
               }`}
             >
               {tier}
@@ -147,28 +150,28 @@ export default function MembersPage() {
         <tbody>
           {filteredMembers.map((m) => (
             <TableRow key={m.id}>
-              <TableCell className="font-mono text-[11px] text-[#8A909A]">
+              <TableCell className="font-mono text-[11px] text-text-secondary font-semibold">
                 {m.memberCode}
               </TableCell>
               <TableCell className="text-xs">
-                <span className="font-bold text-[#EDEDEE] block">@{m.username}</span>
-                <span className="text-[11px] text-[#8A909A]">{m.fullName}</span>
+                <span className="font-bold text-[#F2F3F5] block font-sans">@{m.username}</span>
+                <span className="text-[11px] text-text-secondary">{m.fullName}</span>
               </TableCell>
-              <TableCell className="font-mono text-[11px] text-[#8A909A]">
+              <TableCell className="font-mono text-[11px] text-text-secondary">
                 {m.phoneNumber}
               </TableCell>
               <TableCell>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-[3px] bg-[#111317] border border-[#22252A] text-[#8A909A]">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-[4px] bg-surface-muted border border-surface-border text-text-secondary font-bold">
                   {m.tier}
                 </span>
               </TableCell>
-              <TableCell className="font-mono text-xs font-semibold text-[#EDEDEE]">
+              <TableCell className="font-sans text-xs font-bold text-persona-red">
                 {m.dreamRank}
               </TableCell>
-              <TableCell className="font-mono text-xs text-[#8A909A]">
+              <TableCell className="font-mono text-xs text-text-secondary font-medium">
                 Lv. {m.level}
               </TableCell>
-              <TableCell className="font-mono text-xs text-[#8A909A]">
+              <TableCell className="font-mono text-xs text-[#F2F3F5] font-semibold">
                 {m.dreamCoins}
               </TableCell>
               <TableCell className="text-right">
@@ -177,7 +180,7 @@ export default function MembersPage() {
                     setSelectedMember(m);
                     setDetailModalOpen(true);
                   }}
-                  className="p-1 rounded-[4px] bg-[#111317] hover:bg-[#1A1D22] text-[#8A909A] hover:text-[#EDEDEE] border border-[#22252A] cursor-pointer"
+                  className="p-1.5 rounded-[4px] bg-surface-muted hover:bg-surface-hover text-text-secondary hover:text-[#F2F3F5] border border-surface-border cursor-pointer transition-colors"
                   title="Profile"
                 >
                   <Eye className="w-3.5 h-3.5" />
@@ -195,9 +198,9 @@ export default function MembersPage() {
         title="Register Member"
         maxWidth="sm"
       >
-        <form onSubmit={handleCreateMember} className="space-y-3">
+        <form onSubmit={handleCreateMember} className="space-y-3.5">
           {errorMsg && (
-            <div className="p-2 bg-[#1E1214] border border-[#3B1C20] rounded-[4px] text-[11px] text-[#D15E65] font-mono">
+            <div className="p-2.5 bg-persona-red-subtle border border-persona-red-border rounded-[6px] text-xs text-persona-red font-medium">
               {errorMsg}
             </div>
           )}
@@ -209,7 +212,7 @@ export default function MembersPage() {
             required
           />
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2.5">
             <Input
               label="Username"
               value={newMember.username}
@@ -231,7 +234,7 @@ export default function MembersPage() {
             onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}
           />
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2.5">
             <Select
               label="Tier"
               value={newMember.tier}
@@ -251,7 +254,7 @@ export default function MembersPage() {
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-[#22252A]">
+          <div className="flex justify-end gap-2 pt-2 border-t border-surface-border">
             <Button type="button" variant="outline" size="sm" onClick={() => setCreateModalOpen(false)}>
               Cancel
             </Button>
@@ -266,36 +269,36 @@ export default function MembersPage() {
       <Modal
         isOpen={detailModalOpen}
         onClose={() => setDetailModalOpen(false)}
-        title={selectedMember ? `@${selectedMember.username}` : "Member"}
+        title={selectedMember ? `@${selectedMember.username}` : "Member Profile"}
         subtitle={selectedMember?.fullName}
         maxWidth="sm"
       >
         {selectedMember && (
-          <div className="space-y-3 font-mono text-xs">
-            <div className="p-2.5 bg-[#111317] border border-[#22252A] rounded-[4px] space-y-1">
-              <div className="flex justify-between text-[#8A909A]">
+          <div className="space-y-3.5 text-xs">
+            <div className="p-3 bg-surface-muted border border-surface-border rounded-[8px] space-y-1.5 font-mono">
+              <div className="flex justify-between text-text-secondary">
                 <span>Code:</span>
-                <span className="text-[#EDEDEE]">{selectedMember.memberCode}</span>
+                <span className="text-[#F2F3F5] font-bold">{selectedMember.memberCode}</span>
               </div>
-              <div className="flex justify-between text-[#8A909A]">
+              <div className="flex justify-between text-text-secondary">
                 <span>Tier:</span>
-                <span className="text-[#EDEDEE]">{selectedMember.tier}</span>
+                <span className="text-[#F2F3F5]">{selectedMember.tier}</span>
               </div>
-              <div className="flex justify-between text-[#8A909A]">
+              <div className="flex justify-between text-text-secondary">
                 <span>Rank:</span>
-                <span className="text-[#B4232A] font-bold">{selectedMember.dreamRank}</span>
+                <span className="text-persona-red font-bold font-sans">{selectedMember.dreamRank}</span>
               </div>
-              <div className="flex justify-between text-[#8A909A]">
+              <div className="flex justify-between text-text-secondary">
                 <span>Level:</span>
-                <span className="text-[#EDEDEE]">Lv. {selectedMember.level} ({selectedMember.xp} XP)</span>
+                <span className="text-[#F2F3F5]">Lv. {selectedMember.level} ({selectedMember.xp} XP)</span>
               </div>
-              <div className="flex justify-between text-[#8A909A]">
+              <div className="flex justify-between text-text-secondary">
                 <span>Coins:</span>
-                <span className="text-[#EDEDEE]">{selectedMember.dreamCoins}</span>
+                <span className="text-[#F2F3F5]">{selectedMember.dreamCoins}</span>
               </div>
-              <div className="flex justify-between text-[#8A909A]">
+              <div className="flex justify-between text-text-secondary">
                 <span>Balance:</span>
-                <span className="text-[#EDEDEE] font-bold">{formatRupiah(selectedMember.balance)}</span>
+                <span className="text-p3r-blue font-bold">{formatRupiah(selectedMember.balance)}</span>
               </div>
             </div>
 

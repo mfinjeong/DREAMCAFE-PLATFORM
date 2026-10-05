@@ -84,21 +84,24 @@ export default function ConsolesPage() {
   };
 
   return (
-    <div className="space-y-3.5">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xs font-bold text-[#EDEDEE] uppercase tracking-wider font-mono">
-          Console Stations
-        </h2>
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-3.5 bg-p3r-blue persona-slash rounded-[1px]"></span>
+          <h2 className="text-xs font-bold text-[#F2F3F5] uppercase tracking-wider font-sans">
+            Console Lounge
+          </h2>
+        </div>
 
-        <div className="flex items-center gap-1 font-mono text-xs">
+        <div className="flex items-center gap-1.5 font-mono text-xs">
           {["ALL", "PS5", "PS4", "SWITCH"].map((t) => (
             <button
               key={t}
               onClick={() => setSelectedType(t)}
-              className={`px-2 py-0.5 rounded-[3px] text-[11px] transition-colors cursor-pointer ${
+              className={`px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors cursor-pointer ${
                 selectedType === t
-                  ? "bg-[#B4232A] text-[#EDEDEE] font-medium"
-                  : "text-[#8A909A] hover:text-[#EDEDEE]"
+                  ? "bg-p3r-blue text-white"
+                  : "text-text-secondary hover:text-[#F2F3F5] hover:bg-surface-hover"
               }`}
             >
               {t}
@@ -107,35 +110,41 @@ export default function ConsolesPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {filtered.map((con) => (
           <div
             key={con.id}
-            className="p-3 bg-[#15171A] border border-[#22252A] rounded-[4px] flex flex-col justify-between"
+            className="p-3.5 bg-surface border border-surface-border rounded-[8px] flex flex-col justify-between relative overflow-hidden"
           >
+            {/* P3R blue corner badge */}
+            <span
+              className="absolute top-0 right-0 w-3.5 h-3.5 bg-p3r-blue"
+              style={{ clipPath: "polygon(100% 0, 0 0, 100% 100%)" }}
+            />
+
             <div>
-              <div className="flex items-start justify-between mb-1">
+              <div className="flex items-start justify-between mb-1.5 pr-2">
                 <div>
-                  <span className="text-sm font-bold text-[#EDEDEE] font-mono block">
+                  <span className="text-sm font-extrabold text-[#F2F3F5] font-sans block">
                     {con.stationNumber}
                   </span>
-                  <span className="text-[10px] font-mono text-[#8A909A]">{con.consoleType}</span>
+                  <span className="text-[11px] font-mono text-p3r-blue font-semibold">{con.consoleType}</span>
                 </div>
                 <StatusBadge status={con.status} />
               </div>
 
-              <div className="p-2 bg-[#111317] border border-[#22252A] rounded-[4px] my-2 text-xs space-y-1 font-mono">
-                <div className="flex justify-between text-[#8A909A] text-[11px]">
+              <div className="p-2.5 bg-surface-muted border border-surface-border rounded-[6px] my-2 text-xs space-y-1 font-mono">
+                <div className="flex justify-between text-text-secondary text-[11px]">
                   <span>Display:</span>
-                  <span className="text-[#EDEDEE] truncate max-w-[120px]">{con.specsDisplay}</span>
+                  <span className="text-[#F2F3F5] truncate max-w-[120px] font-medium">{con.specsDisplay}</span>
                 </div>
-                <div className="flex justify-between text-[#8A909A] text-[11px]">
+                <div className="flex justify-between text-text-secondary text-[11px]">
                   <span>Controllers:</span>
-                  <span className="text-[#EDEDEE]">{con.controllersCount}</span>
+                  <span className="text-[#F2F3F5]">{con.controllersCount} Wireless</span>
                 </div>
-                <div className="flex justify-between text-[#8A909A] text-[11px]">
+                <div className="flex justify-between text-text-secondary text-[11px]">
                   <span>Rate:</span>
-                  <span className="text-[#EDEDEE] font-bold">{formatRupiah(con.hourlyRate)}/hr</span>
+                  <span className="text-[#F2F3F5] font-bold">{formatRupiah(con.hourlyRate)} / hr</span>
                 </div>
               </div>
 
@@ -143,7 +152,7 @@ export default function ConsolesPage() {
                 {con.installedGames.map((g, idx) => (
                   <span
                     key={idx}
-                    className="text-[9px] px-1 py-0.5 rounded-[3px] bg-[#111317] text-[#8A909A] border border-[#22252A] font-mono"
+                    className="text-[10px] px-1.5 py-0.5 rounded-[3px] bg-surface-muted text-text-secondary border border-surface-border font-sans"
                   >
                     {g}
                   </span>
@@ -151,13 +160,13 @@ export default function ConsolesPage() {
               </div>
             </div>
 
-            <div className="pt-2 border-t border-[#22252A]">
+            <div className="pt-2.5 border-t border-surface-border">
               {con.status === "AVAILABLE" ? (
                 <button
                   onClick={() => handleStartSession(con)}
-                  className="w-full bg-[#B4232A] hover:bg-[#961C22] text-[#EDEDEE] text-xs font-semibold py-1.5 px-3 rounded-[4px] uppercase tracking-wider font-mono cursor-pointer"
+                  className="w-full bg-persona-red hover:bg-persona-red-hover text-white text-xs font-bold py-1.5 px-3 rounded-[6px] uppercase tracking-wider font-sans cursor-pointer transition-colors"
                 >
-                  START
+                  START SESSION
                 </button>
               ) : con.status === "IN_USE" ? (
                 <button
@@ -171,14 +180,14 @@ export default function ConsolesPage() {
                     });
                     setActiveModal("end");
                   }}
-                  className="w-full bg-[#111317] hover:bg-[#1A1D22] text-[#D15E65] border border-[#3B1C20] text-xs font-medium py-1.5 px-3 rounded-[4px] font-mono cursor-pointer"
+                  className="w-full bg-surface-muted hover:bg-surface-hover text-persona-red border border-persona-red-border text-xs font-bold py-1.5 px-3 rounded-[6px] cursor-pointer transition-colors"
                 >
                   Checkout
                 </button>
               ) : (
                 <button
                   disabled
-                  className="w-full bg-[#111317] text-[#585C66] text-xs py-1.5 px-3 rounded-[4px] cursor-not-allowed font-mono"
+                  className="w-full bg-surface-muted text-text-muted text-xs py-1.5 px-3 rounded-[6px] cursor-not-allowed"
                 >
                   Maintenance
                 </button>

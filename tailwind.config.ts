@@ -9,42 +9,56 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "#0D0E10", // Dark charcoal base, not pure black
+        // Dark charcoal foundation
+        background: "oklch(0.12 0.015 260)", // #0F1115
         surface: {
-          DEFAULT: "#15171A",  // Clean neutral card / container surface
-          subtle: "#111317",   // Sidebar / topbar surface
-          hover: "#1A1D22",    // Hover surface
-          border: "#22252A",   // Subtle gray structural border
+          DEFAULT: "oklch(0.16 0.015 260)", // #15181F
+          muted: "oklch(0.135 0.015 260)",  // #111419
+          hover: "oklch(0.19 0.018 260)",  // #1B1F27
+          border: "oklch(0.24 0.015 260)", // #242933
+          "border-subtle": "oklch(0.19 0.012 260)",
         },
-        accent: {
-          DEFAULT: "#B4232A",  // Restrained dark red
-          hover: "#961C22",
-          active: "#7F171C",
-          subtle: "#1E1214",   // Subtle dark red background for active states
-          border: "#3B1C20",   // Subtle red border
+        // Persona 5 inspired Red
+        persona: {
+          red: "oklch(0.55 0.20 25)",       // #D82239
+          "red-hover": "oklch(0.48 0.20 25)",
+          "red-active": "oklch(0.42 0.19 25)",
+          "red-subtle": "oklch(0.20 0.06 25)", // Solid dark red background
+          "red-border": "oklch(0.32 0.10 25)",
         },
-        typography: {
-          primary: "#EDEDEE",   // Clean off-white
-          secondary: "#8A909A", // Muted neutral gray
-          muted: "#585C66",     // Low-contrast metadata
+        // Persona 3 Reload inspired Blue
+        p3r: {
+          blue: "oklch(0.55 0.16 250)",      // #2563EB solid cobalt ink
+          "blue-hover": "oklch(0.48 0.16 250)",
+          "blue-subtle": "oklch(0.20 0.05 250)", // Solid dark blue background
+          "blue-border": "oklch(0.32 0.08 250)",
+        },
+        // Maintenance Amber
+        pamber: {
+          DEFAULT: "oklch(0.68 0.14 75)",   // #C98822
+          subtle: "oklch(0.22 0.04 75)",
+          border: "oklch(0.35 0.07 75)",
+        },
+        // Typography
+        text: {
+          primary: "#F2F3F5",
+          secondary: "#8F96A3",
+          muted: "#5B6270",
         },
       },
       fontFamily: {
         sans: [
+          '"Plus Jakarta Sans"',
           "-apple-system",
           "BlinkMacSystemFont",
           '"Segoe UI"',
           "Roboto",
-          '"Helvetica Neue"',
-          "Arial",
           "sans-serif",
         ],
         mono: [
           '"JetBrains Mono"',
           '"SF Mono"',
           "Consolas",
-          '"Liberation Mono"',
-          "Menlo",
           "monospace",
         ],
       },

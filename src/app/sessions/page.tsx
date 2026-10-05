@@ -108,30 +108,33 @@ export default function SessionsPage() {
   };
 
   return (
-    <div className="space-y-3.5">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xs font-bold text-[#EDEDEE] uppercase tracking-wider font-mono">
-          Rental Sessions
-        </h2>
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-3.5 bg-persona-red persona-slash rounded-[1px]"></span>
+          <h2 className="text-xs font-bold text-[#F2F3F5] uppercase tracking-wider font-sans">
+            Active Rental Sessions
+          </h2>
+        </div>
         <button
           onClick={() => fetchSessions()}
-          className="p-1 rounded-[4px] text-[#8A909A] hover:text-[#EDEDEE] bg-[#111317] border border-[#22252A] cursor-pointer"
-          title="Refresh"
+          className="p-1.5 rounded-[6px] text-text-secondary hover:text-[#F2F3F5] bg-surface border border-surface-border cursor-pointer transition-colors"
+          title="Refresh Sessions"
         >
-          <RefreshCw className="w-3 h-3" />
+          <RefreshCw className="w-3.5 h-3.5" />
         </button>
       </div>
 
       {/* Filter Row */}
-      <div className="bg-[#15171A] border border-[#22252A] rounded-[4px] px-3 py-2 flex flex-col sm:flex-row gap-2.5 items-center justify-between">
+      <div className="bg-surface border border-surface-border rounded-[8px] px-3.5 py-2.5 flex flex-col sm:flex-row gap-2.5 items-center justify-between">
         <div className="relative w-full sm:w-64">
-          <Search className="w-3 h-3 text-[#585C66] absolute left-2.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Search session, user, station..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#111317] border border-[#22252A] rounded-[4px] pl-7 pr-2.5 py-1 text-xs text-[#EDEDEE] placeholder-[#585C66] focus:outline-none focus:border-[#B4232A]"
+            className="w-full bg-surface-muted border border-surface-border rounded-[6px] pl-8 pr-2.5 py-1 text-xs text-[#F2F3F5] placeholder-text-muted focus:outline-none focus:border-persona-red"
           />
         </div>
 
@@ -140,10 +143,10 @@ export default function SessionsPage() {
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
-              className={`px-2 py-0.5 rounded-[3px] text-[11px] font-mono transition-colors cursor-pointer ${
+              className={`px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors cursor-pointer ${
                 statusFilter === st
-                  ? "bg-[#B4232A] text-[#EDEDEE] font-medium"
-                  : "text-[#8A909A] hover:text-[#EDEDEE]"
+                  ? "bg-persona-red text-white"
+                  : "text-text-secondary hover:text-[#F2F3F5] hover:bg-surface-hover"
               }`}
             >
               {st}
@@ -169,63 +172,63 @@ export default function SessionsPage() {
         <tbody>
           {isLoading ? (
             <TableRow>
-              <TableCell className="text-center py-8 text-[#8A909A] font-mono">
+              <TableCell className="text-center py-8 text-text-secondary font-mono">
                 Loading sessions...
               </TableCell>
             </TableRow>
           ) : filtered.length === 0 ? (
             <TableRow>
-              <TableCell className="text-center py-8 text-[#8A909A] font-mono">
+              <TableCell className="text-center py-8 text-text-secondary font-mono">
                 No active sessions
               </TableCell>
             </TableRow>
           ) : (
             filtered.map((s) => (
               <TableRow key={s.id}>
-                <TableCell className="font-mono text-[11px] text-[#8A909A]">
+                <TableCell className="font-mono text-[11px] text-text-secondary font-semibold">
                   {s.sessionNumber}
                 </TableCell>
-                <TableCell className="font-bold text-[#EDEDEE] font-mono">
+                <TableCell className="font-extrabold text-[#F2F3F5] font-sans">
                   {s.pcStationNumber || s.consoleStationNumber}
                 </TableCell>
                 <TableCell className="text-xs">
-                  <span className="font-medium text-[#EDEDEE] block">
+                  <span className="font-bold text-[#F2F3F5] block font-sans">
                     {s.memberName || s.guestName || "Guest"}
                   </span>
                   {s.currentGame && (
-                    <span className="text-[10px] text-[#585C66] font-mono">{s.currentGame}</span>
+                    <span className="text-[11px] text-text-muted">{s.currentGame}</span>
                   )}
                 </TableCell>
-                <TableCell className="text-[11px] text-[#8A909A] font-mono">
+                <TableCell className="text-[11px] text-text-secondary font-mono">
                   {formatDateTime(s.startTime)}
                 </TableCell>
-                <TableCell className="font-mono text-[#8A909A]">
+                <TableCell className="font-mono text-text-secondary font-semibold">
                   {s.durationMinutes}m
                 </TableCell>
                 <TableCell>
                   <StatusBadge status={s.status} />
                 </TableCell>
-                <TableCell className="font-mono font-bold text-[#EDEDEE]">
+                <TableCell className="font-mono font-bold text-[#F2F3F5]">
                   {formatRupiah(s.totalPrice)}
                 </TableCell>
                 <TableCell className="text-right">
                   {s.status === "ACTIVE" ? (
-                    <div className="flex items-center justify-end gap-1">
+                    <div className="flex items-center justify-end gap-1.5">
                       <button
                         onClick={() => handleOpenAddTime(s)}
-                        className="px-2 py-0.5 text-xs bg-[#111317] hover:bg-[#1A1D22] text-[#8A909A] hover:text-[#EDEDEE] rounded-[4px] border border-[#22252A] font-mono cursor-pointer"
+                        className="px-2.5 py-1 text-xs bg-surface-muted hover:bg-surface-hover text-text-secondary hover:text-[#F2F3F5] rounded-[4px] border border-surface-border font-sans font-medium cursor-pointer transition-colors"
                       >
                         +Time
                       </button>
                       <button
                         onClick={() => handleOpenEnd(s)}
-                        className="px-2 py-0.5 text-xs bg-[#B4232A] hover:bg-[#961C22] text-[#EDEDEE] font-medium rounded-[4px] font-mono cursor-pointer"
+                        className="px-2.5 py-1 text-xs bg-persona-red hover:bg-persona-red-hover text-white font-bold rounded-[4px] font-sans cursor-pointer transition-colors"
                       >
                         Checkout
                       </button>
                     </div>
                   ) : (
-                    <span className="text-[11px] font-mono text-[#585C66]">PAID (CASH)</span>
+                    <span className="text-[11px] font-mono text-text-muted">PAID (CASH)</span>
                   )}
                 </TableCell>
               </TableRow>

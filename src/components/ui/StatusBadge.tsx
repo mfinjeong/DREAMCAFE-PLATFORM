@@ -9,45 +9,47 @@ interface StatusBadgeProps {
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
   const s = status.toUpperCase();
 
-  let styles = "bg-[#17191C] text-[#8A909A] border-[#25282E]";
-  let dotColor = "bg-[#585C66]";
+  let styles = "bg-surface text-text-muted border-surface-border";
+  let dotColor = "bg-text-muted";
   let label = s;
 
   if (s === "AVAILABLE") {
-    styles = "bg-[#141715] text-[#9CB1A3] border-[#232B25]";
-    dotColor = "bg-[#3D7453]";
+    // Persona 3 Reload inspired blue/teal
+    styles = "bg-p3r-blue-subtle text-p3r-blue border-p3r-blue-border/80";
+    dotColor = "bg-p3r-blue";
     label = "AVAILABLE";
   } else if (s === "IN_USE" || s === "ACTIVE") {
-    styles = "bg-[#1E1214] text-[#D15E65] border-[#3B1C20]";
-    dotColor = "bg-[#B4232A]";
+    // Persona 5 inspired crimson red
+    styles = "bg-persona-red-subtle text-persona-red border-persona-red-border/80";
+    dotColor = "bg-persona-red";
     label = "IN USE";
   } else if (s === "MAINTENANCE") {
-    styles = "bg-[#1C1813] text-[#BFA779] border-[#332A1C]";
-    dotColor = "bg-[#8A6F3C]";
+    styles = "bg-pamber-subtle text-pamber border-pamber-border/80";
+    dotColor = "bg-pamber";
     label = "MAINTENANCE";
   } else if (s === "OFFLINE") {
-    styles = "bg-[#17191C] text-[#70757F] border-[#25282E]";
-    dotColor = "bg-[#4B4F58]";
+    styles = "bg-surface text-text-muted border-surface-border";
+    dotColor = "bg-text-muted";
     label = "OFFLINE";
   } else if (s === "COMPLETED" || s === "CONFIRMED") {
-    styles = "bg-[#141715] text-[#9CB1A3] border-[#232B25]";
-    dotColor = "bg-[#3D7453]";
+    styles = "bg-p3r-blue-subtle text-p3r-blue border-p3r-blue-border/80";
+    dotColor = "bg-p3r-blue";
     label = s;
   } else if (s === "CANCELLED") {
-    styles = "bg-[#1E1214] text-[#D15E65] border-[#3B1C20]";
-    dotColor = "bg-[#B4232A]";
+    styles = "bg-persona-red-subtle text-persona-red border-persona-red-border/80";
+    dotColor = "bg-persona-red";
     label = "CANCELLED";
   } else if (s === "PENDING") {
-    styles = "bg-[#1C1813] text-[#BFA779] border-[#332A1C]";
-    dotColor = "bg-[#8A6F3C]";
+    styles = "bg-pamber-subtle text-pamber border-pamber-border/80";
+    dotColor = "bg-pamber";
     label = "PENDING";
   }
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 text-[10px] font-mono tracking-wider px-1.5 py-0.5 rounded-[4px] border uppercase ${styles}`}
+      className={`inline-flex items-center gap-1.5 text-[10px] font-mono font-semibold tracking-wider px-2 py-0.5 rounded-[4px] border uppercase ${styles}`}
     >
-      <span className={`w-1 h-1 rounded-full ${dotColor}`}></span>
+      <span className={`w-1.5 h-1.5 rounded-[1px] persona-slash ${dotColor}`}></span>
       <span>{label}</span>
     </span>
   );

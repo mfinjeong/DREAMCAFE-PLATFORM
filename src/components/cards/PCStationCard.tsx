@@ -41,13 +41,39 @@ export const PCStationCard: React.FC<PCStationCardProps> = ({
   }, [pc.status]);
 
   return (
-    <div className="rounded-[4px] border border-[#22252A] hover:border-[#31363F] bg-[#15171A] p-3 flex flex-col justify-between transition-colors">
+    <div className="relative overflow-hidden rounded-[8px] border border-surface-border hover:border-surface-hover bg-surface p-3.5 flex flex-col justify-between transition-colors select-none">
+      {/* Subtle Persona-inspired angular corner graphic wedge in top-right */}
+      {pc.status === "IN_USE" ? (
+        <span
+          className="absolute top-0 right-0 w-3.5 h-3.5 bg-persona-red"
+          style={{ clipPath: "polygon(100% 0, 0 0, 100% 100%)" }}
+          title="Active Station"
+        />
+      ) : pc.status === "AVAILABLE" ? (
+        <span
+          className="absolute top-0 right-0 w-3.5 h-3.5 bg-p3r-blue"
+          style={{ clipPath: "polygon(100% 0, 0 0, 100% 100%)" }}
+          title="Available Station"
+        />
+      ) : pc.status === "MAINTENANCE" ? (
+        <span
+          className="absolute top-0 right-0 w-3.5 h-3.5 bg-pamber"
+          style={{ clipPath: "polygon(100% 0, 0 0, 100% 100%)" }}
+          title="Maintenance Station"
+        />
+      ) : (
+        <span
+          className="absolute top-0 right-0 w-3.5 h-3.5 bg-surface-border"
+          style={{ clipPath: "polygon(100% 0, 0 0, 100% 100%)" }}
+        />
+      )}
+
       {/* Top: Station & Zone */}
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-bold text-[#EDEDEE] font-mono tracking-tight">
+      <div className="flex items-center justify-between pr-2">
+        <span className="text-sm font-extrabold text-[#F2F3F5] tracking-tight font-sans">
           {pc.stationNumber}
         </span>
-        <span className="text-[10px] font-mono text-[#8A909A] uppercase tracking-wider bg-[#111317] border border-[#22252A] px-1.5 py-0.5 rounded-[3px]">
+        <span className="text-[10px] font-mono text-text-secondary uppercase tracking-wider bg-surface-muted border border-surface-border px-1.5 py-0.5 rounded-[3px]">
           {pc.zone}
         </span>
       </div>
@@ -58,39 +84,39 @@ export const PCStationCard: React.FC<PCStationCardProps> = ({
       </div>
 
       {/* Middle: Content */}
-      <div className="my-2.5 py-2 border-t border-b border-[#1E2126] min-h-[64px] flex flex-col justify-center">
+      <div className="my-2.5 py-2.5 border-t border-b border-surface-border min-h-[66px] flex flex-col justify-center">
         {pc.status === "IN_USE" ? (
           <div className="space-y-1">
-            <div className="font-semibold text-[#EDEDEE] text-xs truncate">
+            <div className="font-bold text-[#F2F3F5] text-xs truncate font-sans">
               {pc.activeSession?.memberName || pc.activeSession?.guestName || "Guest"}
             </div>
-            <div className="text-[#8A909A] text-[11px] truncate">
+            <div className="text-text-secondary text-[11px] truncate">
               {pc.currentGame || pc.activeSession?.currentGame || "Game"}
             </div>
             <div className="flex items-center justify-between pt-1 font-mono text-[11px]">
-              <span className="text-[#D15E65] font-semibold">
+              <span className="text-persona-red font-bold font-tabular">
                 {formatCountdown(secondsRemaining)}
               </span>
-              <span className="text-[#8A909A]">
+              <span className="text-text-secondary font-semibold font-tabular">
                 {formatRupiah(pc.activeSession?.totalPrice || pc.hourlyRate)}
               </span>
             </div>
           </div>
         ) : pc.status === "AVAILABLE" ? (
           <div className="py-1">
-            <span className="text-xs font-mono text-[#8A909A] block">
+            <span className="text-xs font-mono text-text-secondary block">
               {formatRupiah(pc.hourlyRate)} / hour
             </span>
           </div>
         ) : pc.status === "MAINTENANCE" ? (
           <div className="py-1">
-            <span className="text-xs text-[#8A909A] block font-mono">
+            <span className="text-xs text-pamber font-medium block">
               Under maintenance
             </span>
           </div>
         ) : (
           <div className="py-1">
-            <span className="text-xs text-[#585C66] block font-mono">
+            <span className="text-xs text-text-muted block">
               Offline
             </span>
           </div>
@@ -102,21 +128,21 @@ export const PCStationCard: React.FC<PCStationCardProps> = ({
         {pc.status === "AVAILABLE" ? (
           <button
             onClick={() => onStartSession?.(pc)}
-            className="w-full bg-[#B4232A] hover:bg-[#961C22] text-[#EDEDEE] text-xs font-semibold py-1.5 px-3 rounded-[4px] transition-colors uppercase tracking-wider font-mono cursor-pointer"
+            className="w-full bg-persona-red hover:bg-persona-red-hover active:bg-persona-red-active text-white text-xs font-bold py-1.5 px-3 rounded-[6px] transition-colors uppercase tracking-wider font-sans cursor-pointer"
           >
             START
           </button>
         ) : pc.status === "IN_USE" ? (
           <button
             onClick={() => onViewDetail?.(pc)}
-            className="w-full bg-[#111317] hover:bg-[#1A1D22] text-[#EDEDEE] border border-[#22252A] text-xs font-medium py-1.5 px-3 rounded-[4px] transition-colors uppercase tracking-wider font-mono cursor-pointer"
+            className="w-full bg-surface-muted hover:bg-surface-hover text-[#F2F3F5] border border-surface-border text-xs font-semibold py-1.5 px-3 rounded-[6px] transition-colors uppercase tracking-wider font-sans cursor-pointer"
           >
             DETAIL
           </button>
         ) : (
           <button
             onClick={() => onViewDetail?.(pc)}
-            className="w-full bg-[#111317] hover:bg-[#1A1D22] text-[#8A909A] hover:text-[#EDEDEE] border border-[#22252A] text-xs font-medium py-1.5 px-3 rounded-[4px] transition-colors uppercase tracking-wider font-mono cursor-pointer"
+            className="w-full bg-surface-muted hover:bg-surface-hover text-text-secondary hover:text-[#F2F3F5] border border-surface-border text-xs font-semibold py-1.5 px-3 rounded-[6px] transition-colors uppercase tracking-wider font-sans cursor-pointer"
           >
             VIEW
           </button>

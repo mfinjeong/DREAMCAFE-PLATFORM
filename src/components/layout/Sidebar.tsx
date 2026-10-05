@@ -38,16 +38,20 @@ export const Sidebar: React.FC = () => {
   const pathname = usePathname();
 
   return (
-    <aside className="w-52 bg-[#111317] border-r border-[#22252A] flex flex-col shrink-0 h-screen sticky top-0 select-none">
+    <aside className="w-52 bg-surface-muted border-r border-surface-border flex flex-col shrink-0 h-screen sticky top-0 select-none">
       {/* Brand Header */}
-      <div className="h-12 flex items-center px-4 border-b border-[#22252A]">
-        <span className="text-xs font-bold tracking-widest text-[#EDEDEE] uppercase font-mono">
-          DREAM<span className="text-[#B4232A]">CAFE</span>
+      <div className="h-12 flex items-center px-4 border-b border-surface-border gap-2">
+        <div className="w-1.5 h-3.5 bg-persona-red persona-slash rounded-[1px]"></div>
+        <span className="text-xs font-black tracking-widest text-[#F2F3F5] uppercase">
+          DREAM<span className="text-persona-red">CAFÉ</span>
+        </span>
+        <span className="text-[9px] font-mono text-text-muted border border-surface-border px-1 py-0.5 rounded-[2px] ml-auto">
+          v2.4
         </span>
       </div>
 
       {/* Main Navigation */}
-      <nav className="flex-1 px-2 py-2.5 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 px-2.5 py-3 space-y-1 overflow-y-auto">
         {mainNavItems.map((item) => {
           const isActive =
             pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
@@ -57,39 +61,45 @@ export const Sidebar: React.FC = () => {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-[4px] text-xs transition-colors duration-75 ${
+              className={`relative flex items-center gap-2.5 px-3 py-2 rounded-[6px] text-xs font-medium transition-colors duration-100 ${
                 isActive
-                  ? "bg-[#1E1214] text-[#EDEDEE] font-medium border-l-2 border-[#B4232A]"
-                  : "text-[#8A909A] hover:text-[#EDEDEE] hover:bg-[#15171A]"
+                  ? "bg-persona-red-subtle text-white border border-persona-red-border/70 before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:bg-persona-red before:rounded-l-[2px]"
+                  : "text-text-secondary hover:text-[#F2F3F5] hover:bg-surface-hover"
               }`}
             >
               <Icon
-                className={`w-3.5 h-3.5 shrink-0 ${
-                  isActive ? "text-[#B4232A]" : "text-[#585C66]"
+                className={`w-4 h-4 shrink-0 transition-colors ${
+                  isActive ? "text-persona-red" : "text-text-muted"
                 }`}
               />
               <span>{item.label}</span>
+              {isActive && (
+                <span className="ml-auto w-1 h-2 bg-persona-red persona-slash"></span>
+              )}
             </Link>
           );
         })}
       </nav>
 
       {/* Settings at the bottom */}
-      <div className="p-2 border-t border-[#22252A]">
+      <div className="p-2.5 border-t border-surface-border">
         <Link
           href="/settings"
-          className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-[4px] text-xs transition-colors duration-75 ${
+          className={`relative flex items-center gap-2.5 px-3 py-2 rounded-[6px] text-xs font-medium transition-colors duration-100 ${
             pathname === "/settings"
-              ? "bg-[#1E1214] text-[#EDEDEE] font-medium border-l-2 border-[#B4232A]"
-              : "text-[#8A909A] hover:text-[#EDEDEE] hover:bg-[#15171A]"
+              ? "bg-persona-red-subtle text-white border border-persona-red-border/70 before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:bg-persona-red before:rounded-l-[2px]"
+              : "text-text-secondary hover:text-[#F2F3F5] hover:bg-surface-hover"
           }`}
         >
           <Settings
-            className={`w-3.5 h-3.5 shrink-0 ${
-              pathname === "/settings" ? "text-[#B4232A]" : "text-[#585C66]"
+            className={`w-4 h-4 shrink-0 ${
+              pathname === "/settings" ? "text-persona-red" : "text-text-muted"
             }`}
           />
           <span>Settings</span>
+          {pathname === "/settings" && (
+            <span className="ml-auto w-1 h-2 bg-persona-red persona-slash"></span>
+          )}
         </Link>
       </div>
     </aside>

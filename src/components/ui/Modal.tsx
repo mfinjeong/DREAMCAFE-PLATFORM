@@ -45,30 +45,32 @@ export const Modal: React.FC<ModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85">
       <div
-        className={`w-full ${maxWidthStyles[maxWidth]} bg-[#15171A] border border-[#22252A] rounded-[4px] overflow-hidden flex flex-col max-h-[92vh]`}
+        className={`w-full ${maxWidthStyles[maxWidth]} bg-surface border border-surface-border rounded-[8px] overflow-hidden flex flex-col max-h-[92vh] select-none`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[#22252A] bg-[#111317]">
-          <div>
-            <h3 className="text-xs font-semibold text-[#EDEDEE] uppercase tracking-wider font-mono flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 bg-[#B4232A] rounded-[1px]"></span>
-              {title}
-            </h3>
-            {subtitle && <p className="text-[11px] text-[#8A909A] mt-0.5 font-mono">{subtitle}</p>}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-surface-border bg-surface-muted">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-3.5 bg-persona-red persona-slash rounded-[1px]"></span>
+            <div>
+              <h3 className="text-xs font-bold text-[#F2F3F5] tracking-wide font-sans">
+                {title}
+              </h3>
+              {subtitle && <p className="text-[11px] text-text-secondary mt-0.5">{subtitle}</p>}
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded text-[#8A909A] hover:text-[#EDEDEE] hover:bg-[#1A1D22] transition-colors"
+            className="p-1 rounded-[4px] text-text-secondary hover:text-[#F2F3F5] hover:bg-surface transition-colors cursor-pointer"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-3.5 overflow-y-auto text-xs text-[#EDEDEE]">{children}</div>
+        <div className="p-4 overflow-y-auto text-xs text-[#F2F3F5]">{children}</div>
       </div>
     </div>
   );

@@ -160,64 +160,75 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-3.5">
-      {/* Top Statistics: Uniform neutral surface for all cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        <div className="bg-[#15171A] border border-[#22252A] rounded-[4px] p-3">
-          <span className="text-[10px] font-mono uppercase text-[#8A909A] tracking-wider block font-medium">
+    <div className="space-y-4">
+      {/* Top Statistics: Persona-inspired top accent lines on solid dark surfaces */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* TOTAL PC: Neutral */}
+        <div className="relative overflow-hidden bg-surface border border-surface-border rounded-[8px] p-3.5">
+          <span className="absolute top-0 left-0 right-0 h-[2px] bg-surface-border"></span>
+          <span className="text-[10px] font-mono uppercase text-text-secondary tracking-wider block font-semibold">
             TOTAL PC
           </span>
-          <span className="text-xl font-bold font-mono text-[#EDEDEE] mt-1 block">
+          <span className="text-2xl font-black font-sans text-[#F2F3F5] mt-1 block">
             {totalPC}
           </span>
         </div>
 
-        <div className="bg-[#15171A] border border-[#22252A] rounded-[4px] p-3">
-          <span className="text-[10px] font-mono uppercase text-[#8A909A] tracking-wider block font-medium flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#B4232A]"></span>
+        {/* IN USE: Persona Red Accent */}
+        <div className="relative overflow-hidden bg-surface border border-surface-border rounded-[8px] p-3.5">
+          <span className="absolute top-0 left-0 right-0 h-[2px] bg-persona-red"></span>
+          <span className="text-[10px] font-mono uppercase text-text-secondary tracking-wider block font-semibold flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 bg-persona-red persona-slash rounded-[1px]"></span>
             IN USE
           </span>
-          <span className="text-xl font-bold font-mono text-[#EDEDEE] mt-1 block">
+          <span className="text-2xl font-black font-sans text-[#F2F3F5] mt-1 block">
             {inUseCount}
           </span>
         </div>
 
-        <div className="bg-[#15171A] border border-[#22252A] rounded-[4px] p-3">
-          <span className="text-[10px] font-mono uppercase text-[#8A909A] tracking-wider block font-medium flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#3D7453]"></span>
+        {/* AVAILABLE: Persona 3 Reload Blue Accent */}
+        <div className="relative overflow-hidden bg-surface border border-surface-border rounded-[8px] p-3.5">
+          <span className="absolute top-0 left-0 right-0 h-[2px] bg-p3r-blue"></span>
+          <span className="text-[10px] font-mono uppercase text-text-secondary tracking-wider block font-semibold flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 bg-p3r-blue persona-slash rounded-[1px]"></span>
             AVAILABLE
           </span>
-          <span className="text-xl font-bold font-mono text-[#EDEDEE] mt-1 block">
+          <span className="text-2xl font-black font-sans text-[#F2F3F5] mt-1 block">
             {availableCount}
           </span>
         </div>
 
-        <div className="bg-[#15171A] border border-[#22252A] rounded-[4px] p-3">
-          <span className="text-[10px] font-mono uppercase text-[#8A909A] tracking-wider block font-medium flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#8A6F3C]"></span>
+        {/* MAINTENANCE: Warm Amber Accent */}
+        <div className="relative overflow-hidden bg-surface border border-surface-border rounded-[8px] p-3.5">
+          <span className="absolute top-0 left-0 right-0 h-[2px] bg-pamber"></span>
+          <span className="text-[10px] font-mono uppercase text-text-secondary tracking-wider block font-semibold flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 bg-pamber persona-slash rounded-[1px]"></span>
             MAINTENANCE
           </span>
-          <span className="text-xl font-bold font-mono text-[#EDEDEE] mt-1 block">
+          <span className="text-2xl font-black font-sans text-[#F2F3F5] mt-1 block">
             {maintenanceCount}
           </span>
         </div>
       </div>
 
       {/* PC STATIONS Control & Filters */}
-      <div className="bg-[#15171A] border border-[#22252A] rounded-[4px] px-3 py-2 flex flex-wrap items-center justify-between gap-2 select-none">
-        <div className="flex items-center gap-1.5 text-xs">
-          <span className="text-xs font-bold font-mono text-[#EDEDEE] uppercase tracking-wider mr-2">
-            PC STATIONS
-          </span>
-          <span className="text-[#585C66] font-mono text-[10px] uppercase mr-1">Zone:</span>
+      <div className="bg-surface border border-surface-border rounded-[8px] px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2.5 select-none">
+        <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-1.5 mr-2">
+            <span className="w-1.5 h-3.5 bg-persona-red persona-slash rounded-[1px]"></span>
+            <span className="text-xs font-extrabold text-[#F2F3F5] uppercase tracking-wider font-sans">
+              PC STATIONS
+            </span>
+          </div>
+          <span className="text-text-muted font-mono text-[10px] uppercase mr-1">Zone:</span>
           {["ALL", "REGULAR", "VIP", "ARENA"].map((zone) => (
             <button
               key={zone}
               onClick={() => setSelectedZone(zone)}
-              className={`px-2 py-0.5 rounded-[3px] text-[11px] font-mono transition-colors duration-75 cursor-pointer ${
+              className={`px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors duration-100 cursor-pointer ${
                 selectedZone === zone
-                  ? "bg-[#B4232A] text-[#EDEDEE] font-medium"
-                  : "text-[#8A909A] hover:text-[#EDEDEE] hover:bg-[#111317]"
+                  ? "bg-persona-red text-white"
+                  : "text-text-secondary hover:text-[#F2F3F5] hover:bg-surface-hover"
               }`}
             >
               {zone}
@@ -225,16 +236,16 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        <div className="flex items-center gap-1.5 text-xs">
-          <span className="text-[#585C66] font-mono text-[10px] uppercase mr-1">Status:</span>
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-text-muted font-mono text-[10px] uppercase mr-1">Status:</span>
           {["ALL", "AVAILABLE", "IN_USE", "MAINTENANCE"].map((status) => (
             <button
               key={status}
               onClick={() => setSelectedStatus(status)}
-              className={`px-2 py-0.5 rounded-[3px] text-[11px] font-mono transition-colors duration-75 cursor-pointer ${
+              className={`px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors duration-100 cursor-pointer ${
                 selectedStatus === status
-                  ? "bg-[#22252A] text-[#EDEDEE] font-medium"
-                  : "text-[#8A909A] hover:text-[#EDEDEE]"
+                  ? "bg-surface-muted text-white border border-surface-border"
+                  : "text-text-secondary hover:text-[#F2F3F5]"
               }`}
             >
               {status === "IN_USE" ? "IN USE" : status}
@@ -242,25 +253,25 @@ export default function DashboardPage() {
           ))}
           <button
             onClick={() => fetchData()}
-            className="p-1 text-[#8A909A] hover:text-[#EDEDEE] ml-2 transition-colors cursor-pointer"
-            title="Refresh"
+            className="p-1.5 text-text-secondary hover:text-[#F2F3F5] hover:bg-surface-hover rounded-[4px] ml-1 transition-colors cursor-pointer"
+            title="Refresh Stations"
           >
-            <RefreshCw className="w-3 h-3" />
+            <RefreshCw className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
       {/* Main PC Grid */}
       {isLoading ? (
-        <div className="h-44 flex items-center justify-center text-[#8A909A] text-xs font-mono">
+        <div className="h-44 flex items-center justify-center text-text-secondary text-xs font-mono">
           Loading stations...
         </div>
       ) : filteredPCs.length === 0 ? (
-        <div className="h-32 border border-[#22252A] rounded-[4px] flex items-center justify-center text-[#8A909A] text-xs font-mono">
+        <div className="h-32 border border-surface-border rounded-[8px] flex items-center justify-center text-text-secondary text-xs font-mono">
           No stations found
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {filteredPCs.map((pc) => (
             <PCStationCard
               key={pc.id}

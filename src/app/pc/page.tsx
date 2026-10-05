@@ -180,28 +180,31 @@ export default function PCManagementPage() {
   };
 
   return (
-    <div className="space-y-3.5">
+    <div className="space-y-4">
       {/* Top Action Bar */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xs font-bold text-[#EDEDEE] uppercase tracking-wider font-mono">
-          PC Stations
-        </h2>
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-3.5 bg-persona-red persona-slash rounded-[1px]"></span>
+          <h2 className="text-xs font-bold text-[#F2F3F5] uppercase tracking-wider font-sans">
+            PC Station Fleet
+          </h2>
+        </div>
         <Button variant="primary" size="sm" onClick={handleOpenCreate}>
           <Plus className="w-3.5 h-3.5 mr-1" />
-          Add PC
+          Add Station
         </Button>
       </div>
 
       {/* Filter Row */}
-      <div className="bg-[#15171A] border border-[#22252A] rounded-[4px] px-3 py-2 flex flex-col sm:flex-row gap-2.5 items-center justify-between">
+      <div className="bg-surface border border-surface-border rounded-[8px] px-3.5 py-2.5 flex flex-col sm:flex-row gap-2.5 items-center justify-between">
         <div className="relative w-full sm:w-64">
-          <Search className="w-3 h-3 text-[#585C66] absolute left-2.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Search station or specs..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#111317] border border-[#22252A] rounded-[4px] pl-7 pr-2.5 py-1 text-xs text-[#EDEDEE] placeholder-[#585C66] focus:outline-none focus:border-[#B4232A]"
+            className="w-full bg-surface-muted border border-surface-border rounded-[6px] pl-8 pr-2.5 py-1 text-xs text-[#F2F3F5] placeholder-text-muted focus:outline-none focus:border-persona-red"
           />
         </div>
 
@@ -209,7 +212,7 @@ export default function PCManagementPage() {
           <select
             value={zoneFilter}
             onChange={(e) => setZoneFilter(e.target.value)}
-            className="bg-[#111317] border border-[#22252A] rounded-[4px] px-2 py-1 text-xs text-[#EDEDEE] focus:outline-none"
+            className="bg-surface-muted border border-surface-border rounded-[6px] px-2.5 py-1 text-xs text-[#F2F3F5] focus:outline-none font-medium cursor-pointer"
           >
             <option value="ALL">All Zones</option>
             <option value="REGULAR">REGULAR</option>
@@ -220,7 +223,7 @@ export default function PCManagementPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-[#111317] border border-[#22252A] rounded-[4px] px-2 py-1 text-xs text-[#EDEDEE] focus:outline-none"
+            className="bg-surface-muted border border-surface-border rounded-[6px] px-2.5 py-1 text-xs text-[#F2F3F5] focus:outline-none font-medium cursor-pointer"
           >
             <option value="ALL">All Status</option>
             <option value="AVAILABLE">AVAILABLE</option>
@@ -247,52 +250,52 @@ export default function PCManagementPage() {
         <tbody>
           {filteredPCs.map((pc) => (
             <TableRow key={pc.id}>
-              <TableCell className="font-bold text-[#EDEDEE] font-mono">
+              <TableCell className="font-extrabold text-[#F2F3F5] font-sans">
                 {pc.stationNumber}
               </TableCell>
-              <TableCell className="font-mono text-[11px] text-[#8A909A]">
+              <TableCell className="font-mono text-[11px] text-text-secondary">
                 {pc.zone}
               </TableCell>
-              <TableCell className="font-mono text-[#EDEDEE]">
+              <TableCell className="font-mono text-[#F2F3F5] font-semibold">
                 {formatRupiah(pc.hourlyRate)}
               </TableCell>
               <TableCell>
                 <StatusBadge status={pc.status} />
               </TableCell>
-              <TableCell className="text-[11px] text-[#8A909A] font-mono">
+              <TableCell className="text-[11px] text-text-secondary font-mono">
                 {pc.specsGpu} • {pc.specsCpu}
               </TableCell>
               <TableCell className="text-xs">
                 {pc.status === "IN_USE" ? (
-                  <span className="text-[#D15E65] font-medium font-mono">
+                  <span className="text-persona-red font-bold font-mono">
                     {pc.activeSession?.memberName || "Guest"} ({pc.currentGame || "Game"})
                   </span>
                 ) : (
-                  <span className="text-[#585C66] font-mono">-</span>
+                  <span className="text-text-muted font-mono">-</span>
                 )}
               </TableCell>
               <TableCell className="text-right">
-                <div className="flex items-center justify-end gap-1">
+                <div className="flex items-center justify-end gap-1.5">
                   <button
                     onClick={() => {
                       setSelectedPC(pc);
                       setDetailModalOpen(true);
                     }}
-                    className="p-1 text-[#8A909A] hover:text-[#EDEDEE] bg-[#111317] rounded-[4px] border border-[#22252A] cursor-pointer"
+                    className="p-1.5 text-text-secondary hover:text-[#F2F3F5] bg-surface-muted hover:bg-surface-hover rounded-[4px] border border-surface-border cursor-pointer transition-colors"
                     title="Detail"
                   >
                     <Eye className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => handleOpenEdit(pc)}
-                    className="p-1 text-[#8A909A] hover:text-[#EDEDEE] bg-[#111317] rounded-[4px] border border-[#22252A] cursor-pointer"
+                    className="p-1.5 text-text-secondary hover:text-[#F2F3F5] bg-surface-muted hover:bg-surface-hover rounded-[4px] border border-surface-border cursor-pointer transition-colors"
                     title="Edit"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => handleDeletePC(pc.id, pc.stationNumber)}
-                    className="p-1 text-[#D15E65] hover:text-[#EDEDEE] bg-[#1E1214] rounded-[4px] border border-[#3B1C20] cursor-pointer disabled:opacity-30"
+                    className="p-1.5 text-persona-red hover:text-white bg-persona-red-subtle hover:bg-persona-red rounded-[4px] border border-persona-red-border cursor-pointer transition-colors disabled:opacity-30"
                     title="Delete"
                     disabled={pc.status === "IN_USE"}
                   >
@@ -312,14 +315,14 @@ export default function PCManagementPage() {
         title={isEditing ? `Edit ${formData.stationNumber}` : "New PC Station"}
         maxWidth="md"
       >
-        <form onSubmit={handleSavePC} className="space-y-3">
+        <form onSubmit={handleSavePC} className="space-y-3.5">
           {actionError && (
-            <div className="p-2 bg-[#1E1214] border border-[#3B1C20] rounded-[4px] text-[11px] text-[#D15E65] font-mono">
+            <div className="p-2.5 bg-persona-red-subtle border border-persona-red-border rounded-[6px] text-xs text-persona-red font-medium">
               {actionError}
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2.5">
             <Input
               label="Station Number"
               placeholder="e.g. PC 11"
@@ -336,7 +339,7 @@ export default function PCManagementPage() {
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-2.5">
             <Select
               label="Zone"
               value={formData.zone}
@@ -367,7 +370,7 @@ export default function PCManagementPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2.5">
             <Input
               label="CPU"
               value={formData.specsCpu}
@@ -382,7 +385,7 @@ export default function PCManagementPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2.5">
             <Input
               label="RAM"
               value={formData.specsRam}
@@ -397,7 +400,7 @@ export default function PCManagementPage() {
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-[#22252A]">
+          <div className="flex justify-end gap-2 pt-2 border-t border-surface-border">
             <Button type="button" variant="outline" size="sm" onClick={() => setEditModalOpen(false)}>
               Cancel
             </Button>

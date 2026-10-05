@@ -12,14 +12,14 @@ export const Card: React.FC<CardProps> = ({
   ...props
 }) => {
   const variantStyles = {
-    default: "bg-[#15171A] border-[#22252A]",
-    elevated: "bg-[#181B1F] border-[#22252A]",
-    interactive: "bg-[#15171A] border-[#22252A] hover:border-[#31363F] transition-colors cursor-pointer",
+    default: "bg-surface border-surface-border",
+    elevated: "bg-surface-hover border-surface-border",
+    interactive: "bg-surface border-surface-border hover:border-surface-hover transition-colors cursor-pointer",
   };
 
   return (
     <div
-      className={`rounded-[4px] border p-3.5 text-[#EDEDEE] ${variantStyles[variant]} ${className}`}
+      className={`rounded-[8px] border p-4 text-[#F2F3F5] ${variantStyles[variant]} ${className}`}
       {...props}
     >
       {children}

@@ -15,7 +15,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         {label && (
           <label
             htmlFor={selectId}
-            className="block text-[10px] font-mono uppercase tracking-wider text-[#8A909A] mb-1 font-medium"
+            className="block text-xs font-semibold text-text-secondary mb-1"
           >
             {label}
           </label>
@@ -23,18 +23,18 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         <select
           ref={ref}
           id={selectId}
-          className={`w-full bg-[#111317] border ${
-            error ? "border-[#B4232A]" : "border-[#22252A] focus:border-[#B4232A]"
-          } rounded-[4px] px-2.5 py-1.5 text-xs text-[#EDEDEE] transition-colors focus:outline-none disabled:opacity-50 disabled:bg-[#15171A] ${className}`}
+          className={`w-full bg-surface-muted border ${
+            error ? "border-persona-red" : "border-surface-border focus:border-persona-red"
+          } rounded-[6px] px-3 py-1.5 text-xs text-[#F2F3F5] transition-colors focus:outline-none disabled:opacity-50 disabled:bg-surface cursor-pointer ${className}`}
           {...props}
         >
           {options.map((opt) => (
-            <option key={opt.value} value={opt.value} className="bg-[#15171A] text-[#EDEDEE]">
+            <option key={opt.value} value={opt.value} className="bg-surface text-[#F2F3F5]">
               {opt.label}
             </option>
           ))}
         </select>
-        {error && <p className="mt-1 text-[10px] text-[#D15E65] font-mono">{error}</p>}
+        {error && <p className="mt-1 text-[11px] text-persona-red font-medium">{error}</p>}
       </div>
     );
   }
