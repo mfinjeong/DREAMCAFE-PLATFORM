@@ -44,8 +44,15 @@ export const StartSessionModal: React.FC<StartSessionModalProps> = ({
       if ((!selectedMemberId || !members.some((m) => m.id === selectedMemberId)) && members.length > 0) {
         setSelectedMemberId(members[0].id);
       }
+      if (station) {
+        if ("installedGames" in station && station.installedGames && station.installedGames.length > 0) {
+          setCurrentGame(station.installedGames[0]);
+        } else if ("specsCpu" in station) {
+          setCurrentGame("Valorant");
+        }
+      }
     }
-  }, [isOpen, members, selectedMemberId]);
+  }, [isOpen, members, selectedMemberId, station]);
 
   if (!station) return null;
 

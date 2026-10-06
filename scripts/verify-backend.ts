@@ -1,6 +1,7 @@
 import { prisma } from "../src/lib/prisma";
-import { PCStatus, SessionStatus, PaymentStatus, PaymentMethod } from "@prisma/client";
+import { PCStatus, ConsoleStatus, ConsoleType, SessionStatus, PaymentStatus, PaymentMethod } from "@prisma/client";
 import { listPCs, getPCById, updatePCStatus } from "../src/services/pc.service";
+import { listConsoles, getConsoleById, createConsole, updateConsole, updateConsoleStatus, deleteConsole } from "../src/services/console.service";
 import { listMembers, getMemberById, createMember, updateMember, searchMembers } from "../src/services/member.service";
 import { startSession, stopSession, checkoutSession, getSessionById } from "../src/services/session.service";
 import { getLowStockProducts, listProducts } from "../src/services/product.service";
@@ -336,6 +337,96 @@ async function runTests() {
   const filteredLowStock = await listProducts({ lowStockOnly: true });
   assert(Array.isArray(filteredLowStock), `listProducts({ lowStockOnly: true }) returned ${filteredLowStock.length} items`);
 
+  // -------------------------------------------------------------------
+  // TEST GROUP 6: CONSOLE MANAGEMENT & SESSIONS
+  // -------------------------------------------------------------------
+  console.log("\n▶ TEST GROUP 6: Console Management & Sessions");
+  const consoles = await listConsoles();
+  assert(Array.isArray(consoles) && consoles.length > 0, `listConsoles returned ${consoles.length} console stations`);
+
+  const con01 = consoles.find((c) => c.stationNumber === "CON 01");
+  assert(Boolean(con01), "CON 01 found in station list");
+  if (!con01) return;
+
+  const conDetails = await getConsoleById(con01.id);
+  assert(conDetails !== null && conDetails.id === con01.id, "getConsoleById returns console station details");
+
+  // Create temporary test console
+  const tempConStationNumber = `CON 9${Math.floor(Math.random() * 9)}`;
+  const createdCon = await createConsole({
+    stationNumber: tempConStationNumber,
+    name: "PlayStation 5 Test Suite Station",
+    consoleType: ConsoleType.PS5,
+    status: ConsoleStatus.AVAILABLE,
+    hourlyRate: 25000,
+    controllersCount: 4,
+    specsDisplay: 'LG OLED 55" 4K 120Hz Test',
+    installedGames: ["EA Sports FC 24", "Tekken 8"],
+  });
+  assert(createdCon.stationNumber === tempConStationNumber, `createConsole created ${tempConStationNumber}`);
+
+  // Update console
+  const updatedCon = await updateConsole(createdCon.id, {
+    hourlyRate: 30000,
+    controllersCount: 2,
+  });
+  assert(updatedCon.hourlyRate === 30000, "updateConsole updated hourly rate to Rp30.000");
+
+  // Validate manual transition to IN_USE without session is rejected
+  let caughtConInvalidInUse = false;
+  try {
+    await updateConsoleStatus(createdCon.id, ConsoleStatus.IN_USE);
+  } catch (err: unknown) {
+    caughtConInvalidInUse = true;
+    const msg = err instanceof Error ? err.message : String(err);
+    assert(msg.includes("IN_USE"), `Invalid manual transition to IN_USE rejected: "${msg}"`);
+  }
+  assert(caughtConInvalidInUse, "Manual transition to IN_USE without session was properly rejected");
+
+  // Test Console Session: Start session
+  console.log(`  Starting console session on ${createdCon.stationNumber}...`);
+  const conSession = await startSession({
+    stationId: createdCon.id,
+    type: "CONSOLE",
+    guestName: "Console Tester",
+    durationMinutes: 60,
+    currentGame: "Tekken 8",
+  });
+  assert(Boolean(conSession.id), `Console session started: ${conSession.sessionNumber}`);
+
+  // Verify console is now IN_USE
+  const activeConCheck = await getConsoleById(createdCon.id);
+  assert(activeConCheck?.status === ConsoleStatus.IN_USE, "Console status updated to IN_USE");
+  assert(activeConCheck?.activeSession !== null, "Console reflects active session");
+
+  // Verify duplicate active session rejection
+  let caughtDuplicateCon = false;
+  try {
+    await startSession({
+      stationId: createdCon.id,
+      type: "CONSOLE",
+      guestName: "Second Player",
+      durationMinutes: 60,
+    });
+  } catch (err: unknown) {
+    caughtDuplicateCon = true;
+    const msg = err instanceof Error ? err.message : String(err);
+    assert(msg.includes("IN_USE") || msg.includes("sesi aktif"), `Duplicate console session rejected: "${msg}"`);
+  }
+  assert(caughtDuplicateCon, "Duplicate active session on console was properly prevented");
+
+  // Stop console session
+  const stoppedConSession = await stopSession(conSession.id);
+  assert(stoppedConSession.status === SessionStatus.COMPLETED, "Console session stopped and marked COMPLETED");
+
+  // Verify console status returned to AVAILABLE
+  const availableConCheck = await getConsoleById(createdCon.id);
+  assert(availableConCheck?.status === ConsoleStatus.AVAILABLE, "Console status cleanly returned to AVAILABLE");
+
+  // Delete temporary test console
+  await deleteConsole(createdCon.id);
+  const deletedCheck = await getConsoleById(createdCon.id);
+  assert(deletedCheck === null, "Temporary console station cleaned up and deleted");
   // Clean up temporary member created in Test Group 2
   await prisma.member.delete({ where: { id: newMember.id } });
   console.log("  ✓ Temporary test member cleaned up.");

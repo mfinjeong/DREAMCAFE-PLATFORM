@@ -24,6 +24,7 @@ export const consoleSchema = z.object({
   hourlyRate: z.number().min(1000, "Tarif per jam minimal Rp1.000"),
   controllersCount: z.number().int().min(1).max(8).default(2),
   specsDisplay: z.string().min(2, "Spesifikasi TV/Display wajib diisi"),
+  installedGames: z.array(z.string()).optional().default([]),
 });
 
 export const memberSchema = z.object({
