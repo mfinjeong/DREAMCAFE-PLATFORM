@@ -17,6 +17,7 @@ import {
   Wrench,
   Users,
   Swords,
+  Shield,
 } from "lucide-react";
 
 interface NavItem {
@@ -33,6 +34,7 @@ const mainNavItems: NavItem[] = [
   { label: "Sessions", href: "/sessions", icon: Clock },
   { label: "Booking", href: "/booking", icon: CalendarDays },
   { label: "Members", href: "/members", icon: Users },
+  { label: "Teams", href: "/teams", icon: Shield },
   { label: "Store", href: "/store", icon: ShoppingBag },
   { label: "Inventory", href: "/inventory", icon: Package },
   { label: "Maintenance", href: "/maintenance", icon: Wrench },

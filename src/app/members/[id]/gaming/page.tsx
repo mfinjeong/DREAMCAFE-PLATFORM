@@ -96,7 +96,7 @@ export default function MemberGamingProfilePage({
     );
   }
 
-  const { member, stats, favoriteGames, gamesPlayed, recentActivity, dreamRankProfile } = profile;
+  const { member, stats, favoriteGames, gamesPlayed, recentActivity, dreamRankProfile, teams } = profile;
 
   const getRankBadgeStyle = (rank: string) => {
     switch (rank) {
@@ -371,6 +371,66 @@ export default function MemberGamingProfilePage({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Team / Clan Esport Section */}
+      <div className="bg-surface-card border border-surface-border p-5 rounded-[4px] space-y-3">
+        <div className="flex items-center justify-between pb-2.5 border-b border-surface-border">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-3.5 bg-persona-blue persona-slash rounded-[1px]"></div>
+            <h2 className="text-xs font-mono font-bold tracking-wider text-text-primary uppercase flex items-center gap-2">
+              <Shield className="w-3.5 h-3.5 text-persona-blue" />
+              <span>Tim & Clan Esport</span>
+            </h2>
+          </div>
+          <span className="text-[10px] font-mono text-text-muted">
+            {teams?.length || 0} Keanggotaan Tim
+          </span>
+        </div>
+
+        {(!teams || teams.length === 0) ? (
+          <div className="p-4 text-center bg-surface-dark/40 border border-surface-border rounded-[4px]">
+            <p className="text-xs text-text-secondary font-mono">
+              Member ini belum terdaftar dalam tim atau clan esport manapun.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {teams.map((t) => (
+              <div
+                key={t.id}
+                className="bg-surface-dark/60 border border-surface-border p-3.5 rounded-[4px] flex items-center justify-between gap-3 hover:border-surface-border-active transition-all"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-mono font-bold px-1.5 py-0.2 rounded bg-surface-dark border border-persona-blue/40 text-persona-blue">
+                      #{t.teamTag}
+                    </span>
+                    <h4 className="text-xs font-bold text-text-primary truncate">{t.teamName}</h4>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-text-muted mt-1 font-mono">
+                    <span
+                      className={`px-1 py-0.2 rounded font-bold ${
+                        t.role === "OWNER"
+                          ? "text-amber-400 bg-amber-950/40 border border-amber-800/40"
+                          : "text-text-secondary bg-surface-dark border border-surface-border"
+                      }`}
+                    >
+                      {t.role}
+                    </span>
+                    <span>• {t.memberCount} Player</span>
+                  </div>
+                </div>
+
+                <Link href={`/teams/${t.teamId}`}>
+                  <Button variant="outline" size="sm" className="h-7 text-xs px-2 shrink-0">
+                    <span>Lihat Tim</span>
+                  </Button>
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* KPI Stats Overview */}

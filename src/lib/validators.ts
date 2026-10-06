@@ -214,3 +214,40 @@ export const gameQuerySchema = z.object({
   status: z.enum(["ALL", "ACTIVE", "INACTIVE"]).optional().default("ALL"),
 });
 
+export const createTeamSchema = z.object({
+  name: z.string().trim().min(2, "Nama tim minimal 2 karakter").max(50, "Nama tim maksimal 50 karakter"),
+  tag: z
+    .string()
+    .trim()
+    .min(2, "Tag tim minimal 2 karakter")
+    .max(6, "Tag tim maksimal 6 karakter")
+    .regex(/^[A-Za-z0-9]+$/, "Tag tim hanya boleh alfanumerik (huruf dan angka)")
+    .transform((v) => v.toUpperCase()),
+  description: z.string().trim().max(250, "Deskripsi maksimal 250 karakter").optional().nullable(),
+  logoUrl: z.string().trim().optional().nullable(),
+  ownerId: z.string().trim().min(1, "Owner member ID wajib diisi"),
+});
+
+export const updateTeamSchema = z.object({
+  name: z.string().trim().min(2, "Nama tim minimal 2 karakter").max(50, "Nama tim maksimal 50 karakter").optional(),
+  tag: z
+    .string()
+    .trim()
+    .min(2, "Tag tim minimal 2 karakter")
+    .max(6, "Tag tim maksimal 6 karakter")
+    .regex(/^[A-Za-z0-9]+$/, "Tag tim hanya boleh alfanumerik (huruf dan angka)")
+    .transform((v) => v.toUpperCase())
+    .optional(),
+  description: z.string().trim().max(250, "Deskripsi maksimal 250 karakter").optional().nullable(),
+  logoUrl: z.string().trim().optional().nullable(),
+});
+
+export const addTeamMemberSchema = z.object({
+  memberId: z.string().trim().min(1, "Member ID wajib dipilih"),
+  role: z.enum(["OWNER", "MEMBER"]).optional().default("MEMBER"),
+});
+
+export const transferTeamOwnershipSchema = z.object({
+  newOwnerId: z.string().trim().min(1, "New Owner Member ID wajib dipilih"),
+});
+

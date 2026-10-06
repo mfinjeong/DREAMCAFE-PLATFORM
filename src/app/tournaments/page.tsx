@@ -132,17 +132,17 @@ export default function TournamentsPage() {
                   [{team.tag}]
                 </TableCell>
                 <TableCell className="text-text-primary text-xs">
-                  {team.leaderName}
+                  {team.ownerName || team.leaderName || "-"}
                 </TableCell>
                 <TableCell className="font-mono text-text-muted text-xs">
                   {team.memberCount} players
                 </TableCell>
                 <TableCell className="font-mono text-xs">
-                  <span className="text-p3r-blue font-bold">{team.wins}W</span> -{" "}
-                  <span className="text-persona-red font-bold">{team.losses}L</span>
+                  <span className="text-p3r-blue font-bold">{team.wins ?? 0}W</span> -{" "}
+                  <span className="text-persona-red font-bold">{team.losses ?? 0}L</span>
                 </TableCell>
                 <TableCell className="font-mono font-bold text-text-primary">
-                  {team.eloRating}
+                  {team.eloRating ?? 1200}
                 </TableCell>
               </TableRow>
             ))}

@@ -12,6 +12,7 @@ export type DreamRank = "UNRANKED" | "BRONZE" | "SILVER" | "GOLD" | "PLATINUM" |
 export type InventoryAction = "STOCK_IN" | "STOCK_OUT" | "ADJUSTMENT";
 export type TournamentStatus = "UPCOMING" | "ONGOING" | "COMPLETED" | "CANCELLED";
 export type MaintenanceStatus = "SCHEDULED" | "IN_PROGRESS" | "RESOLVED";
+export type TeamMemberRole = "OWNER" | "MEMBER";
 
 export interface PCStation {
   id: string;
@@ -235,11 +236,60 @@ export interface TeamItem {
   id: string;
   name: string;
   tag: string;
-  leaderName: string;
+  description?: string | null;
+  logoUrl?: string | null;
+  ownerId: string;
+  ownerName: string;
+  ownerUsername: string;
   memberCount: number;
-  wins: number;
-  losses: number;
-  eloRating: number;
+  createdAt: string;
+  updatedAt: string;
+  leaderName?: string;
+  wins?: number;
+  losses?: number;
+  eloRating?: number;
+}
+
+export interface TeamMemberDTO {
+  id: string;
+  teamId: string;
+  memberId: string;
+  memberName: string;
+  username: string;
+  memberCode: string;
+  tier: MemberTier;
+  role: TeamMemberRole;
+  dreamRating: number;
+  dreamRank: DreamRank;
+  avatarUrl?: string | null;
+  joinedAt: string;
+}
+
+export interface TeamSummaryDTO {
+  team: TeamItem;
+  owner: {
+    id: string;
+    fullName: string;
+    username: string;
+    memberCode: string;
+  };
+  memberCount: number;
+  members: TeamMemberDTO[];
+  averageRating: number;
+  highestRating: number;
+  lowestRating: number;
+  highestRank: DreamRank;
+  lowestRank: DreamRank;
+}
+
+export interface MemberTeamMembershipDTO {
+  id: string;
+  teamId: string;
+  teamName: string;
+  teamTag: string;
+  role: TeamMemberRole;
+  memberCount: number;
+  joinedAt: string;
 }
 
 export interface MaintenanceItem {
@@ -493,6 +543,7 @@ export interface GamingProfileDTO {
     xpRemaining: number;
   };
   dreamRankProfile: DreamRankProfileDTO;
+  teams: MemberTeamMembershipDTO[];
   favoriteGames: MemberGameStatItem[];
   gamesPlayed: MemberGameStatItem[];
   recentActivity: GamingActivityItem[];

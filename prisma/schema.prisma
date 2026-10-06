@@ -104,6 +104,11 @@ enum MaintenanceStatus {
   RESOLVED
 }
 
+enum TeamMemberRole {
+  OWNER
+  MEMBER
+}
+
 model User {
   id           String   @id @default(cuid())
   username     String   @unique
@@ -138,9 +143,10 @@ model Member {
 
   sessions     Session[]
   bookings     Booking[]
-  transactions Transaction[]
-  teamMembers  TeamMember[]
-  gameStats    MemberGameStat[]
+  transactions    Transaction[]
+  ownedTeams      Team[]             @relation("TeamOwner")
+  teamMemberships TeamMember[]       @relation("TeamMemberships")
+  gameStats       MemberGameStat[]
   rankHistory  DreamRankHistory[]
 
   @@index([tier])
@@ -439,30 +445,33 @@ model Team {
   id          String           @id @default(cuid())
   name        String           @unique
   tag         String           @unique
+  description String?
   logoUrl     String?
-  leaderName  String
-  memberCount Int              @default(5)
-  wins        Int              @default(0)
-  losses      Int              @default(0)
-  eloRating   Int              @default(1200)
+  ownerId     String
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
+  owner       Member           @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members     TeamMember[]
   tournaments TournamentTeam[]
+
+  @@index([ownerId])
+  @@index([tag])
 }
 
 model TeamMember {
-  id        String   @id @default(cuid())
+  id        String         @id @default(cuid())
   teamId    String
   memberId  String
-  role      String   @default("MEMBER") // CAPTAIN, MEMBER, SUB
-  joinedAt  DateTime @default(now())
+  role      TeamMemberRole @default(MEMBER)
+  joinedAt  DateTime       @default(now())
 
-  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  team      Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  member    Member         @relation("TeamMemberships", fields: [memberId], references: [id], onDelete: Cascade)
 
   @@unique([teamId, memberId])
+  @@index([teamId])
+  @@index([memberId])
 }
 
 model TournamentTeam {

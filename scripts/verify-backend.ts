@@ -1,5 +1,5 @@
 import { prisma } from "../src/lib/prisma";
-import { PCStatus, ConsoleStatus, ConsoleType, SessionStatus, PaymentStatus, PaymentMethod, BookingStatus, InventoryAction, DreamRank } from "@prisma/client";
+import { PCStatus, ConsoleStatus, ConsoleType, SessionStatus, PaymentStatus, PaymentMethod, BookingStatus, InventoryAction, DreamRank, TeamMemberRole } from "@prisma/client";
 import { listPCs, getPCById, updatePCStatus } from "../src/services/pc.service";
 import { listConsoles, getConsoleById, createConsole, updateConsole, updateConsoleStatus, deleteConsole } from "../src/services/console.service";
 import { listMembers, getMemberById, createMember, updateMember, deleteMember, searchMembers } from "../src/services/member.service";
@@ -55,6 +55,21 @@ import {
   applyDreamRatingChange,
   DREAM_RANK_TIERS,
 } from "../src/services/dreamrank.service";
+import {
+  listTeams,
+  getTeamById,
+  getTeamByTag,
+  createTeam,
+  updateTeam,
+  deleteTeam,
+  listTeamMembers,
+  addTeamMember,
+  removeTeamMember,
+  leaveTeam,
+  transferTeamOwnership,
+  getTeamSummary,
+  getMemberTeams,
+} from "../src/services/team.service";
 
 let passedCount = 0;
 let failedCount = 0;
@@ -1883,6 +1898,183 @@ async function runTests() {
   });
   await deleteMember(rankMember.id);
   console.log("  ✓ Test 24k: Isolated DREAMRANK test fixtures cleaned up cleanly.\n");
+
+  // =========================================================================
+  // TEST GROUP 11: TEAM / CLAN SYSTEM (PHASE 1)
+  // =========================================================================
+  console.log("==================================================");
+  console.log("TEST GROUP 11: TEAM / CLAN SYSTEM (PHASE 1)");
+  console.log("==================================================");
+
+  // Setup isolated test members
+  const teamOwner = await createMember({
+    fullName: "Team Alpha Owner",
+    username: "teamowner_auto",
+    tier: "VIP",
+  });
+  await applyDreamRatingChange(teamOwner.id, 1500, "Placement Test"); // GOLD (1500 RR)
+
+  const teamMember2 = await createMember({
+    fullName: "Team Player Two",
+    username: "teamplayer2_auto",
+    tier: "PRO",
+  });
+  await applyDreamRatingChange(teamMember2.id, 2200, "Placement Test"); // PLATINUM (2200 RR)
+
+  const teamMember3 = await createMember({
+    fullName: "Team Player Three",
+    username: "teamplayer3_auto",
+    tier: "REGULAR",
+  });
+  await applyDreamRatingChange(teamMember3.id, 800, "Placement Test"); // BRONZE (800 RR)
+
+  // 1-4: Create team, owner defaults, initial roster, member count
+  const newTeam = await createTeam({
+    name: "Alpha Squad Esports Auto",
+    tag: "ASEA",
+    description: "Competitive test clan for automated verification",
+    ownerId: teamOwner.id,
+  });
+  assert(newTeam.name === "Alpha Squad Esports Auto", `Test 1: Team created successfully (${newTeam.name})`);
+  assert(newTeam.ownerId === teamOwner.id, `Test 2: Team default owner is creator (${newTeam.ownerName})`);
+
+  const initialRoster = await listTeamMembers(newTeam.id);
+  assert(initialRoster.length === 1, "Test 3: Owner automatically registered as TeamMember");
+  assert(initialRoster[0].memberId === teamOwner.id && initialRoster[0].role === TeamMemberRole.OWNER, "Test 3b: Creator role is OWNER in roster");
+  assert(newTeam.memberCount === 1, "Test 4: Team member count is 1");
+
+  // 5-7: Get team, list teams, search team
+  const fetchedTeam = await getTeamById(newTeam.id);
+  assert(fetchedTeam?.tag === "ASEA", `Test 5: getTeamById returns correct team (#${fetchedTeam?.tag})`);
+
+  const allTeams = await listTeams();
+  assert(allTeams.some((t) => t.id === newTeam.id), "Test 6: listTeams includes created team");
+
+  const teamSearchResults = await listTeams({ search: "Alpha Squad" });
+  assert(teamSearchResults.some((t) => t.id === newTeam.id), "Test 7: Search by name finds created team");
+
+  // 8-12: Add member, prevent duplicate membership, list team members, member role, real DREAMRANK
+  const addedM2 = await addTeamMember(newTeam.id, { memberId: teamMember2.id, role: "MEMBER" });
+  assert(addedM2.memberId === teamMember2.id, `Test 8: Member added to team (${addedM2.memberName})`);
+  assert(addedM2.role === TeamMemberRole.MEMBER, "Test 11: Member role is MEMBER");
+
+  let duplicateMembershipRejected = false;
+  try {
+    await addTeamMember(newTeam.id, { memberId: teamMember2.id });
+  } catch (err: unknown) {
+    duplicateMembershipRejected = err instanceof Error && err.message.includes("sudah terdaftar");
+  }
+  assert(duplicateMembershipRejected === true, "Test 9: Prevent duplicate membership rejected with validation error");
+
+  await addTeamMember(newTeam.id, { memberId: teamMember3.id });
+  const fullRoster = await listTeamMembers(newTeam.id);
+  assert(fullRoster.length === 3, `Test 10: List team members returns all 3 members (${fullRoster.length})`);
+
+  const m2InRoster = fullRoster.find((m) => m.memberId === teamMember2.id);
+  assert(m2InRoster?.dreamRating === 2200 && m2InRoster?.dreamRank === DreamRank.PLATINUM, `Test 12: Team member DREAMRANK comes from real Member (2200 RR, ${m2InRoster?.dreamRank})`);
+
+  // 13-16: Team summary and DREAMRANK calculations
+  const teamSummary = await getTeamSummary(newTeam.id);
+  assert(teamSummary.memberCount === 3, `Test 13: Team summary returns member count 3 (${teamSummary.memberCount})`);
+  // Total: 1500 + 2200 + 800 = 4500. Average: 4500 / 3 = 1500 (GOLD)
+  assert(teamSummary.averageRating === 1500, `Test 14: Average DREAMRANK calculation is correct (${teamSummary.averageRating} RR)`);
+  assert(teamSummary.highestRating === 2200 && teamSummary.highestRank === DreamRank.PLATINUM, `Test 15: Highest DREAMRANK is correct (${teamSummary.highestRating} RR, ${teamSummary.highestRank})`);
+  assert(teamSummary.lowestRating === 800 && teamSummary.lowestRank === DreamRank.BRONZE, `Test 16: Lowest DREAMRANK is correct (${teamSummary.lowestRating} RR, ${teamSummary.lowestRank})`);
+
+  // 17-18: Remove member, prevent removing OWNER
+  const removeRes = await removeTeamMember(newTeam.id, teamMember3.id);
+  assert(removeRes === true, "Test 17: removeTeamMember removes non-owner member");
+  const rosterAfterRemove = await listTeamMembers(newTeam.id);
+  assert(rosterAfterRemove.length === 2 && !rosterAfterRemove.some((m) => m.memberId === teamMember3.id), "Test 17b: Member 3 no longer in roster");
+
+  let removeOwnerRejected = false;
+  try {
+    await removeTeamMember(newTeam.id, teamOwner.id);
+  } catch (err: unknown) {
+    removeOwnerRejected = err instanceof Error && err.message.includes("Owner tim tidak dapat dihapus");
+  }
+  assert(removeOwnerRejected === true, "Test 18: Prevent removing OWNER rejected");
+
+  // 19-20: Member leave, prevent OWNER leave without transfer
+  await addTeamMember(newTeam.id, { memberId: teamMember3.id }); // Re-add member 3
+  const leaveRes = await leaveTeam(newTeam.id, teamMember3.id);
+  assert(leaveRes === true, "Test 19: Non-owner member can leave team");
+
+  let ownerLeaveRejected = false;
+  try {
+    await leaveTeam(newTeam.id, teamOwner.id);
+  } catch (err: unknown) {
+    ownerLeaveRejected = err instanceof Error && err.message.includes("tanpa mentransfer");
+  }
+  assert(ownerLeaveRejected === true, "Test 20: Prevent OWNER leave without transfer rejected");
+
+  // 21-25: Transfer ownership, roles update atomically, prevent transfer to non-member
+  const transferResult = await transferTeamOwnership(newTeam.id, teamMember2.id);
+  assert(transferResult.team.ownerId === teamMember2.id, `Test 21: Team ownerId updated to new owner (${transferResult.team.ownerName})`);
+
+  const rosterAfterTransfer = await listTeamMembers(newTeam.id);
+  const oldOwnerRow = rosterAfterTransfer.find((m) => m.memberId === teamOwner.id);
+  const newOwnerRow = rosterAfterTransfer.find((m) => m.memberId === teamMember2.id);
+  assert(oldOwnerRow?.role === TeamMemberRole.MEMBER, `Test 22: Previous owner becomes MEMBER (${oldOwnerRow?.role})`);
+  assert(newOwnerRow?.role === TeamMemberRole.OWNER, `Test 23: New owner becomes OWNER (${newOwnerRow?.role})`);
+
+  const ownersCount = rosterAfterTransfer.filter((m) => m.role === TeamMemberRole.OWNER).length;
+  assert(ownersCount === 1, `Test 24: Ownership transfer is atomic (exactly 1 OWNER exists: ${ownersCount})`);
+
+  let nonMemberTransferRejected = false;
+  try {
+    await transferTeamOwnership(newTeam.id, "non-member-dummy-id");
+  } catch (err: unknown) {
+    nonMemberTransferRejected = true;
+  }
+  assert(nonMemberTransferRejected === true, "Test 25: Prevent transfer to non-member rejected");
+
+  // 26-27: Update team & Duplicate tag rejection
+  const updatedTeamRes = await updateTeam(newTeam.id, {
+    name: "Alpha Squad Prime Auto",
+    description: "Updated clan description",
+  });
+  assert(updatedTeamRes.name === "Alpha Squad Prime Auto", `Test 26: Update team name succeeded (${updatedTeamRes.name})`);
+
+  // Test duplicate tag rejection
+  const anotherTeam = await createTeam({
+    name: "Beta Force Auto",
+    tag: "BFA",
+    ownerId: teamOwner.id,
+  });
+  let dupTagRejected = false;
+  try {
+    await updateTeam(newTeam.id, { tag: "BFA" });
+  } catch (err: unknown) {
+    dupTagRejected = err instanceof Error && err.message.includes("sudah digunakan");
+  }
+  assert(dupTagRejected === true, "Test 27: Duplicate team tag rejected");
+
+  // Verify GamingProfileDTO includes real Member team memberships
+  const memberGamingProfile = await getGamingProfile(teamOwner.id);
+  assert(memberGamingProfile.teams !== undefined, "Test 27b: GamingProfileDTO embeds member teams array");
+  assert(memberGamingProfile.teams.some((t) => t.teamId === newTeam.id), "Test 27c: Member teams includes newTeam membership");
+
+  // 28-30: Delete team, cleanup TeamMember rows, Member records intact
+  const deleteRes = await deleteTeam(newTeam.id);
+  assert(deleteRes === true, "Test 28: Delete team succeeded");
+
+  const orphanedRows = await prisma.teamMember.findMany({ where: { teamId: newTeam.id } });
+  assert(orphanedRows.length === 0, `Test 29: TeamMember rows cleaned up cascade (${orphanedRows.length})`);
+
+  const ownerStillInDB = await prisma.member.findUnique({ where: { id: teamOwner.id } });
+  const m2StillInDB = await prisma.member.findUnique({ where: { id: teamMember2.id } });
+  assert(ownerStillInDB !== null && m2StillInDB !== null, "Test 30: Member records remain intact after team deletion");
+
+  // Clean up isolated test fixtures
+  await deleteTeam(anotherTeam.id);
+  await prisma.dreamRankHistory.deleteMany({
+    where: { memberId: { in: [teamOwner.id, teamMember2.id, teamMember3.id] } },
+  });
+  await deleteMember(teamOwner.id);
+  await deleteMember(teamMember2.id);
+  await deleteMember(teamMember3.id);
+  console.log("  ✓ Test 30b: Isolated TEAM test fixtures cleaned up cleanly.\n");
 
   console.log("==================================================");
   console.log(`SUMMARY: ${passedCount} PASSED, ${failedCount} FAILED`);

@@ -407,29 +407,20 @@ export const SEED_DATA = {
     {
       name: "DREAM Spectres",
       tag: "DRM",
-      leaderName: "Muhammad Fadhil",
-      memberCount: 5,
-      wins: 14,
-      losses: 3,
-      eloRating: 1650,
+      ownerUsername: "Vandal_God",
+      description: "Tim elit esports DREAMCAFÉ divisi taktis FPS.",
     },
     {
       name: "Garuda Cyber Squad",
       tag: "GCS",
-      leaderName: "Dimas Arya Putra",
-      memberCount: 5,
-      wins: 22,
-      losses: 6,
-      eloRating: 1820,
+      ownerUsername: "ShadowSniper",
+      description: "Squad jawara turnamen komunitas regional.",
     },
     {
       name: "Nusantara Wolves",
       tag: "NWLF",
-      leaderName: "Ananda Rizky",
-      memberCount: 5,
-      wins: 8,
-      losses: 7,
-      eloRating: 1350,
+      ownerUsername: "RizkyClutch",
+      description: "Tim kompetitif MOBA dan battle royale.",
     },
   ],
   tournaments: [
@@ -545,10 +536,25 @@ async function main() {
 
   // Seed Teams
   for (const t of SEED_DATA.teams) {
-    await prisma.team.upsert({
+    const ownerId = memberMap.get(t.ownerUsername) || Array.from(memberMap.values())[0];
+    const team = await prisma.team.upsert({
       where: { tag: t.tag },
-      update: {},
-      create: t,
+      update: {
+        name: t.name,
+        description: t.description,
+      },
+      create: {
+        name: t.name,
+        tag: t.tag,
+        description: t.description,
+        ownerId,
+      },
+    });
+
+    await prisma.teamMember.upsert({
+      where: { teamId_memberId: { teamId: team.id, memberId: ownerId } },
+      update: { role: "OWNER" },
+      create: { teamId: team.id, memberId: ownerId, role: "OWNER" },
     });
   }
 
