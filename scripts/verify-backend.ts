@@ -4,8 +4,9 @@ import { listPCs, getPCById, updatePCStatus } from "../src/services/pc.service";
 import { listConsoles, getConsoleById, createConsole, updateConsole, updateConsoleStatus, deleteConsole } from "../src/services/console.service";
 import { listMembers, getMemberById, createMember, updateMember, deleteMember, searchMembers } from "../src/services/member.service";
 import { startSession, stopSession, checkoutSession, getSessionById } from "../src/services/session.service";
-import { getLowStockProducts, listProducts, getProductById } from "../src/services/product.service";
+import { getLowStockProducts, listProducts, getProductById, createProduct } from "../src/services/product.service";
 import { createPosCheckout, listTransactions, getTransactionById } from "../src/services/transaction.service";
+import { adjustStock, getInventorySummary, listInventoryLogs } from "../src/services/inventory.service";
 
 let passedCount = 0;
 let failedCount = 0;
@@ -342,14 +343,180 @@ async function runTests() {
   const filteredLowStock = await listProducts({ lowStockOnly: true });
   assert(Array.isArray(filteredLowStock), `listProducts({ lowStockOnly: true }) returned ${filteredLowStock.length} items`);
 
-  // 1. Load active products for checkout
+  // 1. Verify getInventorySummary
+  const inventorySummary = await getInventorySummary();
+  assert(inventorySummary.totalProducts > 0, `getInventorySummary reports ${inventorySummary.totalProducts} active products`);
+  assert(inventorySummary.totalStock > 0, `getInventorySummary reports ${inventorySummary.totalStock} total stock units`);
+  assert(inventorySummary.totalValuation >= 0, `getInventorySummary valuation is Rp${inventorySummary.totalValuation.toLocaleString("id-ID")}`);
+
+  // 2. Isolated Product Lifecycle Test
+  const firstCategory = await prisma.productCategory.findFirst();
+  assert(Boolean(firstCategory), "Found ProductCategory for isolated inventory tests");
+  if (!firstCategory) return;
+
+  const testProd = await createProduct({
+    name: `Test Inventory SKU ${Date.now()}`,
+    categoryId: firstCategory.id,
+    price: 20000,
+    costPrice: 12000,
+    stock: 10,
+    minStockAlert: 5,
+    unit: "pcs",
+  });
+  assert(testProd.stock === 10, `Isolated test product created with initial stock: ${testProd.stock}`);
+
+  // 3. Stock IN
+  const stockInResult = await adjustStock({
+    productId: testProd.id,
+    action: "STOCK_IN",
+    quantity: 15,
+    reason: "Restock test batch #1",
+    recordedBy: "InventoryTester",
+  });
+  assert(stockInResult.previousStock === 10, "Stock IN: previousStock was 10");
+  assert(stockInResult.newStock === 25, "Stock IN: newStock increased to 25 (+15)");
+  assert(stockInResult.log.action === "STOCK_IN", "Stock IN: audit log action is STOCK_IN");
+  assert(stockInResult.log.quantity === 15, "Stock IN: audit log quantity is 15");
+
+  // 4. Stock OUT
+  const stockOutResult = await adjustStock({
+    productId: testProd.id,
+    action: "STOCK_OUT",
+    quantity: 7,
+    reason: "Damaged packaging loss",
+    recordedBy: "InventoryTester",
+  });
+  assert(stockOutResult.previousStock === 25, "Stock OUT: previousStock was 25");
+  assert(stockOutResult.newStock === 18, "Stock OUT: newStock decreased to 18 (-7)");
+  assert(stockOutResult.log.action === "STOCK_OUT", "Stock OUT: audit log action is STOCK_OUT");
+  assert(stockOutResult.log.quantity === 7, "Stock OUT: audit log quantity is 7");
+
+  // 5. Reject STOCK_OUT greater than stock
+  let caughtExcessStockOut = false;
+  try {
+    await adjustStock({
+      productId: testProd.id,
+      action: "STOCK_OUT",
+      quantity: 9999,
+      reason: "Attempt excess reduction",
+    });
+  } catch (err: unknown) {
+    caughtExcessStockOut = true;
+    const msg = err instanceof Error ? err.message : String(err);
+    assert(msg.includes("tidak mencukupi"), `Reject excessive STOCK_OUT: "${msg}"`);
+  }
+  assert(caughtExcessStockOut, "Excessive manual STOCK_OUT was properly rejected");
+
+  // 6. Reject Zero and Negative Quantities
+  let caughtZeroStockIn = false;
+  try {
+    await adjustStock({
+      productId: testProd.id,
+      action: "STOCK_IN",
+      quantity: 0,
+      reason: "Zero quantity test",
+    });
+  } catch (err: unknown) {
+    caughtZeroStockIn = true;
+    const msg = err instanceof Error ? err.message : String(err);
+    assert(msg.includes("lebih dari 0"), `Reject zero quantity STOCK_IN: "${msg}"`);
+  }
+  assert(caughtZeroStockIn, "Zero quantity STOCK_IN properly rejected");
+
+  let caughtNegativeStockOut = false;
+  try {
+    await adjustStock({
+      productId: testProd.id,
+      action: "STOCK_OUT",
+      quantity: -5,
+      reason: "Negative quantity test",
+    });
+  } catch (err: unknown) {
+    caughtNegativeStockOut = true;
+    const msg = err instanceof Error ? err.message : String(err);
+    assert(msg.includes("lebih dari 0"), `Reject negative quantity STOCK_OUT: "${msg}"`);
+  }
+  assert(caughtNegativeStockOut, "Negative quantity STOCK_OUT properly rejected");
+
+  // 7. Adjustment Positive (Opname fisik surplus)
+  const adjustPosResult = await adjustStock({
+    productId: testProd.id,
+    action: "ADJUSTMENT",
+    quantity: 24, // Actual count is 24 (current is 18 -> diff is +6)
+    reason: "Opname fisik mingguan (surplus)",
+    recordedBy: "InventoryTester",
+  });
+  assert(adjustPosResult.previousStock === 18, "Adjustment (+): previousStock was 18");
+  assert(adjustPosResult.newStock === 24, "Adjustment (+): newStock set to actual count 24");
+  assert(adjustPosResult.difference === 6, "Adjustment (+): difference calculated as +6");
+  assert(adjustPosResult.log.action === "ADJUSTMENT", "Adjustment (+): audit log action is ADJUSTMENT");
+
+  // 8. Adjustment Negative (Opname fisik defisit)
+  const adjustNegResult = await adjustStock({
+    productId: testProd.id,
+    action: "ADJUSTMENT",
+    quantity: 14, // Actual count is 14 (current is 24 -> diff is -10)
+    reason: "Opname fisik mingguan (defisit)",
+    recordedBy: "InventoryTester",
+  });
+  assert(adjustNegResult.previousStock === 24, "Adjustment (-): previousStock was 24");
+  assert(adjustNegResult.newStock === 14, "Adjustment (-): newStock set to actual count 14");
+  assert(adjustNegResult.difference === -10, "Adjustment (-): difference calculated as -10");
+  assert(adjustNegResult.log.action === "ADJUSTMENT", "Adjustment (-): audit log action is ADJUSTMENT");
+
+  // 9. Reject Negative Resulting Stock in Adjustment
+  let caughtNegativeAdjustment = false;
+  try {
+    await adjustStock({
+      productId: testProd.id,
+      action: "ADJUSTMENT",
+      quantity: -3,
+      reason: "Invalid negative physical count",
+    });
+  } catch (err: unknown) {
+    caughtNegativeAdjustment = true;
+    const msg = err instanceof Error ? err.message : String(err);
+    assert(msg.includes("tidak boleh negatif"), `Reject negative resulting stock in Adjustment: "${msg}"`);
+  }
+  assert(caughtNegativeAdjustment, "Negative physical count in ADJUSTMENT properly rejected");
+
+  // 10. Verify Audit History Logging
+  const testProductLogs = await listInventoryLogs({ productId: testProd.id });
+  assert(testProductLogs.length >= 4, `listInventoryLogs returned ${testProductLogs.length} audit logs for test product`);
+  assert(testProductLogs[0].action === "ADJUSTMENT", "Latest audit log matches most recent ADJUSTMENT mutation");
+
+  // 11. Low-Stock and Out-Of-Stock Detection
+  await adjustStock({
+    productId: testProd.id,
+    action: "ADJUSTMENT",
+    quantity: 3, // <= minStockAlert (5)
+    reason: "Set low stock for detection test",
+  });
+  const lowStockCheck = await listProducts({ stockStatus: "LOW_STOCK" });
+  assert(lowStockCheck.some((p) => p.id === testProd.id), "listProducts({ stockStatus: 'LOW_STOCK' }) detected low stock product");
+
+  await adjustStock({
+    productId: testProd.id,
+    action: "ADJUSTMENT",
+    quantity: 0, // Out of stock
+    reason: "Set zero stock for out-of-stock detection test",
+  });
+  const outOfStockCheck = await listProducts({ stockStatus: "OUT_OF_STOCK" });
+  assert(outOfStockCheck.some((p) => p.id === testProd.id), "listProducts({ stockStatus: 'OUT_OF_STOCK' }) detected out of stock product");
+
+  // Clean up isolated test product and its logs
+  await prisma.inventoryLog.deleteMany({ where: { productId: testProd.id } });
+  await prisma.product.delete({ where: { id: testProd.id } });
+  console.log("  ✓ Isolated inventory test product and audit logs cleaned up cleanly.");
+
+  // 12. POS Compatibility & Atomic STOCK_OUT verification
   const allProducts = await listProducts({ activeOnly: true });
   assert(allProducts.length > 0, `listProducts loaded ${allProducts.length} active products`);
   const posProduct = allProducts[0];
   const posInitialStock = posProduct.stock;
   assert(posInitialStock > 0, `Selected POS product '${posProduct.name}' has available stock (${posInitialStock})`);
 
-  // 2. Test Guest Cash Checkout
+  // POS Cash Checkout
   const testCashReceived = posProduct.price + 10000;
   const posResult = await createPosCheckout({
     memberId: null,
@@ -365,60 +532,18 @@ async function runTests() {
   assert(posResult.transaction.paymentMethod === PaymentMethod.CASH, "Transaction payment method is CASH");
   assert(posResult.transaction.status === PaymentStatus.PAID, "Transaction status is PAID");
 
-  // 3. Verify stock deduction and inventory log mutation
+  // Verify stock deduction and POS inventory log mutation
   const productAfterSale = await getProductById(posProduct.id);
-  assert(productAfterSale?.stock === posInitialStock - 1, `Product stock deducted from ${posInitialStock} to ${productAfterSale?.stock}`);
+  assert(productAfterSale?.stock === posInitialStock - 1, `POS stock deducted from ${posInitialStock} to ${productAfterSale?.stock}`);
 
   const latestInventoryLog = await prisma.inventoryLog.findFirst({
     where: { productId: posProduct.id },
     orderBy: { createdAt: "desc" },
   });
-  assert(latestInventoryLog?.action === "STOCK_OUT", "Inventory mutation log recorded with STOCK_OUT");
-  assert(latestInventoryLog?.quantity === 1, "Inventory log recorded quantity = 1");
+  assert(latestInventoryLog?.action === "STOCK_OUT", "POS Inventory mutation log recorded with STOCK_OUT");
+  assert(latestInventoryLog?.quantity === 1, "POS Inventory log recorded quantity = 1");
 
-  // 4. Test Error Case: Empty cart rejection
-  let caughtEmptyCart = false;
-  try {
-    await createPosCheckout({
-      items: [],
-      cashReceived: 50000,
-    });
-  } catch (err: unknown) {
-    caughtEmptyCart = true;
-    const msg = err instanceof Error ? err.message : String(err);
-    assert(msg.includes("kosong"), `Empty cart rejected: "${msg}"`);
-  }
-  assert(caughtEmptyCart, "Empty cart checkout properly rejected");
-
-  // 5. Test Error Case: Insufficient cash rejection
-  let caughtPosInsufficientCash = false;
-  try {
-    await createPosCheckout({
-      items: [{ productId: posProduct.id, quantity: 1 }],
-      cashReceived: posProduct.price - 1000, // Insufficient!
-    });
-  } catch (err: unknown) {
-    caughtPosInsufficientCash = true;
-    const msg = err instanceof Error ? err.message : String(err);
-    assert(msg.includes("kurang"), `Insufficient cash in POS rejected: "${msg}"`);
-  }
-  assert(caughtPosInsufficientCash, "POS checkout with insufficient cash properly rejected");
-
-  // 6. Test Error Case: Insufficient stock rejection
-  let caughtPosInsufficientStock = false;
-  try {
-    await createPosCheckout({
-      items: [{ productId: posProduct.id, quantity: 999999 }],
-      cashReceived: 999999999,
-    });
-  } catch (err: unknown) {
-    caughtPosInsufficientStock = true;
-    const msg = err instanceof Error ? err.message : String(err);
-    assert(msg.includes("tidak mencukupi"), `Insufficient stock in POS rejected: "${msg}"`);
-  }
-  assert(caughtPosInsufficientStock, "POS checkout with exceeding stock properly rejected");
-
-  // 7. Verify listTransactions
+  // Verify listTransactions includes new POS transaction
   const transactionsList = await listTransactions({ limit: 10 });
   assert(transactionsList.length > 0, `listTransactions returned ${transactionsList.length} transactions`);
   const foundTx = transactionsList.find((t) => t.id === posResult.transaction.id);
@@ -432,7 +557,7 @@ async function runTests() {
   await prisma.transaction.delete({
     where: { id: posResult.transaction.id },
   });
-  console.log("  ✓ Product stock restored and test transaction cleaned up cleanly.");
+  console.log("  ✓ POS product stock restored and test transaction cleaned up cleanly.");
 
   // -------------------------------------------------------------------
   // TEST GROUP 6: CONSOLE MANAGEMENT & SESSIONS

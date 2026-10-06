@@ -107,6 +107,24 @@ export interface ProductItem {
   minStockAlert: number;
   unit: string;
   isActive: boolean;
+  isLowStock?: boolean;
+  isOutOfStock?: boolean;
+  lastMovement?: {
+    action: InventoryAction;
+    quantity: number;
+    createdAt: string;
+    reason: string;
+  } | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface InventorySummaryDTO {
+  totalProducts: number;
+  totalStock: number;
+  lowStockProducts: number;
+  outOfStockProducts: number;
+  totalValuation: number;
 }
 
 export interface ProductCategoryItem {
@@ -125,6 +143,7 @@ export interface InventoryLogItem {
   id: string;
   productId: string;
   productName: string;
+  categoryName?: string;
   action: InventoryAction;
   quantity: number;
   previousStock: number;

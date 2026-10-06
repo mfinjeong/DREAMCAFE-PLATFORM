@@ -19,11 +19,16 @@ export async function POST(request: Request) {
       action: validated.data.action,
       quantity: validated.data.quantity,
       reason: validated.data.reason,
+      recordedBy: validated.data.recordedBy,
     });
 
     return NextResponse.json({
       success: true,
       data: result.product,
+      log: result.log,
+      previousStock: result.previousStock,
+      newStock: result.newStock,
+      difference: result.difference,
       message: `Stok ${result.product.name} berhasil diperbarui (${result.previousStock} -> ${result.newStock})`,
     });
   } catch (err: unknown) {

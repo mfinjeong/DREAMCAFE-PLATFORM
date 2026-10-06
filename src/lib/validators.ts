@@ -112,12 +112,37 @@ export const posCheckoutSchema = z.object({
   notes: z.string().optional().nullable(),
 });
 
-export const inventoryAdjustmentSchema = z.object({
-  productId: z.string().min(1, "Produk wajib dipilih"),
-  action: z.enum(["STOCK_IN", "STOCK_OUT", "ADJUSTMENT"]),
-  quantity: z.number().int().min(1, "Jumlah minimal 1"),
-  reason: z.string().min(3, "Alasan penyesuaian stok wajib diisi"),
-});
+export const inventoryAdjustmentSchema = z
+  .object({
+    productId: z.string().min(1, "Produk wajib dipilih"),
+    action: z.enum(["STOCK_IN", "STOCK_OUT", "ADJUSTMENT"]),
+    quantity: z.number().int("Jumlah harus berupa bilangan bulat"),
+    reason: z.string().trim().min(3, "Alasan penyesuaian stok minimal 3 karakter"),
+    recordedBy: z.string().optional().default("Admin"),
+  })
+  .superRefine((data, ctx) => {
+    if (data.action === "STOCK_IN" && data.quantity <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Jumlah penambahan stok harus lebih dari 0",
+        path: ["quantity"],
+      });
+    }
+    if (data.action === "STOCK_OUT" && data.quantity <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Jumlah pengurangan stok harus lebih dari 0",
+        path: ["quantity"],
+      });
+    }
+    if (data.action === "ADJUSTMENT" && data.quantity < 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Stok fisik hasil opname tidak boleh negatif",
+        path: ["quantity"],
+      });
+    }
+  });
 
 export const bookingSchema = z.object({
   memberId: z.string().min(1, "Member wajib dipilih"),

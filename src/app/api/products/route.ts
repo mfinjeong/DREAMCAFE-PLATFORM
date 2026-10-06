@@ -6,9 +6,11 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const categoryId = searchParams.get("categoryId");
     const search = searchParams.get("q");
+    const stockStatus = searchParams.get("stockStatus");
+    const lowStockOnly = searchParams.get("lowStockOnly") === "true";
 
     const [products, categories] = await Promise.all([
-      listProducts({ categoryId, search }),
+      listProducts({ categoryId, search, stockStatus, lowStockOnly }),
       listCategories(),
     ]);
 
