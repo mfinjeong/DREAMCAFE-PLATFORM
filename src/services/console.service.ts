@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { ConsoleStatus, ConsoleType, Prisma, SessionStatus } from "@prisma/client";
 import { consoleSchema } from "@/lib/validators";
+import { assertNoOpenTickets } from "@/services/maintenance.service";
 
 export interface ConsoleFilterOptions {
   status?: string | null;
@@ -186,6 +187,11 @@ export async function updateConsole(id: string, data: ConsoleUpdateInput) {
     }
   }
 
+  // Station dengan tiket servis aktif tidak boleh dilepas dari MAINTENANCE secara manual.
+  if (existing.status === ConsoleStatus.MAINTENANCE && validated.status === ConsoleStatus.AVAILABLE) {
+    await assertNoOpenTickets("CONSOLE", id);
+  }
+
   const updatePayload: Prisma.ConsoleUpdateInput = {
     ...data,
   };
@@ -223,6 +229,11 @@ export async function updateConsoleStatus(id: string, status: ConsoleStatus) {
   // Transition rule: cannot manually switch to IN_USE without starting a session
   if (con.status !== ConsoleStatus.IN_USE && status === ConsoleStatus.IN_USE && con.sessions.length === 0) {
     throw new Error(`Status IN_USE hanya dapat diaktifkan melalui sistem mulai sesi.`);
+  }
+
+  // Station dengan tiket servis aktif tidak boleh dilepas dari MAINTENANCE secara manual.
+  if (con.status === ConsoleStatus.MAINTENANCE && status === ConsoleStatus.AVAILABLE) {
+    await assertNoOpenTickets("CONSOLE", id);
   }
 
   const updateData: Prisma.ConsoleUpdateInput = { status };

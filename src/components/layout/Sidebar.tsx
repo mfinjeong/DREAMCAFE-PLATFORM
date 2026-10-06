@@ -14,6 +14,7 @@ import {
   Trophy,
   BarChart3,
   Settings,
+  Wrench,
 } from "lucide-react";
 
 interface NavItem {
@@ -30,6 +31,7 @@ const mainNavItems: NavItem[] = [
   { label: "Booking", href: "/booking", icon: CalendarDays },
   { label: "Store", href: "/store", icon: ShoppingBag },
   { label: "Inventory", href: "/inventory", icon: Package },
+  { label: "Maintenance", href: "/maintenance", icon: Wrench },
   { label: "Tournament", href: "/tournaments", icon: Trophy },
   { label: "Reports", href: "/reports", icon: BarChart3 },
 ];

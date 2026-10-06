@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { PCStatus, StationZone, Prisma, SessionStatus } from "@prisma/client";
 import { pcSchema } from "@/lib/validators";
+import { assertNoOpenTickets } from "@/services/maintenance.service";
 
 export interface PCFilterOptions {
   status?: string | null;
@@ -193,6 +194,11 @@ export async function updatePC(id: string, data: PCUpdateInput) {
     }
   }
 
+  // Station dengan tiket servis aktif tidak boleh dilepas dari MAINTENANCE secara manual.
+  if (existing.status === PCStatus.MAINTENANCE && validated.status === PCStatus.AVAILABLE) {
+    await assertNoOpenTickets("PC", id);
+  }
+
   const updatePayload: Prisma.PCUpdateInput = {
     ...data,
   };
@@ -230,6 +236,11 @@ export async function updatePCStatus(id: string, status: PCStatus) {
   // Transition rule: cannot manually switch to IN_USE without starting a session
   if (pc.status !== PCStatus.IN_USE && status === PCStatus.IN_USE && pc.sessions.length === 0) {
     throw new Error(`Status IN_USE hanya dapat diaktifkan melalui sistem mulai sesi.`);
+  }
+
+  // Station dengan tiket servis aktif tidak boleh dilepas dari MAINTENANCE secara manual.
+  if (pc.status === PCStatus.MAINTENANCE && status === PCStatus.AVAILABLE) {
+    await assertNoOpenTickets("PC", id);
   }
 
   const updateData: Prisma.PCUpdateInput = { status };

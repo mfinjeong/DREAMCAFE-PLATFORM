@@ -126,3 +126,23 @@ export const bookingSchema = z.object({
   durationHours: z.number().int().min(1, "Durasi booking minimal 1 jam").max(12, "Durasi maksimal 12 jam"),
   notes: z.string().optional().nullable(),
 });
+
+export const maintenanceCreateSchema = z.object({
+  type: z.enum(["PC", "CONSOLE"]),
+  stationId: z.string().min(1, "Station wajib dipilih"),
+  title: z.string().trim().min(3, "Judul keluhan minimal 3 karakter"),
+  description: z.string().trim().min(3, "Deskripsi kerusakan wajib diisi"),
+  technician: z.string().trim().optional().nullable(),
+  cost: z.number().min(0, "Estimasi biaya tidak boleh negatif").optional(),
+});
+
+export const maintenanceUpdateSchema = z
+  .object({
+    status: z.enum(["IN_PROGRESS", "RESOLVED"]).optional(),
+    technician: z.string().trim().min(1, "Nama teknisi tidak boleh kosong").optional(),
+    cost: z.number().min(0, "Biaya tidak boleh negatif").optional(),
+    notes: z.string().trim().optional().nullable(),
+  })
+  .refine((data) => Object.values(data).some((v) => v !== undefined), {
+    message: "Tidak ada data yang diubah",
+  });
