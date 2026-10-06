@@ -1,6 +1,6 @@
-# DREAMCAFE — Aturan Pengembangan
+# DREAMCAFE — Panduan Kontribusi & Aturan Pengembangan
 
-Aturan ini berlaku untuk semua anggota tim (dan asisten AI). Tujuannya: fitur bisa dikerjakan paralel tanpa saling menimpa, dan tidak menumpuk utang teknis. Roadmap fitur ada di [PLAN.md](PLAN.md).
+Aturan ini berlaku untuk semua anggota tim. Tujuannya: fitur bisa dikerjakan paralel tanpa saling menimpa, dan tidak menumpuk utang teknis. Roadmap fitur ada di [PLAN.md](PLAN.md).
 
 ## Kondisi codebase (diverifikasi setelah merge `origin/main`, 2026-10-06)
 
