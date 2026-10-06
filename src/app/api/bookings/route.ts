@@ -9,8 +9,9 @@ export async function GET(request: Request) {
     const date = searchParams.get("date");
     const memberId = searchParams.get("memberId");
     const type = searchParams.get("type");
+    const search = searchParams.get("search");
 
-    const bookings = await listBookings({ status, date, memberId, type });
+    const bookings = await listBookings({ status, date, memberId, type, search });
     return NextResponse.json({ success: true, data: bookings });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Terjadi kesalahan server saat memuat reservasi";
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
       bookingDate: validated.data.bookingDate,
       startTime: validated.data.startTime,
       durationHours: validated.data.durationHours,
+      status: validated.data.status,
       notes: validated.data.notes,
     });
 

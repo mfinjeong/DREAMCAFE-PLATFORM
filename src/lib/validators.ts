@@ -149,9 +149,17 @@ export const bookingSchema = z.object({
   type: z.enum(["PC", "CONSOLE"]),
   stationId: z.string().min(1, "Station PC/Konsol wajib dipilih"),
   bookingDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD"),
-  startTime: z.string().regex(/^\d{2}:\d{2}$/, "Format jam mulai harus HH:mm"),
+  startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Format jam mulai harus HH:mm"),
   durationHours: z.number().int().min(1, "Durasi booking minimal 1 jam").max(12, "Durasi maksimal 12 jam"),
+  status: z.enum(["PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"]).optional(),
   notes: z.string().optional().nullable(),
+});
+
+export const bookingAvailabilitySchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD"),
+  startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Format jam mulai harus HH:mm"),
+  durationHours: z.coerce.number().int().min(1, "Durasi minimal 1 jam").max(12, "Durasi maksimal 12 jam").default(2),
+  type: z.enum(["PC", "CONSOLE"]).optional(),
 });
 
 export const maintenanceCreateSchema = z.object({

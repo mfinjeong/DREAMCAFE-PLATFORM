@@ -1,5 +1,5 @@
 import { prisma } from "../src/lib/prisma";
-import { PCStatus, ConsoleStatus, ConsoleType, SessionStatus, PaymentStatus, PaymentMethod } from "@prisma/client";
+import { PCStatus, ConsoleStatus, ConsoleType, SessionStatus, PaymentStatus, PaymentMethod, BookingStatus } from "@prisma/client";
 import { listPCs, getPCById, updatePCStatus } from "../src/services/pc.service";
 import { listConsoles, getConsoleById, createConsole, updateConsole, updateConsoleStatus, deleteConsole } from "../src/services/console.service";
 import { listMembers, getMemberById, createMember, updateMember, deleteMember, searchMembers } from "../src/services/member.service";
@@ -7,6 +7,16 @@ import { startSession, stopSession, checkoutSession, getSessionById } from "../s
 import { getLowStockProducts, listProducts, getProductById, createProduct } from "../src/services/product.service";
 import { createPosCheckout, listTransactions, getTransactionById } from "../src/services/transaction.service";
 import { adjustStock, getInventorySummary, listInventoryLogs } from "../src/services/inventory.service";
+import {
+  listBookings,
+  getBookingById,
+  getBookingAvailability,
+  createBooking,
+  confirmBooking,
+  cancelBooking,
+  startBookingSession,
+  deleteBooking,
+} from "../src/services/booking.service";
 
 let passedCount = 0;
 let failedCount = 0;
@@ -651,9 +661,407 @@ async function runTests() {
   assert(deletedCheck === null, "Temporary console station cleaned up and deleted");
   // Clean up temporary member using deleteMember service
   await deleteMember(newMember.id);
-  console.log("  ✓ Temporary test member cleanly deleted with deleteMember service.");
+  console.log("  ✓ Temporary test member cleanly deleted with deleteMember service.\n");
 
-  console.log("\n==================================================");
+  // -------------------------------------------------------------------
+  // TEST GROUP 7: BOOKING & RESERVATION MANAGEMENT (28 TESTS)
+  // -------------------------------------------------------------------
+  console.log("▶ TEST GROUP 7: Booking & Reservation Management");
+
+  // Create isolated test member for booking tests
+  const bookingTestMember = await createMember({
+    fullName: `Booking Tester ${Date.now().toString().slice(-4)}`,
+  });
+  assert(Boolean(bookingTestMember.id), `Isolated booking test member created: ${bookingTestMember.fullName}`);
+
+  // Find test PC and test Console
+  const freshPCs = await listPCs();
+  const testPC = freshPCs.find((p) => p.status === PCStatus.AVAILABLE && p.stationNumber === "PC 04") ||
+                 freshPCs.find((p) => p.status === PCStatus.AVAILABLE);
+  assert(Boolean(testPC), `Found available PC for booking tests: ${testPC?.stationNumber}`);
+  if (!testPC) return;
+
+  const freshConsoles = await listConsoles();
+  const testConsole = freshConsoles.find((c) => c.status === ConsoleStatus.AVAILABLE);
+  assert(Boolean(testConsole), `Found available Console for booking tests: ${testConsole?.stationNumber}`);
+  if (!testConsole) return;
+
+  const testDate = "2026-11-20";
+
+  // 1. Create PC booking
+  const pcBooking = await createBooking({
+    memberId: bookingTestMember.id,
+    type: "PC",
+    stationId: testPC.id,
+    bookingDate: testDate,
+    startTime: "10:00",
+    durationHours: 2,
+    status: BookingStatus.CONFIRMED,
+    notes: "VIP PC Reservation Test",
+  });
+  assert(Boolean(pcBooking.id), `Test 1: PC booking created: ${pcBooking.bookingCode}`);
+  assert(pcBooking.type === "PC", "Test 1b: Station type is PC");
+  assert(pcBooking.startTime === "10:00" && pcBooking.endTime === "12:00", "Test 1c: Slot is 10:00 - 12:00");
+  assert(pcBooking.durationHours === 2, "Test 1d: Duration is 2 hours");
+  assert(pcBooking.totalPrice === testPC.hourlyRate * 2, "Test 1e: Authoritative price calculated");
+
+  // 2. Create Console booking
+  const conBooking = await createBooking({
+    memberId: bookingTestMember.id,
+    type: "CONSOLE",
+    stationId: testConsole.id,
+    bookingDate: testDate,
+    startTime: "16:00",
+    durationHours: 3,
+    status: BookingStatus.CONFIRMED,
+    notes: "PS5 Lounge Reservation Test",
+  });
+  assert(Boolean(conBooking.id), `Test 2: Console booking created: ${conBooking.bookingCode}`);
+  assert(conBooking.type === "CONSOLE", "Test 2b: Station type is CONSOLE");
+  assert(conBooking.durationHours === 3, "Test 2c: Duration is 3 hours");
+  assert(conBooking.totalPrice === testConsole.hourlyRate * 3, "Test 2d: Console price calculated");
+
+  // 3. Create member booking
+  assert(pcBooking.memberId === bookingTestMember.id, "Test 3: Booking is linked to member ID");
+  assert(pcBooking.member.fullName === bookingTestMember.fullName, "Test 3b: Member details included");
+
+  // 4. Guest booking validation (schema requires registered member)
+  let caughtGuestWithoutMember = false;
+  try {
+    await createBooking({
+      memberId: "",
+      type: "PC",
+      stationId: testPC.id,
+      bookingDate: testDate,
+      startTime: "14:00",
+      durationHours: 1,
+    });
+  } catch (err: unknown) {
+    caughtGuestWithoutMember = true;
+    const msg = err instanceof Error ? err.message : String(err);
+    assert(msg.includes("Member"), `Test 4: Guest without member rejected: "${msg}"`);
+  }
+  assert(caughtGuestWithoutMember, "Test 4b: Booking without valid member was rejected");
+
+  // 5. List bookings
+  const bookedList = await listBookings({ date: testDate });
+  assert(bookedList.length >= 2, `Test 5: listBookings returned ${bookedList.length} records`);
+  assert(bookedList.some((b) => b.id === pcBooking.id), "Test 5b: pcBooking found in list");
+  assert(bookedList.some((b) => b.id === conBooking.id), "Test 5c: conBooking found in list");
+
+  // 6. Get booking by ID
+  const fetchedPCBooking = await getBookingById(pcBooking.id);
+  assert(fetchedPCBooking !== null && fetchedPCBooking.bookingCode === pcBooking.bookingCode, "Test 6: getBookingById returned record");
+  assert(fetchedPCBooking?.stationNumber === testPC.stationNumber, "Test 6b: Station number matches");
+
+  // 7. Reject invalid station
+  let caughtInvalidStation = false;
+  try {
+    await createBooking({
+      memberId: bookingTestMember.id,
+      type: "PC",
+      stationId: "invalid-station-id-999",
+      bookingDate: testDate,
+      startTime: "13:00",
+      durationHours: 1,
+    });
+  } catch (err: unknown) {
+    caughtInvalidStation = true;
+    const msg = err instanceof Error ? err.message : String(err);
+    assert(msg.includes("Station"), `Test 7: Invalid station rejected: "${msg}"`);
+  }
+  assert(caughtInvalidStation, "Test 7b: Booking with invalid station rejected");
+
+  // 8. Reject invalid member
+  let caughtInvalidBookingMember = false;
+  try {
+    await createBooking({
+      memberId: "invalid-member-id-999",
+      type: "PC",
+      stationId: testPC.id,
+      bookingDate: testDate,
+      startTime: "13:00",
+      durationHours: 1,
+    });
+  } catch (err: unknown) {
+    caughtInvalidBookingMember = true;
+    const msg = err instanceof Error ? err.message : String(err);
+    assert(msg.includes("Member"), `Test 8: Invalid member rejected: "${msg}"`);
+  }
+  assert(caughtInvalidBookingMember, "Test 8b: Booking with invalid member rejected");
+
+  // 9. Reject invalid date/time
+  let caughtInvalidTime = false;
+  try {
+    await createBooking({
+      memberId: bookingTestMember.id,
+      type: "PC",
+      stationId: testPC.id,
+      bookingDate: testDate,
+      startTime: "25:99",
+      durationHours: 1,
+    });
+  } catch (err: unknown) {
+    caughtInvalidTime = true;
+    const msg = err instanceof Error ? err.message : String(err);
+    assert(msg.includes("waktu") || msg.includes("format"), `Test 9: Invalid time rejected: "${msg}"`);
+  }
+  assert(caughtInvalidTime, "Test 9b: Booking with invalid time rejected");
+
+  // 10. Reject zero/negative duration
+  let caughtZeroDuration = false;
+  try {
+    await createBooking({
+      memberId: bookingTestMember.id,
+      type: "PC",
+      stationId: testPC.id,
+      bookingDate: testDate,
+      startTime: "13:00",
+      durationHours: 0,
+    });
+  } catch (err: unknown) {
+    caughtZeroDuration = true;
+    const msg = err instanceof Error ? err.message : String(err);
+    assert(msg.includes("Durasi"), `Test 10: Zero duration rejected: "${msg}"`);
+  }
+  assert(caughtZeroDuration, "Test 10b: Booking with zero duration rejected");
+
+  // 11. Reject overlapping booking
+  // pcBooking is 10:00 - 12:00. Candidate 11:00 - 13:00 overlaps.
+  let caughtOverlap = false;
+  try {
+    await createBooking({
+      memberId: bookingTestMember.id,
+      type: "PC",
+      stationId: testPC.id,
+      bookingDate: testDate,
+      startTime: "11:00",
+      durationHours: 2,
+    });
+  } catch (err: unknown) {
+    caughtOverlap = true;
+    const msg = err instanceof Error ? err.message : String(err);
+    assert(msg.includes("bentrok"), `Test 11: Overlapping booking rejected: "${msg}"`);
+  }
+  assert(caughtOverlap, "Test 11b: Double booking was rejected by conflict engine");
+
+  // 12. Allow booking immediately before another booking (08:00 - 10:00 before 10:00 - 12:00)
+  const beforeBooking = await createBooking({
+    memberId: bookingTestMember.id,
+    type: "PC",
+    stationId: testPC.id,
+    bookingDate: testDate,
+    startTime: "08:00",
+    durationHours: 2,
+  });
+  assert(Boolean(beforeBooking.id), `Test 12: Adjacent before booking allowed: ${beforeBooking.bookingCode}`);
+
+  // 13. Allow booking immediately after another booking (12:00 - 14:00 after 10:00 - 12:00)
+  const afterBooking = await createBooking({
+    memberId: bookingTestMember.id,
+    type: "PC",
+    stationId: testPC.id,
+    bookingDate: testDate,
+    startTime: "12:00",
+    durationHours: 2,
+  });
+  assert(Boolean(afterBooking.id), `Test 13: Adjacent after booking allowed: ${afterBooking.bookingCode}`);
+
+  // 14. Confirm booking
+  const pendingBooking = await createBooking({
+    memberId: bookingTestMember.id,
+    type: "PC",
+    stationId: testPC.id,
+    bookingDate: testDate,
+    startTime: "18:00",
+    durationHours: 2,
+    status: BookingStatus.PENDING,
+  });
+  assert(pendingBooking.status === BookingStatus.PENDING, "Test 14: Initial status is PENDING");
+  const confirmedBooking = await confirmBooking(pendingBooking.id);
+  assert(confirmedBooking.status === BookingStatus.CONFIRMED, "Test 14b: Booking confirmed to CONFIRMED");
+
+  // 15. Reject confirmation when conflict exists
+  const pendingConflict = await prisma.booking.create({
+    data: {
+      bookingCode: `BK-TST-PND-${Date.now().toString().slice(-4)}`,
+      type: "PC",
+      pcId: testPC.id,
+      memberId: bookingTestMember.id,
+      bookingDate: new Date(`${testDate}T00:00:00.000Z`),
+      startTime: "14:00",
+      endTime: "16:00",
+      durationHours: 2,
+      totalPrice: 20000,
+      status: BookingStatus.PENDING,
+    },
+  });
+  const confConflict = await prisma.booking.create({
+    data: {
+      bookingCode: `BK-TST-CNF-${Date.now().toString().slice(-4)}`,
+      type: "PC",
+      pcId: testPC.id,
+      memberId: bookingTestMember.id,
+      bookingDate: new Date(`${testDate}T00:00:00.000Z`),
+      startTime: "15:00",
+      endTime: "17:00",
+      durationHours: 2,
+      totalPrice: 20000,
+      status: BookingStatus.CONFIRMED,
+    },
+  });
+  let caughtConflictConfirm = false;
+  try {
+    await confirmBooking(pendingConflict.id);
+  } catch (err: unknown) {
+    caughtConflictConfirm = true;
+    const msg = err instanceof Error ? err.message : String(err);
+    assert(msg.includes("bentrok"), `Test 15: Conflicted confirmation rejected: "${msg}"`);
+  }
+  assert(caughtConflictConfirm, "Test 15b: Confirmation with conflict was rejected");
+  await deleteBooking(pendingConflict.id);
+  await deleteBooking(confConflict.id);
+
+  // 16. Cancel booking
+  const cancelledBooking = await cancelBooking(afterBooking.id, "Customer requested cancellation");
+  assert(cancelledBooking.status === BookingStatus.CANCELLED, "Test 16: Booking status is CANCELLED");
+  assert(Boolean(cancelledBooking.notes?.includes("Customer requested cancellation")), "Test 16b: Reason recorded");
+
+  // 17. Reject duplicate cancellation
+  let caughtDuplicateCancel = false;
+  try {
+    await cancelBooking(afterBooking.id);
+  } catch (err: unknown) {
+    caughtDuplicateCancel = true;
+    const msg = err instanceof Error ? err.message : String(err);
+    assert(msg.includes("sudah dibatalkan"), `Test 17: Duplicate cancellation rejected: "${msg}"`);
+  }
+  assert(caughtDuplicateCancel, "Test 17b: Duplicate cancel was properly rejected");
+
+  // 19. Start booking session
+  // Create a booking for testPC for starting session
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const sessionBooking = await createBooking({
+    memberId: bookingTestMember.id,
+    type: "PC",
+    stationId: testPC.id,
+    bookingDate: todayStr,
+    startTime: "21:00",
+    durationHours: 1,
+    status: BookingStatus.CONFIRMED,
+  });
+
+  const { booking: completedBooking, session: startedSession } = await startBookingSession(sessionBooking.id);
+  assert(Boolean(startedSession.id), `Test 19: Session started from booking: ${startedSession.sessionNumber}`);
+  assert(startedSession.status === SessionStatus.ACTIVE, "Test 19b: Started session is ACTIVE");
+
+  // 20. Prevent duplicate active session
+  let caughtDuplicateActiveSession = false;
+  try {
+    await startBookingSession(sessionBooking.id);
+  } catch (err: unknown) {
+    caughtDuplicateActiveSession = true;
+    const msg = err instanceof Error ? err.message : String(err);
+    assert(msg.includes("selesai") || msg.includes("IN_USE") || msg.includes("sesi aktif"), `Test 20: Duplicate session rejected: "${msg}"`);
+  }
+  assert(caughtDuplicateActiveSession, "Test 20b: Duplicate session start was properly prevented");
+
+  // 21. Verify station becomes IN_USE when session starts
+  const stationInUseCheck = await getPCById(testPC.id);
+  assert(stationInUseCheck?.status === PCStatus.IN_USE, "Test 21: Station became IN_USE");
+
+  // 22. Verify booking status changes correctly
+  assert(completedBooking.status === BookingStatus.COMPLETED, "Test 22: Booking status is COMPLETED");
+
+  // 18. Reject cancelling completed booking
+  let caughtCancelCompleted = false;
+  try {
+    await cancelBooking(sessionBooking.id);
+  } catch (err: unknown) {
+    caughtCancelCompleted = true;
+    const msg = err instanceof Error ? err.message : String(err);
+    assert(msg.includes("selesai"), `Test 18: Cancelling completed booking rejected: "${msg}"`);
+  }
+  assert(caughtCancelCompleted, "Test 18b: Cancelling completed booking was rejected");
+
+  // 23. Complete session and release station
+  const stoppedBookingSession = await stopSession(startedSession.id);
+  assert(stoppedBookingSession.status === SessionStatus.COMPLETED, "Test 23: Session stopped and COMPLETED");
+  const stationReleasedCheck = await getPCById(testPC.id);
+  assert(stationReleasedCheck?.status === PCStatus.AVAILABLE, "Test 23b: Station returned to AVAILABLE");
+
+  // 24. Verify booking/session relationship remains correct
+  const finalBookingCheck = await getBookingById(sessionBooking.id);
+  assert(finalBookingCheck?.status === BookingStatus.COMPLETED, "Test 24: Booking remains COMPLETED");
+  assert(Boolean(stoppedBookingSession.notes?.includes(sessionBooking.bookingCode)), "Test 24b: Session notes preserve booking code");
+
+  // 25. Verify booking availability query
+  const availabilityResult = await getBookingAvailability({
+    date: testDate,
+    startTime: "10:00",
+    durationHours: 2,
+  });
+  const isTestPCAvailable = availabilityResult.pcs.some((p) => p.id === testPC.id);
+  assert(!isTestPCAvailable, "Test 25: Station with 10:00-12:00 booking excluded from availability");
+
+  // 26. Verify PC and Console availability separately
+  const pcOnlyAvailability = await getBookingAvailability({
+    date: testDate,
+    startTime: "10:00",
+    durationHours: 2,
+    type: "PC",
+  });
+  assert(pcOnlyAvailability.pcs.length > 0 && pcOnlyAvailability.consoles.length === 0, "Test 26: type=PC returns only PCs");
+
+  const conOnlyAvailability = await getBookingAvailability({
+    date: testDate,
+    startTime: "10:00",
+    durationHours: 2,
+    type: "CONSOLE",
+  });
+  assert(conOnlyAvailability.consoles.length > 0 && conOnlyAvailability.pcs.length === 0, "Test 26b: type=CONSOLE returns only Consoles");
+
+  // 27. Verify maintenance/offline station is not offered when appropriate
+  const maintStationPC = freshPCs.find((p) => p.status === PCStatus.MAINTENANCE);
+  if (maintStationPC) {
+    const maintCheckAvailability = await getBookingAvailability({
+      date: testDate,
+      startTime: "10:00",
+      durationHours: 2,
+      type: "PC",
+    });
+    const isMaintPCAvailable = maintCheckAvailability.pcs.some((p) => p.id === maintStationPC.id);
+    assert(!isMaintPCAvailable, "Test 27: MAINTENANCE station not offered in availability");
+
+    let caughtMaintBooking = false;
+    try {
+      await createBooking({
+        memberId: bookingTestMember.id,
+        type: "PC",
+        stationId: maintStationPC.id,
+        bookingDate: testDate,
+        startTime: "10:00",
+        durationHours: 2,
+      });
+    } catch (err: unknown) {
+      caughtMaintBooking = true;
+      const msg = err instanceof Error ? err.message : String(err);
+      assert(msg.includes("MAINTENANCE"), `Test 27b: Booking MAINTENANCE station rejected: "${msg}"`);
+    }
+    assert(caughtMaintBooking, "Test 27c: Booking station in MAINTENANCE was rejected");
+  }
+
+  // 28. Clean up isolated test bookings and member
+  await deleteBooking(pcBooking.id);
+  await deleteBooking(conBooking.id);
+  await deleteBooking(beforeBooking.id);
+  await deleteBooking(afterBooking.id);
+  await deleteBooking(pendingBooking.id);
+  await deleteBooking(sessionBooking.id);
+  await deleteMember(bookingTestMember.id);
+  console.log("  ✓ Test 28: Isolated booking test fixtures cleaned up cleanly.\n");
+
+  console.log("==================================================");
   console.log(`SUMMARY: ${passedCount} PASSED, ${failedCount} FAILED`);
   console.log("==================================================");
 }

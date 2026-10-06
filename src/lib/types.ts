@@ -188,8 +188,13 @@ export interface BookingItem {
   pcStationNumber?: string | null;
   consoleId?: string | null;
   consoleStationNumber?: string | null;
+  stationId?: string;
+  stationNumber?: string;
+  stationName?: string;
   memberId: string;
   memberName: string;
+  username?: string | null;
+  phoneNumber?: string | null;
   bookingDate: string; // YYYY-MM-DD
   startTime: string; // HH:mm
   endTime: string; // HH:mm
@@ -197,6 +202,7 @@ export interface BookingItem {
   totalPrice: number;
   status: BookingStatus;
   notes?: string | null;
+  createdAt?: string;
 }
 
 export interface GameItem {
