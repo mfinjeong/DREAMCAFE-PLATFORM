@@ -2,7 +2,7 @@ import { prisma } from "../src/lib/prisma";
 import { PCStatus, ConsoleStatus, ConsoleType, SessionStatus, PaymentStatus, PaymentMethod } from "@prisma/client";
 import { listPCs, getPCById, updatePCStatus } from "../src/services/pc.service";
 import { listConsoles, getConsoleById, createConsole, updateConsole, updateConsoleStatus, deleteConsole } from "../src/services/console.service";
-import { listMembers, getMemberById, createMember, updateMember, searchMembers } from "../src/services/member.service";
+import { listMembers, getMemberById, createMember, updateMember, deleteMember, searchMembers } from "../src/services/member.service";
 import { startSession, stopSession, checkoutSession, getSessionById } from "../src/services/session.service";
 import { getLowStockProducts, listProducts } from "../src/services/product.service";
 
@@ -80,6 +80,10 @@ async function runTests() {
     notes: "Verified test member",
   });
   assert(updatedMember.notes === "Verified test member", "updateMember successfully updated notes");
+
+  // Test getMemberById with profile & spending calculation
+  const memberDetails = await getMemberById(newMember.id);
+  assert(memberDetails !== null && typeof memberDetails.totalSpending === "number", "getMemberById calculates totalSpending");
 
   console.log("  ✓ Member service assertions passed.\n");
 
@@ -427,9 +431,9 @@ async function runTests() {
   await deleteConsole(createdCon.id);
   const deletedCheck = await getConsoleById(createdCon.id);
   assert(deletedCheck === null, "Temporary console station cleaned up and deleted");
-  // Clean up temporary member created in Test Group 2
-  await prisma.member.delete({ where: { id: newMember.id } });
-  console.log("  ✓ Temporary test member cleaned up.");
+  // Clean up temporary member using deleteMember service
+  await deleteMember(newMember.id);
+  console.log("  ✓ Temporary test member cleanly deleted with deleteMember service.");
 
   console.log("\n==================================================");
   console.log(`SUMMARY: ${passedCount} PASSED, ${failedCount} FAILED`);

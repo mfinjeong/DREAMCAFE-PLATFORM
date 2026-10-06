@@ -80,7 +80,7 @@ export interface MemberItem {
   memberCode: string;
   fullName: string;
   username: string;
-  phoneNumber: string;
+  phoneNumber?: string | null;
   email?: string | null;
   tier: MemberTier;
   balance: number;
@@ -88,7 +88,11 @@ export interface MemberItem {
   xp: number;
   level: number;
   dreamRank: DreamRank;
+  notes?: string | null;
   createdAt: string;
+  updatedAt?: string;
+  totalSessions?: number;
+  totalTransactions?: number;
 }
 
 export interface ProductItem {

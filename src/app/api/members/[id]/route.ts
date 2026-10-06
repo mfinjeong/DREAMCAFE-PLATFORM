@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getMemberById, updateMember } from "@/services/member.service";
+import { getMemberById, updateMember, deleteMember } from "@/services/member.service";
 import { memberSchema } from "@/lib/validators";
 
 export async function GET(
@@ -43,6 +43,20 @@ export async function PUT(
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Gagal memperbarui data member";
+    return NextResponse.json({ success: false, message: msg }, { status: 400 });
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    await deleteMember(id);
+    return NextResponse.json({ success: true, message: "Member berhasil dihapus" });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Gagal menghapus member";
     return NextResponse.json({ success: false, message: msg }, { status: 400 });
   }
 }

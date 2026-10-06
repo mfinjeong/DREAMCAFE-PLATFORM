@@ -104,11 +104,55 @@ export async function getMemberById(id: string) {
 
   if (!member) return null;
 
+  const spendingAgg = await prisma.transaction.aggregate({
+    where: { memberId: id, status: "PAID" },
+    _sum: { totalAmount: true },
+  });
+  const totalSpending = spendingAgg._sum.totalAmount || 0;
+
   return {
     ...member,
+    totalSpending,
     createdAt: member.createdAt.toISOString(),
     updatedAt: member.updatedAt.toISOString(),
+    sessions: member.sessions.map((s) => ({
+      id: s.id,
+      sessionNumber: s.sessionNumber,
+      stationName: s.pc ? s.pc.stationNumber : s.console ? s.console.stationNumber : "Station",
+      type: s.type,
+      durationMinutes: s.durationMinutes,
+      totalPrice: s.totalPrice,
+      status: s.status,
+      startTime: s.startTime.toISOString(),
+    })),
+    transactions: member.transactions.map((t) => ({
+      id: t.id,
+      invoiceNumber: t.invoiceNumber,
+      type: t.type,
+      totalAmount: t.totalAmount,
+      status: t.status,
+      createdAt: t.createdAt.toISOString(),
+    })),
   };
+}
+
+export async function deleteMember(id: string) {
+  const member = await prisma.member.findUnique({
+    where: { id },
+    include: {
+      sessions: { where: { status: "ACTIVE" } },
+    },
+  });
+
+  if (!member) {
+    throw new Error("Member tidak ditemukan");
+  }
+
+  if (member.sessions.length > 0) {
+    throw new Error("Tidak dapat menghapus member yang sedang memiliki sesi aktif");
+  }
+
+  return await prisma.member.delete({ where: { id } });
 }
 
 export async function searchMembers(query: string) {
