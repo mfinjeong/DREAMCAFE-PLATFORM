@@ -211,3 +211,18 @@ export interface TeamItem {
   losses: number;
   eloRating: number;
 }
+
+export interface MaintenanceItem {
+  id: string;
+  type: SessionType;
+  stationId: string | null;
+  stationNumber: string;
+  stationName: string;
+  title: string;
+  description: string;
+  cost: number;
+  technician: string;
+  status: MaintenanceStatus;
+  reportedAt: string;
+  resolvedAt?: string | null;
+}
