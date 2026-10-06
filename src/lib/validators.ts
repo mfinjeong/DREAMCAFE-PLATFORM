@@ -24,15 +24,28 @@ export const consoleSchema = z.object({
   hourlyRate: z.number().min(1000, "Tarif per jam minimal Rp1.000"),
   controllersCount: z.number().int().min(1).max(8).default(2),
   specsDisplay: z.string().min(2, "Spesifikasi TV/Display wajib diisi"),
+  installedGames: z.array(z.string()).optional().default([]),
 });
 
 export const memberSchema = z.object({
   fullName: z.string().min(2, "Nama lengkap minimal 2 karakter"),
-  username: z.string().min(3, "Username minimal 3 karakter").regex(/^[a-zA-Z0-9_-]+$/, "Username hanya boleh huruf, angka, underscore, dan dash"),
-  phoneNumber: z.string().min(8, "Nomor telepon minimal 8 digit").regex(/^[0-9+]+$/, "Nomor telepon harus angka"),
-  email: z.string().email("Format email tidak valid").optional().or(z.literal("")),
-  tier: z.enum(["REGULAR", "VIP", "PRO"]).default("REGULAR"),
-  balance: z.number().min(0, "Saldo tidak boleh negatif").default(0),
+  username: z.string().min(3, "Username minimal 3 karakter").regex(/^[a-zA-Z0-9_-]+$/, "Username hanya boleh huruf, angka, underscore, dan dash").optional(),
+  phoneNumber: z.string().regex(/^[0-9+]+$/, "Nomor telepon harus angka").min(8, "Nomor telepon minimal 8 digit").optional().nullable().or(z.literal("")),
+  email: z.string().email("Format email tidak valid").optional().nullable().or(z.literal("")),
+  tier: z.enum(["REGULAR", "VIP", "PRO"]).default("REGULAR").optional(),
+  balance: z.number().min(0, "Saldo tidak boleh negatif").default(0).optional(),
+  notes: z.string().optional().nullable(),
+});
+
+export const updateMemberSchema = z.object({
+  fullName: z.string().min(2, "Nama lengkap minimal 2 karakter").optional(),
+  username: z.string().min(3, "Username minimal 3 karakter").regex(/^[a-zA-Z0-9_-]+$/, "Username hanya boleh huruf, angka, underscore, dan dash").optional(),
+  phoneNumber: z.string().regex(/^[0-9+]+$/, "Nomor telepon harus angka").min(8, "Nomor telepon minimal 8 digit").optional().nullable().or(z.literal("")),
+  email: z.string().email("Format email tidak valid").optional().nullable().or(z.literal("")),
+  tier: z.enum(["REGULAR", "VIP", "PRO"]).optional(),
+  balance: z.number().min(0, "Saldo tidak boleh negatif").optional(),
+  notes: z.string().optional().nullable(),
+  avatarUrl: z.string().optional().nullable(),
 });
 
 export const startSessionSchema = z.object({
@@ -69,6 +82,19 @@ export const endSessionCheckoutSchema = z.object({
 }).refine((data) => data.cashReceived >= data.totalAmount, {
   message: "Uang tunai yang diterima kurang dari total tagihan!",
   path: ["cashReceived"],
+});
+
+export const sessionCheckoutWithProductsSchema = z.object({
+  sessionId: z.string().min(1, "Session ID wajib diisi"),
+  products: z.array(
+    z.object({
+      productId: z.string().min(1, "Product ID wajib diisi"),
+      quantity: z.number().int().min(1, "Kuantitas minimal 1"),
+    })
+  ).optional().default([]),
+  cashReceived: z.number().min(0, "Jumlah uang tunai tidak boleh negatif"),
+  cashierName: z.string().optional().default("Admin"),
+  notes: z.string().optional().nullable(),
 });
 
 export const posCheckoutSchema = z.object({

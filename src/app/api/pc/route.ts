@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { store, getAllPCs, createPC, updatePC } from "@/lib/data-store";
+import { listPCs, createPC } from "@/services/pc.service";
 import { pcSchema } from "@/lib/validators";
 
 export async function GET(request: Request) {
@@ -7,28 +7,13 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const zone = searchParams.get("zone");
-    const query = searchParams.get("q")?.toLowerCase();
+    const search = searchParams.get("q");
 
-    let pcs = getAllPCs();
-
-    if (status && status !== "ALL") {
-      pcs = pcs.filter((p) => p.status === status);
-    }
-    if (zone && zone !== "ALL") {
-      pcs = pcs.filter((p) => p.zone === zone);
-    }
-    if (query) {
-      pcs = pcs.filter(
-        (p) =>
-          p.stationNumber.toLowerCase().includes(query) ||
-          p.name.toLowerCase().includes(query) ||
-          p.zone.toLowerCase().includes(query)
-      );
-    }
-
+    const pcs = await listPCs({ status, zone, search });
     return NextResponse.json({ success: true, data: pcs });
   } catch (err: unknown) {
-    return NextResponse.json({ success: false, message: "Terjadi kesalahan server" }, { status: 500 });
+    const msg = err instanceof Error ? err.message : "Terjadi kesalahan server saat memuat PC";
+    return NextResponse.json({ success: false, message: msg }, { status: 500 });
   }
 }
 
@@ -44,13 +29,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = createPC(validated.data);
-    if (!result.success) {
-      return NextResponse.json({ success: false, message: result.message }, { status: 400 });
-    }
-
-    return NextResponse.json({ success: true, data: result.pc, message: result.message });
+    const pc = await createPC(validated.data);
+    return NextResponse.json({
+      success: true,
+      data: pc,
+      message: `Station ${pc.stationNumber} berhasil ditambahkan ke database`,
+    });
   } catch (err: unknown) {
-    return NextResponse.json({ success: false, message: "Gagal membuat PC baru" }, { status: 500 });
+    const msg = err instanceof Error ? err.message : "Gagal menambahkan PC station";
+    return NextResponse.json({ success: false, message: msg }, { status: 400 });
   }
 }

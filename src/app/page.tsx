@@ -7,12 +7,17 @@ import { StartSessionModal } from "@/components/modals/StartSessionModal";
 import { EndSessionPaymentModal } from "@/components/modals/EndSessionPaymentModal";
 import { AddSessionTimeModal } from "@/components/modals/AddSessionTimeModal";
 import { PCDetailModal } from "@/components/modals/PCDetailModal";
-import { RefreshCw } from "lucide-react";
+import { formatRupiah } from "@/lib/formatters";
+import { RefreshCw, AlertTriangle, Activity, DollarSign } from "lucide-react";
 
 export default function DashboardPage() {
   const [pcs, setPcs] = useState<PCStation[]>([]);
   const [members, setMembers] = useState<MemberItem[]>([]);
+  const [todayRevenue, setTodayRevenue] = useState<number>(0);
+  const [activeSessionsCount, setActiveSessionsCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedZone, setSelectedZone] = useState<string>("ALL");
   const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
 
@@ -36,20 +41,43 @@ export default function DashboardPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [pcRes, memRes] = await Promise.all([
+      setErrorMessage(null);
+      const [pcRes, memRes, reportRes, sessionRes] = await Promise.all([
         fetch("/api/pc"),
         fetch("/api/members"),
+        fetch("/api/reports"),
+        fetch("/api/sessions?status=ACTIVE"),
       ]);
 
-      const pcJson = await pcRes.json();
-      const memJson = await memRes.json();
+      const [pcJson, memJson, reportJson, sessionJson] = await Promise.all([
+        pcRes.json(),
+        memRes.json(),
+        reportRes.json(),
+        sessionRes.json(),
+      ]);
 
-      if (pcJson.success) setPcs(pcJson.data);
-      if (memJson.success) setMembers(memJson.data);
-    } catch (err) {
+      if (!pcRes.ok || !pcJson.success) {
+        throw new Error(pcJson.message || "Failed to load PC stations from database");
+      }
+      setPcs(pcJson.data);
+
+      if (memJson.success && Array.isArray(memJson.data)) {
+        setMembers(memJson.data);
+      }
+
+      if (reportJson.success && reportJson.data) {
+        setTodayRevenue(reportJson.data.todayRevenue || 0);
+      }
+
+      if (sessionJson.success && Array.isArray(sessionJson.data)) {
+        setActiveSessionsCount(sessionJson.data.length);
+      }
+    } catch (err: unknown) {
       console.error(err);
+      setErrorMessage(err instanceof Error ? err.message : "Database connection error");
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
@@ -57,11 +85,18 @@ export default function DashboardPage() {
     fetchData();
   }, [fetchData]);
 
-  // Statistics
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchData();
+  };
+
+  // Real database statistics
   const totalPC = pcs.length;
   const inUseCount = pcs.filter((p) => p.status === "IN_USE").length;
   const availableCount = pcs.filter((p) => p.status === "AVAILABLE").length;
   const maintenanceCount = pcs.filter((p) => p.status === "MAINTENANCE").length;
+  const offlineCount = pcs.filter((p) => p.status === "OFFLINE").length;
+  const liveActiveSessions = Math.max(activeSessionsCount, inUseCount);
 
   const filteredPCs = pcs.filter((p) => {
     if (selectedZone !== "ALL" && p.zone !== selectedZone) return false;
@@ -136,6 +171,17 @@ export default function DashboardPage() {
     await fetchData();
   };
 
+  const handleStopSession = async (sessionId: string) => {
+    const res = await fetch("/api/sessions/stop", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId }),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.message);
+    await fetchData();
+  };
+
   const handleConfirmAddTime = async (sessionId: string, additionalMinutes: number) => {
     const res = await fetch("/api/sessions/add-time", {
       method: "POST",
@@ -161,57 +207,151 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4">
-      {/* 4 Statistics: TOTAL PC, IN USE, AVAILABLE, MAINTENANCE */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        <div className="bg-[#10121a] border border-[#1e222e] rounded p-3">
-          <span className="text-[10px] font-mono uppercase text-zinc-400 block tracking-wider font-semibold">
+      {/* Top Statistics: PC Fleet Status (5 Cards) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        {/* TOTAL PC */}
+        <div className="relative overflow-hidden bg-surface border border-surface-border rounded-[8px] p-3.5">
+          <span className="absolute top-0 left-0 right-0 h-[2px] bg-surface-border"></span>
+          <span className="text-[10px] font-mono uppercase text-text-secondary tracking-wider block font-semibold">
             TOTAL PC
           </span>
-          <span className="text-xl font-bold font-mono text-zinc-100 mt-1 block">
-            {totalPC}
+          <span className="text-2xl font-black font-sans text-[#F2F3F5] mt-1 block">
+            {isLoading ? "..." : totalPC}
           </span>
         </div>
 
-        <div className="bg-[#10121a] border border-[#1e222e] rounded p-3">
-          <span className="text-[10px] font-mono uppercase text-red-400 block tracking-wider font-semibold">
-            IN USE
-          </span>
-          <span className="text-xl font-bold font-mono text-red-400 mt-1 block">
-            {inUseCount}
-          </span>
-        </div>
-
-        <div className="bg-[#10121a] border border-[#1e222e] rounded p-3">
-          <span className="text-[10px] font-mono uppercase text-emerald-400 block tracking-wider font-semibold">
+        {/* AVAILABLE: Persona 3 Reload Blue Accent */}
+        <div className="relative overflow-hidden bg-surface border border-surface-border rounded-[8px] p-3.5">
+          <span className="absolute top-0 left-0 right-0 h-[2px] bg-p3r-blue"></span>
+          <span className="text-[10px] font-mono uppercase text-text-secondary tracking-wider block font-semibold flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 bg-p3r-blue persona-slash rounded-[1px]"></span>
             AVAILABLE
           </span>
-          <span className="text-xl font-bold font-mono text-emerald-400 mt-1 block">
-            {availableCount}
+          <span className="text-2xl font-black font-sans text-[#F2F3F5] mt-1 block">
+            {isLoading ? "..." : availableCount}
           </span>
         </div>
 
-        <div className="bg-[#10121a] border border-[#1e222e] rounded p-3">
-          <span className="text-[10px] font-mono uppercase text-amber-400 block tracking-wider font-semibold">
+        {/* IN USE: Persona Red Accent */}
+        <div className="relative overflow-hidden bg-surface border border-surface-border rounded-[8px] p-3.5">
+          <span className="absolute top-0 left-0 right-0 h-[2px] bg-persona-red"></span>
+          <span className="text-[10px] font-mono uppercase text-text-secondary tracking-wider block font-semibold flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 bg-persona-red persona-slash rounded-[1px]"></span>
+            IN USE
+          </span>
+          <span className="text-2xl font-black font-sans text-[#F2F3F5] mt-1 block">
+            {isLoading ? "..." : inUseCount}
+          </span>
+        </div>
+
+        {/* MAINTENANCE: Warm Amber Accent */}
+        <div className="relative overflow-hidden bg-surface border border-surface-border rounded-[8px] p-3.5">
+          <span className="absolute top-0 left-0 right-0 h-[2px] bg-pamber"></span>
+          <span className="text-[10px] font-mono uppercase text-text-secondary tracking-wider block font-semibold flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 bg-pamber persona-slash rounded-[1px]"></span>
             MAINTENANCE
           </span>
-          <span className="text-xl font-bold font-mono text-amber-400 mt-1 block">
-            {maintenanceCount}
+          <span className="text-2xl font-black font-sans text-[#F2F3F5] mt-1 block">
+            {isLoading ? "..." : maintenanceCount}
+          </span>
+        </div>
+
+        {/* OFFLINE: Muted Neutral Accent */}
+        <div className="relative overflow-hidden bg-surface border border-surface-border rounded-[8px] p-3.5 col-span-2 sm:col-span-1">
+          <span className="absolute top-0 left-0 right-0 h-[2px] bg-surface-border"></span>
+          <span className="text-[10px] font-mono uppercase text-text-secondary tracking-wider block font-semibold flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 bg-text-muted rounded-[1px]"></span>
+            OFFLINE
+          </span>
+          <span className="text-2xl font-black font-sans text-text-muted mt-1 block">
+            {isLoading ? "..." : offlineCount}
           </span>
         </div>
       </div>
 
-      {/* Filter Row: Simple and compact */}
-      <div className="bg-[#0e1017] border border-[#1a1d27] rounded px-3 py-2 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1 text-xs">
-          <span className="text-zinc-500 font-mono text-[10px] mr-1.5 uppercase">Zone:</span>
+      {/* Operations & Revenue Banner: Active Sessions & Today's Revenue */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* ACTIVE SESSIONS */}
+        <div className="relative overflow-hidden bg-surface border border-surface-border rounded-[8px] p-3.5 flex items-center justify-between">
+          <span className="absolute top-0 left-0 right-0 h-[2px] bg-persona-red"></span>
+          <div>
+            <span className="text-[10px] font-mono uppercase text-text-secondary tracking-wider block font-semibold flex items-center gap-1.5">
+              <Activity className="w-3.5 h-3.5 text-persona-red animate-pulse" />
+              ACTIVE SESSIONS
+            </span>
+            <div className="flex items-baseline gap-2 mt-1">
+              <span className="text-2xl font-black font-sans text-[#F2F3F5]">
+                {isLoading ? "..." : liveActiveSessions}
+              </span>
+              <span className="text-xs font-mono text-text-muted">
+                ({inUseCount} PC stations in play)
+              </span>
+            </div>
+          </div>
+          <div className="hidden sm:flex flex-col items-end text-right">
+            <span className="text-[11px] font-mono text-text-secondary">Prisma Live State</span>
+            <span className="text-[10px] font-mono text-persona-red font-semibold uppercase">Real-Time Sync</span>
+          </div>
+        </div>
+
+        {/* TODAY'S REVENUE */}
+        <div className="relative overflow-hidden bg-surface border border-surface-border rounded-[8px] p-3.5 flex items-center justify-between">
+          <span className="absolute top-0 left-0 right-0 h-[2px] bg-p3r-blue"></span>
+          <div>
+            <span className="text-[10px] font-mono uppercase text-text-secondary tracking-wider block font-semibold flex items-center gap-1.5">
+              <DollarSign className="w-3.5 h-3.5 text-p3r-blue" />
+              TODAY&apos;S REVENUE
+            </span>
+            <div className="flex items-baseline gap-2 mt-1">
+              <span className="text-2xl font-black font-mono text-[#F2F3F5]">
+                {isLoading ? "..." : formatRupiah(todayRevenue)}
+              </span>
+            </div>
+          </div>
+          <div className="hidden sm:flex flex-col items-end text-right">
+            <span className="text-[11px] font-mono text-text-secondary">Cash Transactions</span>
+            <span className="text-[10px] font-mono text-p3r-blue font-semibold uppercase">Verified Backend</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Error State Banner */}
+      {errorMessage && (
+        <div className="p-3 bg-persona-red-subtle border border-persona-red-border rounded-[8px] text-xs text-persona-red flex items-center justify-between">
+          <div className="flex items-center gap-2 font-medium">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>Connection Error: {errorMessage}</span>
+          </div>
+          <button
+            onClick={() => {
+              setIsLoading(true);
+              fetchData();
+            }}
+            className="px-2.5 py-1 bg-persona-red hover:bg-persona-red-hover text-white rounded-[4px] text-xs font-semibold cursor-pointer transition-colors"
+          >
+            Retry Connection
+          </button>
+        </div>
+      )}
+
+      {/* PC STATIONS Control & Filters */}
+      <div className="bg-surface border border-surface-border rounded-[8px] px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2.5 select-none">
+        <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-1.5 mr-2">
+            <span className="w-1.5 h-3.5 bg-persona-red persona-slash rounded-[1px]"></span>
+            <span className="text-xs font-extrabold text-[#F2F3F5] uppercase tracking-wider font-sans">
+              PC STATIONS
+            </span>
+          </div>
+          <span className="text-text-muted font-mono text-[10px] uppercase mr-1">Zone:</span>
           {["ALL", "REGULAR", "VIP", "ARENA"].map((zone) => (
             <button
               key={zone}
               onClick={() => setSelectedZone(zone)}
-              className={`px-2 py-0.5 rounded text-[11px] font-mono font-medium transition-colors ${
+              className={`px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors duration-100 cursor-pointer ${
                 selectedZone === zone
-                  ? "bg-red-600 text-white"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? "bg-persona-red text-white"
+                  : "text-text-secondary hover:text-[#F2F3F5] hover:bg-surface-hover"
               }`}
             >
               {zone}
@@ -219,39 +359,42 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        <div className="flex items-center gap-1 text-xs">
-          <span className="text-zinc-500 font-mono text-[10px] mr-1.5 uppercase">Status:</span>
-          {["ALL", "AVAILABLE", "IN_USE", "MAINTENANCE"].map((status) => (
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-text-muted font-mono text-[10px] uppercase mr-1">Status:</span>
+          {["ALL", "AVAILABLE", "IN_USE", "MAINTENANCE", "OFFLINE"].map((status) => (
             <button
               key={status}
               onClick={() => setSelectedStatus(status)}
-              className={`px-2 py-0.5 rounded text-[11px] font-mono font-medium transition-colors ${
+              className={`px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors duration-100 cursor-pointer ${
                 selectedStatus === status
-                  ? "bg-zinc-800 text-zinc-100"
-                  : "text-zinc-500 hover:text-zinc-300"
+                  ? "bg-surface-muted text-white border border-surface-border"
+                  : "text-text-secondary hover:text-[#F2F3F5]"
               }`}
             >
               {status === "IN_USE" ? "IN USE" : status}
             </button>
           ))}
           <button
-            onClick={() => fetchData()}
-            className="p-1 text-zinc-400 hover:text-zinc-100 ml-2"
-            title="Refresh"
+            onClick={handleManualRefresh}
+            className={`p-1.5 text-text-secondary hover:text-[#F2F3F5] hover:bg-surface-hover rounded-[4px] ml-1 transition-colors cursor-pointer ${
+              isRefreshing ? "animate-spin text-persona-red" : ""
+            }`}
+            title="Refresh Stations"
           >
-            <RefreshCw className="w-3 h-3" />
+            <RefreshCw className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* PC Stations Grid */}
+      {/* Main PC Grid */}
       {isLoading ? (
-        <div className="h-40 flex items-center justify-center text-zinc-500 text-xs font-mono">
-          Loading...
+        <div className="h-44 border border-surface-border rounded-[8px] bg-surface flex flex-col items-center justify-center gap-2 text-text-secondary text-xs font-mono">
+          <RefreshCw className="w-5 h-5 animate-spin text-persona-red" />
+          <span>Loading stations from database...</span>
         </div>
       ) : filteredPCs.length === 0 ? (
-        <div className="h-32 border border-[#1a1d27] rounded flex items-center justify-center text-zinc-500 text-xs">
-          No stations match filter.
+        <div className="h-32 border border-surface-border rounded-[8px] bg-surface flex items-center justify-center text-text-secondary text-xs font-mono">
+          No stations found matching filters
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
@@ -308,6 +451,14 @@ export default function DashboardPage() {
         }}
         pc={selectedPC}
         onStatusChange={handleStatusChange}
+        onEndSession={(pc) => {
+          setActiveModal(null);
+          handleOpenEndSession(pc);
+        }}
+        onStopSession={async (sessionId) => {
+          await handleStopSession(sessionId);
+          setActiveModal(null);
+        }}
       />
     </div>
   );

@@ -38,6 +38,22 @@ export const StartSessionModal: React.FC<StartSessionModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    if (isOpen) {
+      setErrorMessage(null);
+      if ((!selectedMemberId || !members.some((m) => m.id === selectedMemberId)) && members.length > 0) {
+        setSelectedMemberId(members[0].id);
+      }
+      if (station) {
+        if ("installedGames" in station && station.installedGames && station.installedGames.length > 0) {
+          setCurrentGame(station.installedGames[0]);
+        } else if ("specsCpu" in station) {
+          setCurrentGame("Valorant");
+        }
+      }
+    }
+  }, [isOpen, members, selectedMemberId, station]);
+
   if (!station) return null;
 
   const hourlyRate = station.hourlyRate || 10000;
@@ -91,42 +107,46 @@ export const StartSessionModal: React.FC<StartSessionModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Start Session - ${station.stationNumber}`}
-      subtitle={`Rate: ${formatRupiah(hourlyRate)}/hr`}
+      title={`Start Session • ${station.stationNumber}`}
+      subtitle={`Rate: ${formatRupiah(hourlyRate)} / hr`}
       maxWidth="sm"
     >
-      <form onSubmit={handleSubmit} className="space-y-3">
+      <form onSubmit={handleSubmit} className="space-y-3.5">
         {errorMessage && (
-          <div className="p-2 bg-[#261014] border border-red-900/80 rounded text-[11px] text-red-400 font-mono">
+          <div className="p-2.5 bg-persona-red-subtle border border-persona-red-border rounded-[6px] text-xs text-persona-red font-medium">
             {errorMessage}
           </div>
         )}
 
         {/* Member or Guest Toggle */}
-        <div className="grid grid-cols-2 gap-1.5 p-0.5 bg-[#14161f] border border-[#212532] rounded">
+        <div className="grid grid-cols-2 gap-1 p-1 bg-surface-muted border border-surface-border rounded-[6px]">
           <button
             type="button"
             onClick={() => setMemberType("member")}
-            className={`py-1 text-xs font-medium rounded transition-colors ${
-              memberType === "member" ? "bg-[#202534] text-white" : "text-zinc-400 hover:text-zinc-200"
+            className={`py-1.5 text-xs font-semibold rounded-[4px] transition-colors cursor-pointer ${
+              memberType === "member"
+                ? "bg-persona-red text-white"
+                : "text-text-secondary hover:text-[#F2F3F5]"
             }`}
           >
-            Member
+            Registered Member
           </button>
           <button
             type="button"
             onClick={() => setMemberType("guest")}
-            className={`py-1 text-xs font-medium rounded transition-colors ${
-              memberType === "guest" ? "bg-[#202534] text-white" : "text-zinc-400 hover:text-zinc-200"
+            className={`py-1.5 text-xs font-semibold rounded-[4px] transition-colors cursor-pointer ${
+              memberType === "guest"
+                ? "bg-persona-red text-white"
+                : "text-text-secondary hover:text-[#F2F3F5]"
             }`}
           >
-            Guest
+            Guest Player
           </button>
         </div>
 
         {memberType === "member" ? (
           <Select
-            label="Member"
+            label="Member Account"
             value={selectedMemberId}
             onChange={(e) => setSelectedMemberId(e.target.value)}
             options={members.map((m) => ({
@@ -145,8 +165,8 @@ export const StartSessionModal: React.FC<StartSessionModalProps> = ({
         )}
 
         <div>
-          <label className="block text-[10px] font-mono uppercase tracking-wider text-zinc-400 mb-1">
-            Duration
+          <label className="block text-xs font-semibold text-text-secondary mb-1">
+            Session Duration
           </label>
           <div className="grid grid-cols-5 gap-1.5">
             {durationOptions.map((opt) => (
@@ -154,10 +174,10 @@ export const StartSessionModal: React.FC<StartSessionModalProps> = ({
                 key={opt.value}
                 type="button"
                 onClick={() => setDurationMinutes(opt.value)}
-                className={`py-1.5 px-1 rounded text-xs font-mono transition-colors text-center border ${
+                className={`py-2 px-1 rounded-[6px] text-xs font-bold transition-colors text-center border cursor-pointer ${
                   durationMinutes === opt.value
-                    ? "bg-[#202534] border-red-600 text-white font-bold"
-                    : "bg-[#12141c] border-[#202431] text-zinc-400 hover:text-zinc-200"
+                    ? "bg-persona-red-subtle border-persona-red text-white"
+                    : "bg-surface-muted border-surface-border text-text-secondary hover:text-[#F2F3F5]"
                 }`}
               >
                 {opt.label}
@@ -167,19 +187,19 @@ export const StartSessionModal: React.FC<StartSessionModalProps> = ({
         </div>
 
         <Input
-          label="Game"
+          label="Game Title"
           value={currentGame}
           onChange={(e) => setCurrentGame(e.target.value)}
         />
 
         {/* Total Price Summary */}
-        <div className="p-2.5 bg-[#0a0b10] border border-[#1b1e28] rounded flex items-center justify-between font-mono">
-          <span className="text-zinc-400 text-xs">Total:</span>
-          <span className="text-sm font-bold text-white">{formatRupiah(totalPrice)}</span>
+        <div className="p-3 bg-surface-muted border border-surface-border rounded-[6px] flex items-center justify-between">
+          <span className="text-text-secondary text-xs font-medium">Estimated Bill:</span>
+          <span className="text-sm font-extrabold text-[#F2F3F5] font-mono">{formatRupiah(totalPrice)}</span>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#1b1e28]">
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-surface-border">
           <Button type="button" variant="outline" size="sm" onClick={onClose}>
             Cancel
           </Button>

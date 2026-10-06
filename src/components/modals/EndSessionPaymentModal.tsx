@@ -78,36 +78,36 @@ export const EndSessionPaymentModal: React.FC<EndSessionPaymentModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Cash Checkout - ${sessionData.stationNumber}`}
+      title={`Cash Checkout • ${sessionData.stationNumber}`}
       subtitle={`${sessionData.userName} (${sessionData.durationMinutes} min)`}
       maxWidth="sm"
     >
-      <form onSubmit={handleSubmit} className="space-y-3">
+      <form onSubmit={handleSubmit} className="space-y-3.5">
         {error && (
-          <div className="p-2 bg-[#261014] border border-red-900/80 rounded text-[11px] text-red-400 font-mono">
+          <div className="p-2.5 bg-persona-red-subtle border border-persona-red-border rounded-[6px] text-xs text-persona-red font-medium">
             {error}
           </div>
         )}
 
         {/* Bill Summary */}
-        <div className="p-3 bg-[#0a0b10] border border-[#1b1e28] rounded font-mono">
-          <div className="flex items-center justify-between text-[11px] text-zinc-400 mb-1">
-            <span>Payment:</span>
-            <span className="text-zinc-300 font-bold">CASH ONLY</span>
+        <div className="p-3 bg-surface-muted border border-surface-border rounded-[8px]">
+          <div className="flex items-center justify-between text-xs text-text-secondary mb-1">
+            <span>Payment Method:</span>
+            <span className="text-persona-red font-bold font-mono">CASH ONLY</span>
           </div>
-          <div className="flex items-baseline justify-between pt-1 border-t border-[#181a24]">
-            <span className="text-xs text-zinc-300">Total:</span>
-            <span className="text-base font-bold text-white">{formatRupiah(totalAmount)}</span>
+          <div className="flex items-baseline justify-between pt-1 border-t border-surface-border">
+            <span className="text-xs text-text-secondary font-medium">Total Bill:</span>
+            <span className="text-base font-extrabold text-[#F2F3F5] font-mono">{formatRupiah(totalAmount)}</span>
           </div>
         </div>
 
         {/* Cash Received */}
         <div>
-          <label className="block text-[10px] font-mono uppercase tracking-wider text-zinc-400 mb-1">
+          <label className="block text-xs font-semibold text-text-secondary mb-1">
             Cash Received
           </label>
           <div className="relative">
-            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono text-zinc-500">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono text-text-muted">
               Rp
             </span>
             <input
@@ -120,7 +120,7 @@ export const EndSessionPaymentModal: React.FC<EndSessionPaymentModalProps> = ({
                 setCashInput(e.target.value);
                 setError(null);
               }}
-              className="w-full bg-[#12141d] border border-[#212635] rounded pl-8 pr-3 py-1.5 text-sm font-mono font-bold text-white focus:outline-none focus:border-red-600"
+              className="w-full bg-surface-muted border border-surface-border rounded-[6px] pl-9 pr-3 py-2 text-sm font-mono font-bold text-[#F2F3F5] focus:outline-none focus:border-persona-red"
               autoFocus
               required
             />
@@ -136,7 +136,7 @@ export const EndSessionPaymentModal: React.FC<EndSessionPaymentModalProps> = ({
                   setCashInput(q.value.toString());
                   setError(null);
                 }}
-                className="py-1 px-1 bg-[#151722] hover:bg-[#1e2230] border border-[#222634] text-[10px] font-mono text-zinc-300 rounded transition-colors text-center"
+                className="py-1.5 px-1 bg-surface-muted hover:bg-surface-hover border border-surface-border text-xs font-mono text-text-secondary hover:text-[#F2F3F5] rounded-[6px] transition-colors text-center cursor-pointer"
               >
                 {q.label}
               </button>
@@ -146,12 +146,12 @@ export const EndSessionPaymentModal: React.FC<EndSessionPaymentModalProps> = ({
 
         {/* Change Calculation Box */}
         <div
-          className={`p-2.5 rounded border flex items-center justify-between font-mono text-xs ${
+          className={`p-3 rounded-[6px] border flex items-center justify-between font-mono text-xs ${
             cashReceived === 0
-              ? "bg-[#0a0b10] border-[#1b1e28] text-zinc-400"
+              ? "bg-surface-muted border-surface-border text-text-secondary"
               : isInsufficient
-              ? "bg-[#251014] border-red-900/60 text-red-400"
-              : "bg-[#0d1f17] border-emerald-900/60 text-emerald-400 font-bold"
+              ? "bg-persona-red-subtle border-persona-red-border text-persona-red"
+              : "bg-p3r-blue-subtle border-p3r-blue-border text-p3r-blue font-bold"
           }`}
         >
           <span>Change:</span>
@@ -161,7 +161,7 @@ export const EndSessionPaymentModal: React.FC<EndSessionPaymentModalProps> = ({
         </div>
 
         {/* Footer Buttons */}
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#1b1e28]">
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-surface-border">
           <Button type="button" variant="outline" size="sm" onClick={onClose}>
             Cancel
           </Button>

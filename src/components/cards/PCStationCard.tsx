@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { PCStation } from "@/lib/types";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatRupiah, formatCountdown } from "@/lib/formatters";
 
 interface PCStationCardProps {
@@ -42,102 +43,118 @@ export const PCStationCard: React.FC<PCStationCardProps> = ({
   }, [pc.status]);
 
   return (
-    <div className="bg-[#10121a] border border-[#1e222e] rounded p-3 flex flex-col justify-between select-none">
-      {/* Station Number & Zone */}
-      <div className="flex items-start justify-between">
-        <div>
-          <span className="text-sm font-bold text-zinc-100 block font-mono">
-            {pc.stationNumber}
-          </span>
-          <span className="text-[10px] uppercase font-mono text-zinc-400 tracking-wider">
-            {pc.zone}
-          </span>
-        </div>
-
-        {/* Status Indicator */}
+    <div className="relative overflow-hidden rounded-[8px] border border-surface-border hover:border-surface-hover bg-surface p-3.5 flex flex-col justify-between transition-colors select-none">
+      {/* Subtle Persona-inspired angular corner graphic wedge in top-right */}
+      {pc.status === "IN_USE" ? (
         <span
-          className={`text-[10px] font-mono uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border ${
-            pc.status === "IN_USE"
-              ? "text-red-400 bg-[#221014] border-red-900/60"
-              : pc.status === "AVAILABLE"
-              ? "text-emerald-400 bg-[#0d1f17] border-emerald-900/60"
-              : pc.status === "MAINTENANCE"
-              ? "text-amber-400 bg-[#1f190e] border-amber-900/60"
-              : "text-zinc-500 bg-[#14151b] border-zinc-800"
-          }`}
-        >
-          {pc.status === "IN_USE" ? "IN USE" : pc.status}
+          className="absolute top-0 right-0 w-3.5 h-3.5 bg-persona-red"
+          style={{ clipPath: "polygon(100% 0, 0 0, 100% 100%)" }}
+          title="Active Station"
+        />
+      ) : pc.status === "AVAILABLE" ? (
+        <span
+          className="absolute top-0 right-0 w-3.5 h-3.5 bg-p3r-blue"
+          style={{ clipPath: "polygon(100% 0, 0 0, 100% 100%)" }}
+          title="Available Station"
+        />
+      ) : pc.status === "MAINTENANCE" ? (
+        <span
+          className="absolute top-0 right-0 w-3.5 h-3.5 bg-pamber"
+          style={{ clipPath: "polygon(100% 0, 0 0, 100% 100%)" }}
+          title="Maintenance Station"
+        />
+      ) : (
+        <span
+          className="absolute top-0 right-0 w-3.5 h-3.5 bg-surface-border"
+          style={{ clipPath: "polygon(100% 0, 0 0, 100% 100%)" }}
+        />
+      )}
+
+      {/* Top: Station & Zone */}
+      <div className="flex items-center justify-between pr-2">
+        <span className="text-sm font-extrabold text-[#F2F3F5] tracking-tight font-sans">
+          {pc.stationNumber}
+        </span>
+        <span className="text-[10px] font-mono text-text-secondary uppercase tracking-wider bg-surface-muted border border-surface-border px-1.5 py-0.5 rounded-[3px]">
+          {pc.zone}
         </span>
       </div>
 
-      {/* Main Body */}
-      <div className="my-3 py-2 border-t border-b border-[#1a1d28] min-h-[76px] flex flex-col justify-center text-xs">
+      {/* Status indicator */}
+      <div className="mt-2.5">
+        <StatusBadge status={pc.status} />
+      </div>
+
+      {/* Middle: Content */}
+      <div className="my-2.5 py-2.5 border-t border-b border-surface-border min-h-[66px] flex flex-col justify-center">
         {pc.status === "IN_USE" ? (
           <div className="space-y-1">
-            <div className="font-semibold text-zinc-100 truncate">
-              {pc.activeSession?.memberName || pc.activeSession?.guestName || "User"}
+            <div className="font-bold text-[#F2F3F5] text-xs truncate font-sans">
+              {pc.activeSession?.memberName || pc.activeSession?.guestName || "Guest"}
             </div>
-            <div className="text-zinc-400 text-[11px] truncate">
+            <div className="text-text-secondary text-[11px] truncate">
               {pc.currentGame || pc.activeSession?.currentGame || "Game"}
             </div>
-            <div className="flex items-center justify-between pt-1 text-[11px] font-mono">
-              <span className="text-red-400 font-semibold">{formatCountdown(secondsRemaining)}</span>
-              <span className="text-zinc-300 font-medium">
+            <div className="flex items-center justify-between pt-1 font-mono text-[11px]">
+              <span className="text-persona-red font-bold font-tabular">
+                {formatCountdown(secondsRemaining)}
+              </span>
+              <span className="text-text-secondary font-semibold font-tabular">
                 {formatRupiah(pc.activeSession?.totalPrice || pc.hourlyRate)}
               </span>
             </div>
           </div>
         ) : pc.status === "AVAILABLE" ? (
-          <div className="text-zinc-400 text-center py-1">
-            <span className="text-zinc-400 text-xs font-mono">AVAILABLE</span>
+          <div className="py-1">
+            <span className="text-xs font-mono text-text-secondary block">
+              {formatRupiah(pc.hourlyRate)} / hour
+            </span>
           </div>
         ) : pc.status === "MAINTENANCE" ? (
-          <div className="text-amber-400/90 text-center py-1 text-xs font-mono">
-            MAINTENANCE
+          <div className="py-1">
+            <span className="text-xs text-pamber font-medium block">
+              Under maintenance
+            </span>
           </div>
         ) : (
-          <div className="text-zinc-500 text-center py-1 text-xs font-mono">
-            OFFLINE
+          <div className="py-1">
+            <span className="text-xs text-text-muted block">
+              Offline
+            </span>
           </div>
         )}
       </div>
 
-      {/* Action Buttons */}
+      {/* Bottom Action */}
       <div>
         {pc.status === "AVAILABLE" ? (
           <button
             onClick={() => onStartSession?.(pc)}
-            className="w-full bg-[#dc2626] hover:bg-[#b91c1c] text-white text-xs font-semibold py-1.5 px-3 rounded transition-colors uppercase tracking-wider"
+            className="w-full bg-persona-red hover:bg-persona-red-hover active:bg-persona-red-active text-white text-xs font-bold py-1.5 px-3 rounded-[6px] transition-colors uppercase tracking-wider font-sans cursor-pointer"
           >
-            START SESSION
+            START
           </button>
         ) : pc.status === "IN_USE" ? (
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => onViewDetail?.(pc)}
-              className="flex-1 bg-[#181a24] hover:bg-[#202432] text-zinc-200 border border-[#272b3a] text-xs font-medium py-1 px-2 rounded transition-colors"
-            >
-              DETAIL
-            </button>
-            <button
-              onClick={() => onAddTime?.(pc)}
-              className="bg-[#181a24] hover:bg-[#202432] text-zinc-300 border border-[#272b3a] text-xs font-mono py-1 px-2 rounded transition-colors"
-              title="Add Time"
-            >
-              +TIME
-            </button>
+          <div className="grid grid-cols-2 gap-1.5">
             <button
               onClick={() => onEndSession?.(pc)}
-              className="bg-[#3b1216] hover:bg-[#50171d] text-red-300 border border-red-900/60 text-xs font-medium py-1 px-2 rounded transition-colors"
-              title="End Session"
+              className="w-full bg-persona-red hover:bg-persona-red-hover active:bg-persona-red-active text-white text-[11px] font-bold py-1.5 px-2 rounded-[6px] transition-colors uppercase tracking-wider font-sans cursor-pointer text-center"
+              title="End / Checkout Session"
             >
-              END
+              STOP
+            </button>
+            <button
+              onClick={() => onViewDetail?.(pc)}
+              className="w-full bg-surface-muted hover:bg-surface-hover text-[#F2F3F5] border border-surface-border text-[11px] font-semibold py-1.5 px-2 rounded-[6px] transition-colors uppercase tracking-wider font-sans cursor-pointer text-center"
+              title="View Station Detail"
+            >
+              DETAIL
             </button>
           </div>
         ) : (
           <button
             onClick={() => onViewDetail?.(pc)}
-            className="w-full bg-[#181a24] hover:bg-[#202432] text-zinc-300 border border-[#272b3a] text-xs font-medium py-1 px-3 rounded transition-colors"
+            className="w-full bg-surface-muted hover:bg-surface-hover text-text-secondary hover:text-[#F2F3F5] border border-surface-border text-xs font-semibold py-1.5 px-3 rounded-[6px] transition-colors uppercase tracking-wider font-sans cursor-pointer"
           >
             VIEW
           </button>

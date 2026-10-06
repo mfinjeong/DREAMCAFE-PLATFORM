@@ -55,13 +55,13 @@ export const AddSessionTimeModal: React.FC<AddSessionTimeModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Add Time - ${session.stationNumber}`}
+      title={`Add Time • ${session.stationNumber}`}
       subtitle={session.userName}
       maxWidth="sm"
     >
-      <form onSubmit={handleSubmit} className="space-y-3">
+      <form onSubmit={handleSubmit} className="space-y-3.5">
         <div>
-          <label className="block text-[10px] font-mono uppercase tracking-wider text-zinc-400 mb-1">
+          <label className="block text-xs font-semibold text-text-secondary mb-1">
             Add Duration
           </label>
           <div className="grid grid-cols-4 gap-1.5">
@@ -70,10 +70,10 @@ export const AddSessionTimeModal: React.FC<AddSessionTimeModalProps> = ({
                 key={p.value}
                 type="button"
                 onClick={() => setMinutes(p.value)}
-                className={`py-1.5 px-1 rounded text-xs font-mono transition-colors border text-center ${
+                className={`py-2 px-1 rounded-[6px] text-xs font-bold transition-colors border text-center cursor-pointer ${
                   minutes === p.value
-                    ? "bg-[#202534] border-red-600 text-white font-bold"
-                    : "bg-[#12141c] border-[#202431] text-zinc-400 hover:text-zinc-200"
+                    ? "bg-persona-red-subtle border-persona-red text-white"
+                    : "bg-surface-muted border-surface-border text-text-secondary hover:text-[#F2F3F5]"
                 }`}
               >
                 {p.label}
@@ -82,12 +82,12 @@ export const AddSessionTimeModal: React.FC<AddSessionTimeModalProps> = ({
           </div>
         </div>
 
-        <div className="p-2.5 bg-[#0a0b10] border border-[#1b1e28] rounded flex items-center justify-between font-mono text-xs">
-          <span className="text-zinc-400">Additional Cost:</span>
-          <span className="text-sm font-bold text-white">{formatRupiah(cost)}</span>
+        <div className="p-3 bg-surface-muted border border-surface-border rounded-[6px] flex items-center justify-between text-xs">
+          <span className="text-text-secondary font-medium">Additional Cost:</span>
+          <span className="text-sm font-bold text-[#F2F3F5] font-mono">{formatRupiah(cost)}</span>
         </div>
 
-        <div className="flex justify-end gap-2 pt-2 border-t border-[#1b1e28]">
+        <div className="flex justify-end gap-2 pt-2 border-t border-surface-border">
           <Button type="button" variant="outline" size="sm" onClick={onClose}>
             Cancel
           </Button>

@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { SessionItem } from "@/lib/types";
-import { Button } from "@/components/ui/Button";
 import { Table, TableHeader, TableRow, TableHead, TableCell } from "@/components/ui/Table";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EndSessionPaymentModal } from "@/components/modals/EndSessionPaymentModal";
@@ -111,28 +110,31 @@ export default function SessionsPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-wider font-mono">
-          Rental Sessions
-        </h2>
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-3.5 bg-persona-red persona-slash rounded-[1px]"></span>
+          <h2 className="text-xs font-bold text-[#F2F3F5] uppercase tracking-wider font-sans">
+            Active Rental Sessions
+          </h2>
+        </div>
         <button
           onClick={() => fetchSessions()}
-          className="p-1 rounded text-zinc-400 hover:text-zinc-100 bg-[#161821] border border-[#232734]"
-          title="Refresh"
+          className="p-1.5 rounded-[6px] text-text-secondary hover:text-[#F2F3F5] bg-surface border border-surface-border cursor-pointer transition-colors"
+          title="Refresh Sessions"
         >
           <RefreshCw className="w-3.5 h-3.5" />
         </button>
       </div>
 
       {/* Filter Row */}
-      <div className="bg-[#0e1017] border border-[#1a1d27] rounded px-3 py-2 flex flex-col sm:flex-row gap-2.5 items-center justify-between">
+      <div className="bg-surface border border-surface-border rounded-[8px] px-3.5 py-2.5 flex flex-col sm:flex-row gap-2.5 items-center justify-between">
         <div className="relative w-full sm:w-64">
-          <Search className="w-3 h-3 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Search session, user, station..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#12141c] border border-[#202431] rounded pl-7 pr-2.5 py-1 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-red-600"
+            className="w-full bg-surface-muted border border-surface-border rounded-[6px] pl-8 pr-2.5 py-1 text-xs text-[#F2F3F5] placeholder-text-muted focus:outline-none focus:border-persona-red"
           />
         </div>
 
@@ -141,10 +143,10 @@ export default function SessionsPage() {
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
-              className={`px-2 py-0.5 rounded text-[11px] font-mono transition-colors ${
+              className={`px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors cursor-pointer ${
                 statusFilter === st
-                  ? "bg-red-600 text-white font-medium"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? "bg-persona-red text-white"
+                  : "text-text-secondary hover:text-[#F2F3F5] hover:bg-surface-hover"
               }`}
             >
               {st}
@@ -168,56 +170,70 @@ export default function SessionsPage() {
           </TableRow>
         </TableHeader>
         <tbody>
-          {filtered.map((s) => (
-            <TableRow key={s.id}>
-              <TableCell className="font-mono text-[11px] text-zinc-400">
-                {s.sessionNumber}
-              </TableCell>
-              <TableCell className="font-bold text-zinc-100 font-mono">
-                {s.pcStationNumber || s.consoleStationNumber}
-              </TableCell>
-              <TableCell className="text-xs">
-                <span className="font-medium text-zinc-200 block">
-                  {s.memberName || s.guestName || "Guest"}
-                </span>
-                {s.currentGame && (
-                  <span className="text-[10px] text-zinc-500 font-mono">{s.currentGame}</span>
-                )}
-              </TableCell>
-              <TableCell className="text-[11px] text-zinc-400 font-mono">
-                {formatDateTime(s.startTime)}
-              </TableCell>
-              <TableCell className="font-mono text-zinc-300">
-                {s.durationMinutes}m
-              </TableCell>
-              <TableCell>
-                <StatusBadge status={s.status} />
-              </TableCell>
-              <TableCell className="font-mono font-bold text-zinc-100">
-                {formatRupiah(s.totalPrice)}
-              </TableCell>
-              <TableCell className="text-right">
-                {s.status === "ACTIVE" ? (
-                  <div className="flex items-center justify-end gap-1">
-                    <button
-                      onClick={() => handleOpenAddTime(s)}
-                      className="px-2 py-0.5 text-xs bg-[#161821] hover:bg-[#202432] text-zinc-300 rounded border border-[#262b38]"
-                    >
-                      +Time
-                    </button>
-                    <button
-                      onClick={() => handleOpenEnd(s)}
-                      className="px-2 py-0.5 text-xs bg-[#dc2626] hover:bg-[#b91c1c] text-white font-medium rounded"
-                    >
-                      Checkout
-                    </button>
-                  </div>
-                ) : (
-                  <span className="text-[11px] font-mono text-zinc-500">PAID (CASH)</span>
-                )}
+          {isLoading ? (
+            <TableRow>
+              <TableCell className="text-center py-8 text-text-secondary font-mono">
+                Loading sessions...
               </TableCell>
             </TableRow>
-          ))}
+          ) : filtered.length === 0 ? (
+            <TableRow>
+              <TableCell className="text-center py-8 text-text-secondary font-mono">
+                No active sessions
+              </TableCell>
+            </TableRow>
+          ) : (
+            filtered.map((s) => (
+              <TableRow key={s.id}>
+                <TableCell className="font-mono text-[11px] text-text-secondary font-semibold">
+                  {s.sessionNumber}
+                </TableCell>
+                <TableCell className="font-extrabold text-[#F2F3F5] font-sans">
+                  {s.pcStationNumber || s.consoleStationNumber}
+                </TableCell>
+                <TableCell className="text-xs">
+                  <span className="font-bold text-[#F2F3F5] block font-sans">
+                    {s.memberName || s.guestName || "Guest"}
+                  </span>
+                  {s.currentGame && (
+                    <span className="text-[11px] text-text-muted">{s.currentGame}</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-[11px] text-text-secondary font-mono">
+                  {formatDateTime(s.startTime)}
+                </TableCell>
+                <TableCell className="font-mono text-text-secondary font-semibold">
+                  {s.durationMinutes}m
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={s.status} />
+                </TableCell>
+                <TableCell className="font-mono font-bold text-[#F2F3F5]">
+                  {formatRupiah(s.totalPrice)}
+                </TableCell>
+                <TableCell className="text-right">
+                  {s.status === "ACTIVE" ? (
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        onClick={() => handleOpenAddTime(s)}
+                        className="px-2.5 py-1 text-xs bg-surface-muted hover:bg-surface-hover text-text-secondary hover:text-[#F2F3F5] rounded-[4px] border border-surface-border font-sans font-medium cursor-pointer transition-colors"
+                      >
+                        +Time
+                      </button>
+                      <button
+                        onClick={() => handleOpenEnd(s)}
+                        className="px-2.5 py-1 text-xs bg-persona-red hover:bg-persona-red-hover text-white font-bold rounded-[4px] font-sans cursor-pointer transition-colors"
+                      >
+                        Checkout
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-[11px] font-mono text-text-muted">PAID (CASH)</span>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))
+          )}
         </tbody>
       </Table>
 

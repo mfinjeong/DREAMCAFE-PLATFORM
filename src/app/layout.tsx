@@ -3,9 +3,9 @@ import "./globals.css";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 
 export const metadata: Metadata = {
-  title: "DREAMCAFE - Gaming Center Management & Community Platform",
+  title: "DREAMCAFÉ - Gaming Center Management & Community Platform",
   description:
-    "Professional cyber cafe, PC/console station management, live billing, cash POS, inventory, bookings, and esports community platform.",
+    "Stylish cyber cafe, PC/console station management, live billing, cash POS, inventory, bookings, and esports community platform.",
 };
 
 export default function RootLayout({
@@ -15,7 +15,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id">
-      <body className="bg-[#0b0e14] text-slate-100 antialiased selection:bg-red-600 selection:text-white">
+      <body className="bg-background text-[#F2F3F5] antialiased selection:bg-persona-red selection:text-white">
         <DashboardShell>{children}</DashboardShell>
       </body>
     </html>

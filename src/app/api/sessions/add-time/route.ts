@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { addSessionTime } from "@/lib/data-store";
+import { addSessionTime } from "@/services/session.service";
 import { addSessionTimeSchema } from "@/lib/validators";
 
 export async function POST(request: Request) {
@@ -14,13 +14,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = addSessionTime(validated.data.sessionId, validated.data.additionalMinutes);
-    if (!result.success) {
-      return NextResponse.json({ success: false, message: result.message }, { status: 400 });
-    }
+    const session = await addSessionTime(
+      validated.data.sessionId,
+      validated.data.additionalMinutes
+    );
 
-    return NextResponse.json({ success: true, data: result.session, message: result.message });
+    return NextResponse.json({
+      success: true,
+      data: session,
+      message: `Waktu biling berhasil ditambah ${validated.data.additionalMinutes} menit`,
+    });
   } catch (err: unknown) {
-    return NextResponse.json({ success: false, message: "Gagal menambah waktu sesi" }, { status: 500 });
+    const msg = err instanceof Error ? err.message : "Gagal menambah waktu sesi";
+    return NextResponse.json({ success: false, message: msg }, { status: 400 });
   }
 }

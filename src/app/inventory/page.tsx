@@ -101,10 +101,13 @@ export default function InventoryPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-wider font-mono">
-          Inventory
-        </h2>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-3.5 bg-persona-red persona-slash rounded-[1px]"></span>
+          <h2 className="text-xs font-bold text-[#F2F3F5] uppercase tracking-wider font-sans">
+            Inventory & Supply Control
+          </h2>
+        </div>
+        <div className="flex items-center gap-2">
           <Button
             variant="secondary"
             size="sm"
@@ -124,51 +127,51 @@ export default function InventoryPage() {
             size="sm"
             onClick={() => handleOpenAdjust(undefined, "ADJUSTMENT")}
           >
-            Adjustment
+            Stock Audit
           </Button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1.5 border-b border-[#1a1d27] pb-1.5 text-xs font-mono">
+      <div className="flex items-center gap-1.5 border-b border-surface-border pb-1.5 text-xs font-sans">
         <button
           onClick={() => setActiveTab("stock")}
-          className={`px-2.5 py-1 rounded transition-colors ${
+          className={`px-3 py-1.5 rounded-[4px] font-semibold transition-colors cursor-pointer ${
             activeTab === "stock"
-              ? "bg-[#181a24] text-white font-medium border-l-2 border-red-600"
-              : "text-zinc-400 hover:text-zinc-200"
+              ? "bg-persona-red-subtle text-white border-l-2 border-persona-red"
+              : "text-text-secondary hover:text-[#F2F3F5] hover:bg-surface-hover"
           }`}
         >
           Stock Items ({products.length})
         </button>
         <button
           onClick={() => setActiveTab("history")}
-          className={`px-2.5 py-1 rounded transition-colors ${
+          className={`px-3 py-1.5 rounded-[4px] font-semibold transition-colors cursor-pointer ${
             activeTab === "history"
-              ? "bg-[#181a24] text-white font-medium border-l-2 border-red-600"
-              : "text-zinc-400 hover:text-zinc-200"
+              ? "bg-persona-red-subtle text-white border-l-2 border-persona-red"
+              : "text-text-secondary hover:text-[#F2F3F5] hover:bg-surface-hover"
           }`}
         >
-          History Logs
+          Audit History Logs
         </button>
       </div>
 
       {activeTab === "stock" ? (
         <div className="space-y-3">
-          <div className="bg-[#0e1017] border border-[#1a1d27] rounded px-3 py-1.5 flex items-center justify-between">
+          <div className="bg-surface border border-surface-border rounded-[8px] px-3.5 py-2 flex items-center justify-between">
             <div className="relative w-full sm:w-64">
-              <Search className="w-3 h-3 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search product..."
+                placeholder="Search stock..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[#12141c] border border-[#202431] rounded pl-7 pr-2.5 py-1 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-red-600"
+                className="w-full bg-surface-muted border border-surface-border rounded-[6px] pl-8 pr-2.5 py-1 text-xs text-[#F2F3F5] placeholder-text-muted focus:outline-none focus:border-persona-red"
               />
             </div>
-            <div className="text-[11px] font-mono text-zinc-400 hidden sm:block">
+            <div className="text-xs font-mono text-text-secondary hidden sm:block">
               Valuation:{" "}
-              <span className="text-white font-bold">
+              <span className="text-[#F2F3F5] font-bold">
                 {formatRupiah(products.reduce((acc, p) => acc + p.costPrice * p.stock, 0))}
               </span>
             </div>
@@ -193,41 +196,44 @@ export default function InventoryPage() {
 
                 return (
                   <TableRow key={p.id}>
-                    <TableCell className="font-medium text-zinc-200">
+                    <TableCell className="font-semibold text-[#F2F3F5] font-sans">
                       <div>{p.name}</div>
-                      <div className="text-[10px] font-mono text-zinc-500">{p.barcode || "-"}</div>
+                      <div className="text-[10px] font-mono text-text-muted">{p.barcode || "-"}</div>
                     </TableCell>
-                    <TableCell className="text-[11px] text-zinc-400">
+                    <TableCell className="text-xs text-text-secondary">
                       {p.categoryName}
                     </TableCell>
-                    <TableCell className="font-mono text-zinc-400">
+                    <TableCell className="font-mono text-text-secondary">
                       {formatRupiah(p.costPrice)}
                     </TableCell>
-                    <TableCell className="font-mono text-zinc-200">
+                    <TableCell className="font-mono text-[#F2F3F5] font-semibold">
                       {formatRupiah(p.price)}
                     </TableCell>
-                    <TableCell className="font-mono font-bold text-white">
-                      {p.stock} <span className="text-[10px] text-zinc-500 font-normal">{p.unit}</span>
+                    <TableCell className="font-mono font-bold text-[#F2F3F5]">
+                      {p.stock} <span className="text-[10px] text-text-muted font-normal">{p.unit}</span>
                     </TableCell>
                     <TableCell>
                       {isOut ? (
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#251014] text-red-400 border border-red-900/60">
-                          OUT
+                        <span className="inline-flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded-[4px] bg-persona-red-subtle text-persona-red border border-persona-red-border font-bold">
+                          <span className="w-1.5 h-1.5 rounded-[1px] bg-persona-red persona-slash"></span>
+                          OUT OF STOCK
                         </span>
                       ) : isLow ? (
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#251a0d] text-amber-400 border border-amber-900/60">
-                          LOW (&lt;{p.minStockAlert})
+                        <span className="inline-flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded-[4px] bg-pamber-subtle text-pamber border border-pamber-border font-bold">
+                          <span className="w-1.5 h-1.5 rounded-[1px] bg-pamber persona-slash"></span>
+                          LOW STOCK
                         </span>
                       ) : (
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#0d1f17] text-emerald-400 border border-emerald-900/60">
-                          OK
+                        <span className="inline-flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded-[4px] bg-p3r-blue-subtle text-p3r-blue border border-p3r-blue-border font-bold">
+                          <span className="w-1.5 h-1.5 rounded-[1px] bg-p3r-blue persona-slash"></span>
+                          IN STOCK
                         </span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
                       <button
                         onClick={() => handleOpenAdjust(p, "STOCK_IN")}
-                        className="px-2 py-0.5 text-xs bg-[#161821] hover:bg-[#202432] text-zinc-300 rounded border border-[#262b38]"
+                        className="px-2.5 py-1 text-xs bg-surface-muted hover:bg-surface-hover text-text-secondary hover:text-[#F2F3F5] rounded-[4px] border border-surface-border font-sans font-medium cursor-pointer transition-colors"
                       >
                         Adjust
                       </button>
@@ -254,26 +260,26 @@ export default function InventoryPage() {
           <tbody>
             {logs.map((log) => (
               <TableRow key={log.id}>
-                <TableCell className="text-[11px] font-mono text-zinc-400">
+                <TableCell className="text-[11px] font-mono text-text-secondary">
                   {formatDateTime(log.createdAt)}
                 </TableCell>
-                <TableCell className="font-medium text-zinc-200">
+                <TableCell className="font-semibold text-[#F2F3F5] font-sans">
                   {log.productName}
                 </TableCell>
                 <TableCell>
-                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-[#161821] border border-[#232734]">
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-[4px] bg-surface-muted border border-surface-border text-text-secondary">
                     {log.action}
                   </span>
                 </TableCell>
-                <TableCell className="font-mono font-bold text-white">
+                <TableCell className="font-mono font-bold text-[#F2F3F5]">
                   {log.action === "STOCK_IN" ? "+" : log.action === "STOCK_OUT" ? "-" : ""}
                   {log.quantity}
                 </TableCell>
-                <TableCell className="font-mono text-zinc-300">
-                  {log.previousStock} → <span className="font-bold text-white">{log.newStock}</span>
+                <TableCell className="font-mono text-text-secondary">
+                  {log.previousStock} → <span className="font-bold text-[#F2F3F5]">{log.newStock}</span>
                 </TableCell>
-                <TableCell className="text-zinc-400 text-xs">{log.reason}</TableCell>
-                <TableCell className="text-zinc-400 text-xs">{log.recordedBy}</TableCell>
+                <TableCell className="text-text-secondary text-xs">{log.reason}</TableCell>
+                <TableCell className="text-text-secondary text-xs font-semibold">{log.recordedBy}</TableCell>
               </TableRow>
             ))}
           </tbody>
@@ -284,12 +290,12 @@ export default function InventoryPage() {
       <Modal
         isOpen={adjustModalOpen}
         onClose={() => setAdjustModalOpen(false)}
-        title="Adjust Stock"
+        title="Adjust Stock Level"
         maxWidth="sm"
       >
-        <form onSubmit={handleConfirmAdjust} className="space-y-3">
+        <form onSubmit={handleConfirmAdjust} className="space-y-3.5">
           {errorMsg && (
-            <div className="p-2 bg-[#251014] border border-red-900/60 rounded text-[11px] text-red-400 font-mono">
+            <div className="p-2.5 bg-persona-red-subtle border border-persona-red-border rounded-[6px] text-xs text-persona-red font-medium">
               {errorMsg}
             </div>
           )}
@@ -305,13 +311,13 @@ export default function InventoryPage() {
           />
 
           <Select
-            label="Action"
+            label="Adjustment Type"
             value={actionType}
-            onChange={(e) => setActionType(e.target.value as any)}
+            onChange={(e) => setActionType(e.target.value as "STOCK_IN" | "STOCK_OUT" | "ADJUSTMENT")}
             options={[
-              { label: "STOCK_IN", value: "STOCK_IN" },
-              { label: "STOCK_OUT", value: "STOCK_OUT" },
-              { label: "ADJUSTMENT", value: "ADJUSTMENT" },
+              { label: "STOCK_IN (Restock)", value: "STOCK_IN" },
+              { label: "STOCK_OUT (Loss / Damaged)", value: "STOCK_OUT" },
+              { label: "ADJUSTMENT (Manual Count)", value: "ADJUSTMENT" },
             ]}
           />
 
@@ -325,19 +331,19 @@ export default function InventoryPage() {
           />
 
           <Input
-            label="Reason"
+            label="Reason / Reference"
             value={adjustReason}
             onChange={(e) => setAdjustReason(e.target.value)}
             placeholder="e.g. Restock invoice #102"
             required
           />
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-[#1b1e28]">
+          <div className="flex justify-end gap-2 pt-2 border-t border-surface-border">
             <Button type="button" variant="outline" size="sm" onClick={() => setAdjustModalOpen(false)}>
               Cancel
             </Button>
             <Button type="submit" variant="primary" size="sm" isLoading={isSubmitting}>
-              Save
+              Save Adjustment
             </Button>
           </div>
         </form>

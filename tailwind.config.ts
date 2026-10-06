@@ -9,37 +9,58 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "#0b0e14",
+        // Dark charcoal foundation
+        background: "oklch(0.12 0.015 260)", // #0F1115
         surface: {
-          DEFAULT: "#111622",
-          elevated: "#161d2d",
-          hover: "#1b2336",
+          DEFAULT: "oklch(0.16 0.015 260)", // #15181F
+          muted: "oklch(0.135 0.015 260)",  // #111419
+          hover: "oklch(0.19 0.018 260)",  // #1B1F27
+          border: "oklch(0.24 0.015 260)", // #242933
+          "border-subtle": "oklch(0.19 0.012 260)",
         },
-        card: {
-          DEFAULT: "#131926",
-          border: "#1e293b",
-          hover: "#182030",
+        // Persona 5 inspired Red
+        persona: {
+          red: "oklch(0.55 0.20 25)",       // #D82239
+          "red-hover": "oklch(0.48 0.20 25)",
+          "red-active": "oklch(0.42 0.19 25)",
+          "red-subtle": "oklch(0.20 0.06 25)", // Solid dark red background
+          "red-border": "oklch(0.32 0.10 25)",
         },
-        accent: {
-          DEFAULT: "#dc2626", // subtle red accent
-          hover: "#b91c1c",
-          muted: "#991b1b",
-          subtle: "rgba(220, 38, 38, 0.12)",
-          glow: "rgba(220, 38, 38, 0.25)",
+        // Persona 3 Reload inspired Blue
+        p3r: {
+          blue: "oklch(0.55 0.16 250)",      // #2563EB solid cobalt ink
+          "blue-hover": "oklch(0.48 0.16 250)",
+          "blue-subtle": "oklch(0.20 0.05 250)", // Solid dark blue background
+          "blue-border": "oklch(0.32 0.08 250)",
         },
-        status: {
-          available: "#10b981", // emerald
-          inuse: "#3b82f6",     // blue
-          maintenance: "#f59e0b", // amber
-          offline: "#6b7280",   // gray
+        // Maintenance Amber
+        pamber: {
+          DEFAULT: "oklch(0.68 0.14 75)",   // #C98822
+          subtle: "oklch(0.22 0.04 75)",
+          border: "oklch(0.35 0.07 75)",
         },
-        charcoal: {
-          900: "#090c10",
-          800: "#0d1117",
-          700: "#161b22",
-          600: "#21262d",
-          500: "#30363d",
+        // Typography
+        text: {
+          primary: "#F2F3F5",
+          secondary: "#8F96A3",
+          muted: "#5B6270",
         },
+      },
+      fontFamily: {
+        sans: [
+          '"Plus Jakarta Sans"',
+          "-apple-system",
+          "BlinkMacSystemFont",
+          '"Segoe UI"',
+          "Roboto",
+          "sans-serif",
+        ],
+        mono: [
+          '"JetBrains Mono"',
+          '"SF Mono"',
+          "Consolas",
+          "monospace",
+        ],
       },
     },
   },
