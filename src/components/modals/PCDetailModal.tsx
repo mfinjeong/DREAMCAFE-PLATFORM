@@ -12,6 +12,8 @@ interface PCDetailModalProps {
   onClose: () => void;
   pc: PCStation | null;
   onStatusChange: (pcId: string, newStatus: PCStatus) => Promise<void>;
+  onEndSession?: (pc: PCStation) => void;
+  onStopSession?: (sessionId: string) => Promise<void>;
 }
 
 export const PCDetailModal: React.FC<PCDetailModalProps> = ({
@@ -19,6 +21,8 @@ export const PCDetailModal: React.FC<PCDetailModalProps> = ({
   onClose,
   pc,
   onStatusChange,
+  onEndSession,
+  onStopSession,
 }) => {
   const [selectedStatus, setSelectedStatus] = useState<PCStatus | "">("");
   const [isUpdating, setIsUpdating] = useState(false);
@@ -69,7 +73,8 @@ export const PCDetailModal: React.FC<PCDetailModalProps> = ({
           </div>
 
           {pc.status === "IN_USE" && pc.activeSession ? (
-            <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+            <>
+              <div className="grid grid-cols-2 gap-2 text-xs pt-1">
               <div>
                 <span className="text-[11px] text-text-muted block">Member</span>
                 <span className="text-[#F2F3F5] font-bold">
@@ -95,6 +100,45 @@ export const PCDetailModal: React.FC<PCDetailModalProps> = ({
                 </span>
               </div>
             </div>
+
+            {/* Session Action Controls */}
+            <div className="flex items-center gap-2 pt-2 border-t border-surface-border">
+              {onEndSession && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="primary"
+                  className="flex-1 text-xs"
+                  onClick={() => onEndSession(pc)}
+                >
+                  Checkout & Pay
+                </Button>
+              )}
+              {onStopSession && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="text-xs text-persona-red border-persona-red-border hover:bg-persona-red hover:text-white"
+                  onClick={async () => {
+                    if (!confirm(`Stop active session for ${pc.stationNumber}?`)) return;
+                    try {
+                      setIsUpdating(true);
+                      await onStopSession(pc.activeSession!.id);
+                      onClose();
+                    } catch (err: unknown) {
+                      setErrorMsg(err instanceof Error ? err.message : "Failed to stop session");
+                    } finally {
+                      setIsUpdating(false);
+                    }
+                  }}
+                  disabled={isUpdating}
+                >
+                  Stop Session
+                </Button>
+              )}
+            </div>
+          </>
           ) : (
             <div className="flex items-center justify-between text-xs pt-1">
               <span className="text-text-secondary">

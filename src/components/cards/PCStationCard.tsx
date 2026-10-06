@@ -17,6 +17,8 @@ export const PCStationCard: React.FC<PCStationCardProps> = ({
   pc,
   onStartSession,
   onViewDetail,
+  onEndSession,
+  onAddTime,
 }) => {
   // Live ticking countdown calculation
   const [secondsRemaining, setSecondsRemaining] = useState<number>(() => {
@@ -133,12 +135,22 @@ export const PCStationCard: React.FC<PCStationCardProps> = ({
             START
           </button>
         ) : pc.status === "IN_USE" ? (
-          <button
-            onClick={() => onViewDetail?.(pc)}
-            className="w-full bg-surface-muted hover:bg-surface-hover text-[#F2F3F5] border border-surface-border text-xs font-semibold py-1.5 px-3 rounded-[6px] transition-colors uppercase tracking-wider font-sans cursor-pointer"
-          >
-            DETAIL
-          </button>
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              onClick={() => onEndSession?.(pc)}
+              className="w-full bg-persona-red hover:bg-persona-red-hover active:bg-persona-red-active text-white text-[11px] font-bold py-1.5 px-2 rounded-[6px] transition-colors uppercase tracking-wider font-sans cursor-pointer text-center"
+              title="End / Checkout Session"
+            >
+              STOP
+            </button>
+            <button
+              onClick={() => onViewDetail?.(pc)}
+              className="w-full bg-surface-muted hover:bg-surface-hover text-[#F2F3F5] border border-surface-border text-[11px] font-semibold py-1.5 px-2 rounded-[6px] transition-colors uppercase tracking-wider font-sans cursor-pointer text-center"
+              title="View Station Detail"
+            >
+              DETAIL
+            </button>
+          </div>
         ) : (
           <button
             onClick={() => onViewDetail?.(pc)}

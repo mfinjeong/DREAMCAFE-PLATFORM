@@ -29,7 +29,12 @@ export const TableHead: React.FC<{ children: React.ReactNode; className?: string
   className = "",
 }) => <th className={`px-3.5 py-2.5 font-bold text-[#F2F3F5] ${className}`}>{children}</th>;
 
-export const TableCell: React.FC<{ children: React.ReactNode; className?: string }> = ({
+export const TableCell: React.FC<{ children?: React.ReactNode; className?: string; colSpan?: number }> = ({
   children,
   className = "",
-}) => <td className={`px-3.5 py-2.5 text-[#F2F3F5] ${className}`}>{children}</td>;
+  colSpan,
+}) => (
+  <td colSpan={colSpan} className={`px-3.5 py-2.5 text-[#F2F3F5] ${className}`}>
+    {children}
+  </td>
+);

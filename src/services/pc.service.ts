@@ -26,6 +26,7 @@ export async function listPCs(filters: PCFilterOptions = {}) {
       { stationNumber: { contains: q, mode: "insensitive" } },
       { name: { contains: q, mode: "insensitive" } },
       { specsGpu: { contains: q, mode: "insensitive" } },
+      { specsCpu: { contains: q, mode: "insensitive" } },
     ];
   }
 

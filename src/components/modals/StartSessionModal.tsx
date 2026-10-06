@@ -38,6 +38,15 @@ export const StartSessionModal: React.FC<StartSessionModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    if (isOpen) {
+      setErrorMessage(null);
+      if ((!selectedMemberId || !members.some((m) => m.id === selectedMemberId)) && members.length > 0) {
+        setSelectedMemberId(members[0].id);
+      }
+    }
+  }, [isOpen, members, selectedMemberId]);
+
   if (!station) return null;
 
   const hourlyRate = station.hourlyRate || 10000;
