@@ -18,6 +18,7 @@ export async function POST(request: Request) {
       memberId: validated.data.memberId,
       items: validated.data.items,
       cashReceived: validated.data.cashReceived,
+      cashierName: validated.data.cashierName,
       notes: validated.data.notes,
     });
 

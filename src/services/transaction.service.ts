@@ -212,11 +212,17 @@ export async function createPosCheckout(data: PosCheckoutInput) {
       },
       include: {
         items: true,
+        member: true,
       },
     });
 
     return {
-      transaction,
+      transaction: {
+        ...transaction,
+        memberName: transaction.member?.fullName || "Guest (Non-Member)",
+        createdAt: transaction.createdAt.toISOString(),
+        updatedAt: transaction.updatedAt.toISOString(),
+      },
       totalAmount: calculatedTotal,
       cashReceived: data.cashReceived,
       cashChange,

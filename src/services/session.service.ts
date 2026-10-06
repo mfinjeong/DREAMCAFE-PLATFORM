@@ -500,6 +500,9 @@ export async function checkoutSession(data: CheckoutSessionInput) {
           ],
         },
       },
+      include: {
+        items: true,
+      },
     });
 
     // C. Mark Session COMPLETED & PAID
@@ -537,7 +540,12 @@ export async function checkoutSession(data: CheckoutSessionInput) {
 
     return {
       session: updatedSession,
-      transaction,
+      transaction: {
+        ...transaction,
+        memberName: session.member?.fullName || session.guestName || "Guest",
+        createdAt: transaction.createdAt.toISOString(),
+        updatedAt: transaction.updatedAt.toISOString(),
+      },
       totalAmount,
       sessionPrice,
       productsTotal,

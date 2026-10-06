@@ -86,6 +86,7 @@ export const endSessionCheckoutSchema = z.object({
 
 export const sessionCheckoutWithProductsSchema = z.object({
   sessionId: z.string().min(1, "Session ID wajib diisi"),
+  totalAmount: z.number().min(0).optional(),
   products: z.array(
     z.object({
       productId: z.string().min(1, "Product ID wajib diisi"),
@@ -101,12 +102,13 @@ export const posCheckoutSchema = z.object({
   memberId: z.string().optional().nullable(),
   items: z.array(
     z.object({
-      productId: z.string().min(1),
+      productId: z.string().min(1, "Produk wajib dipilih"),
       quantity: z.number().int().min(1, "Kuantitas minimal 1"),
-      unitPrice: z.number().min(0),
+      unitPrice: z.number().min(0).optional(),
     })
   ).min(1, "Keranjang belanja tidak boleh kosong"),
   cashReceived: z.number().min(0, "Uang tunai tidak valid"),
+  cashierName: z.string().optional().default("Admin"),
   notes: z.string().optional().nullable(),
 });
 

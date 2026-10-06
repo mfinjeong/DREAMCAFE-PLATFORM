@@ -4,7 +4,8 @@ import { listPCs, getPCById, updatePCStatus } from "../src/services/pc.service";
 import { listConsoles, getConsoleById, createConsole, updateConsole, updateConsoleStatus, deleteConsole } from "../src/services/console.service";
 import { listMembers, getMemberById, createMember, updateMember, deleteMember, searchMembers } from "../src/services/member.service";
 import { startSession, stopSession, checkoutSession, getSessionById } from "../src/services/session.service";
-import { getLowStockProducts, listProducts } from "../src/services/product.service";
+import { getLowStockProducts, listProducts, getProductById } from "../src/services/product.service";
+import { createPosCheckout, listTransactions, getTransactionById } from "../src/services/transaction.service";
 
 let passedCount = 0;
 let failedCount = 0;
@@ -332,14 +333,106 @@ async function runTests() {
   console.log("  ✓ All error cases handled with controlled application errors.\n");
 
   // -------------------------------------------------------------------
-  // TEST GROUP 5: PRODUCT & LOW-STOCK QUERIES
+  // TEST GROUP 5: PRODUCT, INVENTORY & STORE / POS MANAGEMENT
   // -------------------------------------------------------------------
-  console.log("▶ TEST GROUP 5: Product & Inventory Queries");
+  console.log("▶ TEST GROUP 5: Product, Inventory & Store / POS Management");
   const lowStockProducts = await getLowStockProducts();
   assert(Array.isArray(lowStockProducts), `getLowStockProducts returned ${lowStockProducts.length} low-stock items`);
 
   const filteredLowStock = await listProducts({ lowStockOnly: true });
   assert(Array.isArray(filteredLowStock), `listProducts({ lowStockOnly: true }) returned ${filteredLowStock.length} items`);
+
+  // 1. Load active products for checkout
+  const allProducts = await listProducts({ activeOnly: true });
+  assert(allProducts.length > 0, `listProducts loaded ${allProducts.length} active products`);
+  const posProduct = allProducts[0];
+  const posInitialStock = posProduct.stock;
+  assert(posInitialStock > 0, `Selected POS product '${posProduct.name}' has available stock (${posInitialStock})`);
+
+  // 2. Test Guest Cash Checkout
+  const testCashReceived = posProduct.price + 10000;
+  const posResult = await createPosCheckout({
+    memberId: null,
+    items: [{ productId: posProduct.id, quantity: 1 }],
+    cashReceived: testCashReceived,
+    cashierName: "Admin Test",
+    notes: "Automated POS verification test",
+  });
+
+  assert(Boolean(posResult.transaction.id), `POS Checkout created invoice: ${posResult.transaction.invoiceNumber}`);
+  assert(posResult.totalAmount === posProduct.price, `Authoritative total matches product price (Rp${posResult.totalAmount})`);
+  assert(posResult.cashChange === 10000, `Change calculated accurately (Expected: Rp10000, Actual: Rp${posResult.cashChange})`);
+  assert(posResult.transaction.paymentMethod === PaymentMethod.CASH, "Transaction payment method is CASH");
+  assert(posResult.transaction.status === PaymentStatus.PAID, "Transaction status is PAID");
+
+  // 3. Verify stock deduction and inventory log mutation
+  const productAfterSale = await getProductById(posProduct.id);
+  assert(productAfterSale?.stock === posInitialStock - 1, `Product stock deducted from ${posInitialStock} to ${productAfterSale?.stock}`);
+
+  const latestInventoryLog = await prisma.inventoryLog.findFirst({
+    where: { productId: posProduct.id },
+    orderBy: { createdAt: "desc" },
+  });
+  assert(latestInventoryLog?.action === "STOCK_OUT", "Inventory mutation log recorded with STOCK_OUT");
+  assert(latestInventoryLog?.quantity === 1, "Inventory log recorded quantity = 1");
+
+  // 4. Test Error Case: Empty cart rejection
+  let caughtEmptyCart = false;
+  try {
+    await createPosCheckout({
+      items: [],
+      cashReceived: 50000,
+    });
+  } catch (err: unknown) {
+    caughtEmptyCart = true;
+    const msg = err instanceof Error ? err.message : String(err);
+    assert(msg.includes("kosong"), `Empty cart rejected: "${msg}"`);
+  }
+  assert(caughtEmptyCart, "Empty cart checkout properly rejected");
+
+  // 5. Test Error Case: Insufficient cash rejection
+  let caughtPosInsufficientCash = false;
+  try {
+    await createPosCheckout({
+      items: [{ productId: posProduct.id, quantity: 1 }],
+      cashReceived: posProduct.price - 1000, // Insufficient!
+    });
+  } catch (err: unknown) {
+    caughtPosInsufficientCash = true;
+    const msg = err instanceof Error ? err.message : String(err);
+    assert(msg.includes("kurang"), `Insufficient cash in POS rejected: "${msg}"`);
+  }
+  assert(caughtPosInsufficientCash, "POS checkout with insufficient cash properly rejected");
+
+  // 6. Test Error Case: Insufficient stock rejection
+  let caughtPosInsufficientStock = false;
+  try {
+    await createPosCheckout({
+      items: [{ productId: posProduct.id, quantity: 999999 }],
+      cashReceived: 999999999,
+    });
+  } catch (err: unknown) {
+    caughtPosInsufficientStock = true;
+    const msg = err instanceof Error ? err.message : String(err);
+    assert(msg.includes("tidak mencukupi"), `Insufficient stock in POS rejected: "${msg}"`);
+  }
+  assert(caughtPosInsufficientStock, "POS checkout with exceeding stock properly rejected");
+
+  // 7. Verify listTransactions
+  const transactionsList = await listTransactions({ limit: 10 });
+  assert(transactionsList.length > 0, `listTransactions returned ${transactionsList.length} transactions`);
+  const foundTx = transactionsList.find((t) => t.id === posResult.transaction.id);
+  assert(Boolean(foundTx), "Created POS transaction found in transaction list");
+
+  // Restore product stock and clean up test transaction
+  await prisma.product.update({
+    where: { id: posProduct.id },
+    data: { stock: posInitialStock },
+  });
+  await prisma.transaction.delete({
+    where: { id: posResult.transaction.id },
+  });
+  console.log("  ✓ Product stock restored and test transaction cleaned up cleanly.");
 
   // -------------------------------------------------------------------
   // TEST GROUP 6: CONSOLE MANAGEMENT & SESSIONS
