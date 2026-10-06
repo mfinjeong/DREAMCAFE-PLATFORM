@@ -3,7 +3,7 @@
 import React, { useState, useEffect, use, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { TeamSummaryDTO, TeamMemberDTO, MemberItem } from "@/lib/types";
+import { TeamSummaryDTO, TeamMemberDTO, MemberItem, TeamInvitationDTO } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
@@ -24,6 +24,9 @@ import {
   Edit2,
   TrendingUp,
   Award,
+  Mail,
+  Check,
+  X,
 } from "lucide-react";
 import { formatDateTime } from "@/lib/formatters";
 
@@ -44,14 +47,17 @@ export default function TeamDetailPage({
 
   // Modals state
   const [addMemberModalOpen, setAddMemberModalOpen] = useState(false);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [removeModalOpen, setRemoveModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
+  const [invitations, setInvitations] = useState<TeamInvitationDTO[]>([]);
   const [selectedMember, setSelectedMember] = useState<TeamMemberDTO | null>(null);
   const [newMemberId, setNewMemberId] = useState("");
+  const [inviteMemberId, setInviteMemberId] = useState("");
   const [newOwnerId, setNewOwnerId] = useState("");
   const [leaveMemberId, setLeaveMemberId] = useState("");
 
@@ -68,9 +74,12 @@ export default function TeamDetailPage({
   const fetchTeamSummary = useCallback(async () => {
     try {
       setErrorMessage(null);
-      const res = await fetch(`/api/teams/${teamId}/summary`);
-      const json = await res.json();
-      if (!res.ok || !json.success) {
+      const [sumRes, invRes] = await Promise.all([
+        fetch(`/api/teams/${teamId}/summary`),
+        fetch(`/api/teams/${teamId}/invitations`),
+      ]);
+      const json = await sumRes.json();
+      if (!sumRes.ok || !json.success) {
         throw new Error(json.message || "Gagal memuat informasi tim");
       }
       setSummary(json.data);
@@ -79,6 +88,13 @@ export default function TeamDetailPage({
         tag: json.data.team.tag,
         description: json.data.team.description || "",
       });
+
+      if (invRes.ok) {
+        const invJson = await invRes.json();
+        if (invJson.success) {
+          setInvitations(invJson.data);
+        }
+      }
     } catch (err: unknown) {
       console.error(err);
       setErrorMessage(err instanceof Error ? err.message : "Terjadi kesalahan server");
@@ -128,6 +144,75 @@ export default function TeamDetailPage({
       case "BRONZE":
       default:
         return "bg-amber-950/30 text-amber-600 border-amber-900/40";
+    }
+  };
+
+  // Invite Member Modal
+  const handleOpenInviteModal = () => {
+    setFormError(null);
+    const existingIds = new Set(summary?.members.map((m) => m.memberId) || []);
+    const pendingIds = new Set(
+      invitations.filter((i) => i.status === "PENDING").map((i) => i.memberId)
+    );
+    const available = allMembers.filter((m) => !existingIds.has(m.id) && !pendingIds.has(m.id));
+    setInviteMemberId(available[0]?.id || "");
+    setInviteModalOpen(true);
+  };
+
+  const handleSendInviteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteMemberId) {
+      setFormError("Pilih member yang ingin diundang.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setFormError(null);
+
+      const res = await fetch(`/api/teams/${teamId}/invitations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          memberId: inviteMemberId,
+          invitedById: summary?.owner.id,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Gagal mengirim undangan");
+      }
+
+      setInviteModalOpen(false);
+      fetchTeamSummary();
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : "Terjadi kesalahan sistem");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCancelInvitation = async (invitationId: string) => {
+    if (!summary) return;
+    try {
+      setIsSubmitting(true);
+      const res = await fetch(`/api/teams/${teamId}/invitations/${invitationId}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actorMemberId: summary.owner.id }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Gagal membatalkan undangan");
+      }
+
+      fetchTeamSummary();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Gagal membatalkan undangan");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -366,6 +451,12 @@ export default function TeamDetailPage({
   const { team, owner, memberCount, members, averageRating, highestRating, lowestRating, highestRank, lowestRank } = summary;
   const existingMemberIds = new Set(members.map((m) => m.memberId));
   const availableMembersToAdd = allMembers.filter((m) => !existingMemberIds.has(m.id));
+  const pendingInvitedMemberIds = new Set(
+    invitations.filter((i) => i.status === "PENDING").map((i) => i.memberId)
+  );
+  const availableMembersToInvite = allMembers.filter(
+    (m) => !existingMemberIds.has(m.id) && !pendingInvitedMemberIds.has(m.id)
+  );
 
   return (
     <div className="space-y-6">
@@ -470,6 +561,18 @@ export default function TeamDetailPage({
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Tambah Roster</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenInviteModal}
+              disabled={availableMembersToInvite.length === 0}
+              className="flex items-center gap-1.5 text-persona-blue hover:text-persona-blue/80"
+              title="Kirim undangan rekrutmen ke member"
+            >
+              <Mail className="w-3.5 h-3.5" />
+              <span>Undang Member</span>
             </Button>
 
             <Button
@@ -670,6 +773,188 @@ export default function TeamDetailPage({
           </div>
         </div>
       </div>
+
+      {/* Team Invitations Section (Phase 2) */}
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-3.5 bg-persona-blue persona-slash rounded-[1px]"></div>
+            <div>
+              <h2 className="text-xs font-mono font-bold tracking-wider text-text-primary uppercase flex items-center gap-2">
+                <Mail className="w-3.5 h-3.5 text-persona-blue" />
+                <span>Undangan Tim & Rekrutmen</span>
+                <span className="text-[10px] px-1.5 py-0.2 bg-surface-dark border border-surface-border text-amber-400 font-mono rounded">
+                  {invitations.filter((i) => i.status === "PENDING").length} Pending
+                </span>
+              </h2>
+              <p className="text-[11px] text-text-secondary mt-0.5">
+                Kelola status rekrutmen pemain dan batalkan undangan pending jika diperlukan.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleOpenInviteModal}
+            disabled={availableMembersToInvite.length === 0}
+            className="flex items-center gap-1.5 text-xs text-persona-blue hover:text-persona-blue/80 self-start sm:self-auto"
+          >
+            <Mail className="w-3.5 h-3.5" />
+            <span>Kirim Undangan Baru</span>
+          </Button>
+        </div>
+
+        <div className="bg-surface-card border border-surface-border rounded-[4px] overflow-hidden">
+          {invitations.length === 0 ? (
+            <div className="p-8 text-center">
+              <Mail className="w-8 h-8 text-text-muted mx-auto mb-2 opacity-50" />
+              <p className="text-xs font-mono text-text-secondary">
+                Belum ada undangan yang pernah dikirimkan oleh tim ini.
+              </p>
+              <p className="text-[11px] text-text-muted mt-1">
+                Owner tim dapat mengundang member kafe untuk bergabung secara resmi ke dalam roster.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-surface-dark border-b border-surface-border text-text-muted font-mono text-[10px] uppercase tracking-wider">
+                    <th className="px-3.5 py-2.5">Target Member</th>
+                    <th className="px-3.5 py-2.5">Pengundang</th>
+                    <th className="px-3.5 py-2.5">Status Undangan</th>
+                    <th className="px-3.5 py-2.5">Tanggal Dikirim</th>
+                    <th className="px-3.5 py-2.5">Respon</th>
+                    <th className="px-3.5 py-2.5 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-surface-border font-mono">
+                  {invitations.map((inv) => (
+                    <tr
+                      key={inv.id}
+                      className="hover:bg-surface-dark/40 transition-colors"
+                    >
+                      <td className="px-3.5 py-2.5">
+                        <div className="font-sans font-bold text-text-primary text-xs">
+                          {inv.memberName}
+                        </div>
+                        <div className="text-[10px] text-text-muted">
+                          @{inv.memberUsername || "member"}
+                        </div>
+                      </td>
+                      <td className="px-3.5 py-2.5 text-text-secondary">
+                        <div className="flex items-center gap-1">
+                          <Crown className="w-3 h-3 text-amber-400" />
+                          <span>{inv.invitedByName}</span>
+                        </div>
+                      </td>
+                      <td className="px-3.5 py-2.5">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                            inv.status === "PENDING"
+                              ? "bg-amber-950/40 text-amber-400 border-amber-800/40"
+                              : inv.status === "ACCEPTED"
+                              ? "bg-emerald-950/40 text-emerald-400 border-emerald-800/40"
+                              : inv.status === "REJECTED"
+                              ? "bg-rose-950/40 text-rose-400 border-rose-800/40"
+                              : "bg-surface-dark text-text-muted border-surface-border"
+                          }`}
+                        >
+                          {inv.status}
+                        </span>
+                      </td>
+                      <td className="px-3.5 py-2.5 text-text-muted text-[11px]">
+                        {formatDateTime(inv.createdAt)}
+                      </td>
+                      <td className="px-3.5 py-2.5 text-text-muted text-[11px]">
+                        {inv.respondedAt ? formatDateTime(inv.respondedAt) : "-"}
+                      </td>
+                      <td className="px-3.5 py-2.5 text-right">
+                        {inv.status === "PENDING" ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleCancelInvitation(inv.id)}
+                            disabled={isSubmitting}
+                            className="h-6 text-[10px] px-2 text-rose-400 hover:text-rose-300 border-rose-900/40 hover:bg-rose-950/30"
+                          >
+                            Batalkan
+                          </Button>
+                        ) : (
+                          <span className="text-[10px] text-text-muted">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Invite Member Modal */}
+      <Modal
+        isOpen={inviteModalOpen}
+        onClose={() => setInviteModalOpen(false)}
+        title="Kirim Undangan Tim"
+      >
+        <form onSubmit={handleSendInviteSubmit} className="space-y-4">
+          {formError && (
+            <div className="p-3 bg-rose-950/40 border border-rose-800 text-rose-300 text-xs rounded">
+              {formError}
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <label className="text-xs font-mono text-text-secondary block">
+              Pilih Calon Anggota (Target Rekrutmen)
+            </label>
+            <select
+              value={inviteMemberId}
+              onChange={(e) => setInviteMemberId(e.target.value)}
+              className="w-full bg-surface-dark border border-surface-border text-text-primary text-xs rounded p-2 focus:outline-none focus:border-surface-border-active"
+              required
+            >
+              {availableMembersToInvite.length === 0 ? (
+                <option value="">Tidak ada member yang dapat diundang saat ini</option>
+              ) : (
+                availableMembersToInvite.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.fullName} (@{m.username}) — {m.memberCode} [{m.dreamRank} • {m.dreamRating || 0} RR]
+                  </option>
+                ))
+              )}
+            </select>
+            <p className="text-[11px] text-text-muted mt-0.5">
+              Undangan akan dikirimkan dengan status PENDING. Calon pemain dapat menerima atau menolak undangan dari profil gaming mereka.
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-surface-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setInviteModalOpen(false)}
+              disabled={isSubmitting}
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              disabled={isSubmitting || availableMembersToInvite.length === 0}
+              className="bg-persona-blue hover:bg-persona-blue/80 text-white flex items-center gap-1.5"
+            >
+              <Mail className="w-3.5 h-3.5" />
+              <span>{isSubmitting ? "Mengirim..." : "Kirim Undangan"}</span>
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Add Member Modal */}
       <Modal

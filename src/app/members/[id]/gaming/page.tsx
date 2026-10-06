@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
-import { GamingProfileDTO } from "@/lib/types";
+import { GamingProfileDTO, TeamInvitationDTO } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import {
   Trophy,
@@ -21,6 +21,9 @@ import {
   Shield,
   Star,
   History,
+  Mail,
+  Check,
+  X,
 } from "lucide-react";
 import { formatDateTime } from "@/lib/formatters";
 
@@ -33,25 +36,82 @@ export default function MemberGamingProfilePage({
   const memberId = resolvedParams.id;
 
   const [profile, setProfile] = useState<GamingProfileDTO | null>(null);
+  const [incomingInvitations, setIncomingInvitations] = useState<TeamInvitationDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isActionLoading, setIsActionLoading] = useState(false);
 
   const fetchProfile = async () => {
     try {
       setErrorMessage(null);
-      const res = await fetch(`/api/members/${memberId}/gaming`);
-      const json = await res.json();
-      if (!res.ok || !json.success) {
+      const [resProfile, resInvs] = await Promise.all([
+        fetch(`/api/members/${memberId}/gaming`),
+        fetch(`/api/members/${memberId}/team-invitations?status=PENDING`),
+      ]);
+
+      const json = await resProfile.json();
+      if (!resProfile.ok || !json.success) {
         throw new Error(json.message || "Gagal memuat profil gaming");
       }
       setProfile(json.data);
+
+      if (resInvs.ok) {
+        const invsJson = await resInvs.json();
+        if (invsJson.success) {
+          setIncomingInvitations(invsJson.data);
+        }
+      }
     } catch (err: unknown) {
       console.error(err);
       setErrorMessage(err instanceof Error ? err.message : "Terjadi kesalahan server");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
+    }
+  };
+
+  const handleAcceptInvitation = async (invitationId: string) => {
+    try {
+      setIsActionLoading(true);
+      const res = await fetch(`/api/team-invitations/${invitationId}/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actorMemberId: memberId }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Gagal menerima undangan");
+      }
+
+      await fetchProfile();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Gagal menerima undangan");
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleRejectInvitation = async (invitationId: string) => {
+    try {
+      setIsActionLoading(true);
+      const res = await fetch(`/api/team-invitations/${invitationId}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actorMemberId: memberId }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Gagal menolak undangan");
+      }
+
+      await fetchProfile();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Gagal menolak undangan");
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
@@ -371,6 +431,77 @@ export default function MemberGamingProfilePage({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Undangan Masuk Tim Section (Phase 2) */}
+      <div className="bg-surface-card border border-surface-border p-5 rounded-[4px] space-y-3">
+        <div className="flex items-center justify-between pb-2.5 border-b border-surface-border">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-3.5 bg-amber-400 persona-slash rounded-[1px]"></div>
+            <h2 className="text-xs font-mono font-bold tracking-wider text-text-primary uppercase flex items-center gap-2">
+              <Mail className="w-3.5 h-3.5 text-amber-400" />
+              <span>Undangan Tim Masuk</span>
+            </h2>
+          </div>
+          <span className="text-[10px] font-mono text-amber-400 font-bold px-2 py-0.5 rounded bg-surface-dark border border-amber-900/40">
+            {incomingInvitations.length} Pending
+          </span>
+        </div>
+
+        {incomingInvitations.length === 0 ? (
+          <div className="p-4 text-center bg-surface-dark/40 border border-surface-border rounded-[4px]">
+            <p className="text-xs text-text-muted font-mono">
+              Tidak ada undangan tim yang pending untuk member ini.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {incomingInvitations.map((inv) => (
+              <div
+                key={inv.id}
+                className="bg-surface-dark/80 border border-amber-800/30 p-3.5 rounded-[4px] flex flex-col justify-between gap-3 hover:border-amber-700/50 transition-all"
+              >
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-mono font-bold px-1.5 py-0.2 rounded bg-surface-dark border border-persona-blue/40 text-persona-blue">
+                      #{inv.teamTag}
+                    </span>
+                    <h4 className="text-xs font-bold text-text-primary truncate">{inv.teamName}</h4>
+                  </div>
+                  <div className="text-[11px] text-text-secondary mt-1 font-mono">
+                    Diundang oleh: <strong className="text-text-primary">{inv.invitedByName}</strong>
+                  </div>
+                  <div className="text-[10px] text-text-muted font-mono mt-0.5">
+                    {formatDateTime(inv.createdAt)}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2 border-t border-surface-border">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleAcceptInvitation(inv.id)}
+                    disabled={isActionLoading}
+                    className="flex-1 h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1"
+                  >
+                    <Check className="w-3 h-3" />
+                    <span>Terima</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleRejectInvitation(inv.id)}
+                    disabled={isActionLoading}
+                    className="flex-1 h-7 text-xs border-surface-border text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 flex items-center justify-center gap-1"
+                  >
+                    <X className="w-3 h-3" />
+                    <span>Tolak</span>
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Team / Clan Esport Section */}

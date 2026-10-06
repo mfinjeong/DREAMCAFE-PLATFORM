@@ -1,16 +1,18 @@
 import { prisma } from "@/lib/prisma";
-import { TeamMemberRole, DreamRank, MemberTier } from "@prisma/client";
+import { TeamMemberRole, TeamInvitationStatus, DreamRank, MemberTier } from "@prisma/client";
 import {
   TeamItem,
   TeamMemberDTO,
   TeamSummaryDTO,
   MemberTeamMembershipDTO,
+  TeamInvitationDTO,
 } from "@/lib/types";
 import {
   createTeamSchema,
   updateTeamSchema,
   addTeamMemberSchema,
   transferTeamOwnershipSchema,
+  createTeamInvitationSchema,
 } from "@/lib/validators";
 import { calculateDreamRank } from "@/services/dreamrank.service";
 
@@ -781,4 +783,407 @@ export async function getMemberTeams(memberId: string): Promise<MemberTeamMember
     memberCount: tm.team._count.members,
     joinedAt: tm.joinedAt.toISOString(),
   }));
+}
+
+// ==========================================
+// TEAM INVITATION FUNCTIONS (PHASE 2)
+// ==========================================
+
+function mapTeamInvitationDTO(inv: {
+  id: string;
+  teamId: string;
+  memberId: string;
+  invitedById: string;
+  status: TeamInvitationStatus;
+  createdAt: Date;
+  respondedAt: Date | null;
+  team: { name: string; tag: string };
+  member: { fullName: string; username: string };
+  invitedBy: { fullName: string; username: string };
+}): TeamInvitationDTO {
+  return {
+    id: inv.id,
+    teamId: inv.teamId,
+    teamName: inv.team.name,
+    teamTag: inv.team.tag,
+    memberId: inv.memberId,
+    memberName: inv.member.fullName,
+    memberUsername: inv.member.username,
+    invitedById: inv.invitedById,
+    invitedByName: inv.invitedBy.fullName,
+    invitedByUsername: inv.invitedBy.username,
+    status: inv.status as TeamInvitationStatus,
+    createdAt: inv.createdAt.toISOString(),
+    respondedAt: inv.respondedAt ? inv.respondedAt.toISOString() : null,
+  };
+}
+
+/**
+ * Creates a team invitation sent by the current team owner.
+ */
+export async function createTeamInvitation(
+  teamId: string,
+  input: { memberId: string; invitedById: string }
+): Promise<TeamInvitationDTO> {
+  const validated = createTeamInvitationSchema.parse({
+    memberId: input.memberId,
+    invitedById: input.invitedById,
+  });
+
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    select: { id: true, name: true, tag: true, ownerId: true },
+  });
+  if (!team) {
+    throw new Error("Tim tidak ditemukan");
+  }
+
+  const member = await prisma.member.findUnique({
+    where: { id: validated.memberId },
+    select: { id: true, fullName: true, username: true },
+  });
+  if (!member) {
+    throw new Error("Member target tidak ditemukan");
+  }
+
+  const inviterId = validated.invitedById || team.ownerId;
+  const inviter = await prisma.member.findUnique({
+    where: { id: inviterId },
+    select: { id: true, fullName: true, username: true },
+  });
+  if (!inviter) {
+    throw new Error("Pengundang tidak ditemukan");
+  }
+
+  // Inviter must currently be TEAM OWNER
+  if (team.ownerId !== inviterId) {
+    throw new Error("Hanya owner tim yang dapat mengirim undangan tim");
+  }
+
+  // Target member must not already belong to the team
+  const existingMembership = await prisma.teamMember.findUnique({
+    where: {
+      teamId_memberId: {
+        teamId,
+        memberId: validated.memberId,
+      },
+    },
+  });
+  if (existingMembership) {
+    throw new Error("Member sudah terdaftar dalam tim ini");
+  }
+
+  // Target member must not already have a PENDING invitation
+  const existingPending = await prisma.teamInvitation.findFirst({
+    where: {
+      teamId,
+      memberId: validated.memberId,
+      status: TeamInvitationStatus.PENDING,
+    },
+  });
+  if (existingPending) {
+    throw new Error("Member sudah memiliki undangan aktif yang masih berstatus pending");
+  }
+
+  const created = await prisma.teamInvitation.create({
+    data: {
+      teamId,
+      memberId: validated.memberId,
+      invitedById: inviterId,
+      status: TeamInvitationStatus.PENDING,
+    },
+    include: {
+      team: { select: { name: true, tag: true } },
+      member: { select: { fullName: true, username: true } },
+      invitedBy: { select: { fullName: true, username: true } },
+    },
+  });
+
+  return mapTeamInvitationDTO(created);
+}
+
+/**
+ * Lists incoming invitations for a specific member.
+ */
+export async function listIncomingInvitations(
+  memberId: string,
+  status?: TeamInvitationStatus
+): Promise<TeamInvitationDTO[]> {
+  const member = await prisma.member.findUnique({
+    where: { id: memberId },
+    select: { id: true },
+  });
+  if (!member) {
+    throw new Error("Member tidak ditemukan");
+  }
+
+  const where: { memberId: string; status?: TeamInvitationStatus } = { memberId };
+  if (status) {
+    where.status = status;
+  } else {
+    where.status = TeamInvitationStatus.PENDING;
+  }
+
+  const invitations = await prisma.teamInvitation.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    include: {
+      team: { select: { name: true, tag: true } },
+      member: { select: { fullName: true, username: true } },
+      invitedBy: { select: { fullName: true, username: true } },
+    },
+  });
+
+  return invitations.map(mapTeamInvitationDTO);
+}
+
+/**
+ * Lists all invitations for a team (pending or historical).
+ */
+export async function listTeamInvitations(
+  teamId: string,
+  status?: TeamInvitationStatus
+): Promise<TeamInvitationDTO[]> {
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    select: { id: true },
+  });
+  if (!team) {
+    throw new Error("Tim tidak ditemukan");
+  }
+
+  const where: { teamId: string; status?: TeamInvitationStatus } = { teamId };
+  if (status) {
+    where.status = status;
+  }
+
+  const invitations = await prisma.teamInvitation.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    include: {
+      team: { select: { name: true, tag: true } },
+      member: { select: { fullName: true, username: true } },
+      invitedBy: { select: { fullName: true, username: true } },
+    },
+  });
+
+  return invitations.map(mapTeamInvitationDTO);
+}
+
+/**
+ * Retrieves a single team invitation by ID.
+ */
+export async function getTeamInvitationById(invitationId: string): Promise<TeamInvitationDTO | null> {
+  const inv = await prisma.teamInvitation.findUnique({
+    where: { id: invitationId },
+    include: {
+      team: { select: { name: true, tag: true } },
+      member: { select: { fullName: true, username: true } },
+      invitedBy: { select: { fullName: true, username: true } },
+    },
+  });
+  if (!inv) return null;
+  return mapTeamInvitationDTO(inv);
+}
+
+/**
+ * Accepts a team invitation. Only the invited member can accept.
+ * Creates a TeamMember with role MEMBER atomically.
+ */
+export async function acceptTeamInvitation(
+  invitationId: string,
+  actorMemberId: string
+): Promise<{ invitation: TeamInvitationDTO; membership: TeamMemberDTO }> {
+  if (!actorMemberId) {
+    throw new Error("Actor member ID wajib diisi");
+  }
+
+  const invitation = await prisma.teamInvitation.findUnique({
+    where: { id: invitationId },
+    include: {
+      team: true,
+      member: {
+        select: {
+          id: true,
+          fullName: true,
+          username: true,
+          memberCode: true,
+          tier: true,
+          dreamRating: true,
+          dreamRank: true,
+          avatarUrl: true,
+        },
+      },
+      invitedBy: { select: { fullName: true, username: true } },
+    },
+  });
+
+  if (!invitation) {
+    throw new Error("Undangan tidak ditemukan");
+  }
+
+  if (invitation.status !== TeamInvitationStatus.PENDING) {
+    throw new Error("Undangan sudah tidak berlaku atau sudah direspon");
+  }
+
+  // Only the invited target member can accept
+  if (invitation.memberId !== actorMemberId) {
+    throw new Error("Hanya member yang diundang yang dapat menerima undangan ini");
+  }
+
+  return await prisma.$transaction(async (tx) => {
+    // Check if target member is already in the team
+    const existing = await tx.teamMember.findUnique({
+      where: {
+        teamId_memberId: {
+          teamId: invitation.teamId,
+          memberId: invitation.memberId,
+        },
+      },
+    });
+
+    if (existing) {
+      throw new Error("Member sudah terdaftar dalam tim ini");
+    }
+
+    // 1. Create TeamMember with role MEMBER
+    const membership = await tx.teamMember.create({
+      data: {
+        teamId: invitation.teamId,
+        memberId: invitation.memberId,
+        role: TeamMemberRole.MEMBER,
+      },
+    });
+
+    // 2. Update invitation to ACCEPTED
+    const now = new Date();
+    const updatedInv = await tx.teamInvitation.update({
+      where: { id: invitationId },
+      data: {
+        status: TeamInvitationStatus.ACCEPTED,
+        respondedAt: now,
+      },
+      include: {
+        team: { select: { name: true, tag: true } },
+        member: { select: { fullName: true, username: true } },
+        invitedBy: { select: { fullName: true, username: true } },
+      },
+    });
+
+    return {
+      invitation: mapTeamInvitationDTO(updatedInv),
+      membership: {
+        id: membership.id,
+        teamId: membership.teamId,
+        memberId: invitation.member.id,
+        memberName: invitation.member.fullName,
+        username: invitation.member.username,
+        memberCode: invitation.member.memberCode,
+        tier: invitation.member.tier as MemberTier,
+        role: membership.role as TeamMemberRole,
+        dreamRating: invitation.member.dreamRating,
+        dreamRank: invitation.member.dreamRank as DreamRank,
+        avatarUrl: invitation.member.avatarUrl,
+        joinedAt: membership.joinedAt.toISOString(),
+      },
+    };
+  });
+}
+
+/**
+ * Rejects a team invitation. Only the invited member can reject.
+ */
+export async function rejectTeamInvitation(
+  invitationId: string,
+  actorMemberId: string
+): Promise<TeamInvitationDTO> {
+  if (!actorMemberId) {
+    throw new Error("Actor member ID wajib diisi");
+  }
+
+  const invitation = await prisma.teamInvitation.findUnique({
+    where: { id: invitationId },
+    include: {
+      team: { select: { name: true, tag: true } },
+      member: { select: { fullName: true, username: true } },
+      invitedBy: { select: { fullName: true, username: true } },
+    },
+  });
+
+  if (!invitation) {
+    throw new Error("Undangan tidak ditemukan");
+  }
+
+  if (invitation.status !== TeamInvitationStatus.PENDING) {
+    throw new Error("Undangan sudah tidak berlaku atau sudah direspon");
+  }
+
+  // Only the invited target member can reject
+  if (invitation.memberId !== actorMemberId) {
+    throw new Error("Hanya member yang diundang yang dapat menolak undangan ini");
+  }
+
+  const updated = await prisma.teamInvitation.update({
+    where: { id: invitationId },
+    data: {
+      status: TeamInvitationStatus.REJECTED,
+      respondedAt: new Date(),
+    },
+    include: {
+      team: { select: { name: true, tag: true } },
+      member: { select: { fullName: true, username: true } },
+      invitedBy: { select: { fullName: true, username: true } },
+    },
+  });
+
+  return mapTeamInvitationDTO(updated);
+}
+
+/**
+ * Cancels a team invitation. Only the team owner can cancel.
+ */
+export async function cancelTeamInvitation(
+  invitationId: string,
+  actorMemberId: string
+): Promise<TeamInvitationDTO> {
+  if (!actorMemberId) {
+    throw new Error("Actor member ID wajib diisi");
+  }
+
+  const invitation = await prisma.teamInvitation.findUnique({
+    where: { id: invitationId },
+    include: {
+      team: true,
+      member: { select: { fullName: true, username: true } },
+      invitedBy: { select: { fullName: true, username: true } },
+    },
+  });
+
+  if (!invitation) {
+    throw new Error("Undangan tidak ditemukan");
+  }
+
+  if (invitation.status !== TeamInvitationStatus.PENDING) {
+    throw new Error("Undangan sudah tidak berlaku atau sudah direspon");
+  }
+
+  // Only the team OWNER can cancel
+  if (invitation.team.ownerId !== actorMemberId) {
+    throw new Error("Hanya owner tim yang dapat membatalkan undangan");
+  }
+
+  const updated = await prisma.teamInvitation.update({
+    where: { id: invitationId },
+    data: {
+      status: TeamInvitationStatus.CANCELLED,
+      respondedAt: new Date(),
+    },
+    include: {
+      team: { select: { name: true, tag: true } },
+      member: { select: { fullName: true, username: true } },
+      invitedBy: { select: { fullName: true, username: true } },
+    },
+  });
+
+  return mapTeamInvitationDTO(updated);
 }

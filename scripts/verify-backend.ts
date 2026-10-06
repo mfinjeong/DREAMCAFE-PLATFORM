@@ -1,5 +1,5 @@
 import { prisma } from "../src/lib/prisma";
-import { PCStatus, ConsoleStatus, ConsoleType, SessionStatus, PaymentStatus, PaymentMethod, BookingStatus, InventoryAction, DreamRank, TeamMemberRole } from "@prisma/client";
+import { PCStatus, ConsoleStatus, ConsoleType, SessionStatus, PaymentStatus, PaymentMethod, BookingStatus, InventoryAction, DreamRank, TeamMemberRole, TeamInvitationStatus } from "@prisma/client";
 import { listPCs, getPCById, updatePCStatus } from "../src/services/pc.service";
 import { listConsoles, getConsoleById, createConsole, updateConsole, updateConsoleStatus, deleteConsole } from "../src/services/console.service";
 import { listMembers, getMemberById, createMember, updateMember, deleteMember, searchMembers } from "../src/services/member.service";
@@ -69,6 +69,13 @@ import {
   transferTeamOwnership,
   getTeamSummary,
   getMemberTeams,
+  createTeamInvitation,
+  listIncomingInvitations,
+  listTeamInvitations,
+  getTeamInvitationById,
+  acceptTeamInvitation,
+  rejectTeamInvitation,
+  cancelTeamInvitation,
 } from "../src/services/team.service";
 
 let passedCount = 0;
@@ -2075,6 +2082,260 @@ async function runTests() {
   await deleteMember(teamMember2.id);
   await deleteMember(teamMember3.id);
   console.log("  ✓ Test 30b: Isolated TEAM test fixtures cleaned up cleanly.\n");
+
+  // ==================================================
+  // TEST GROUP 12: TEAM INVITATION SYSTEM (PHASE 2)
+  // ==================================================
+  console.log("==================================================");
+  console.log("TEST GROUP 12: TEAM INVITATION SYSTEM (PHASE 2)");
+  console.log("==================================================");
+
+  // Setup isolated members for Group 12
+  const randInv = Math.floor(1000 + Math.random() * 9000);
+  const invOwner = await createMember({
+    fullName: `Clan Inv Owner ${randInv}`,
+    username: `inv_owner_${randInv}`,
+    phoneNumber: `0891${randInv}001`,
+    email: `inv_owner_${randInv}@dreamtest.com`,
+  });
+  await prisma.member.update({
+    where: { id: invOwner.id },
+    data: { dreamRating: 1500, dreamRank: DreamRank.GOLD },
+  });
+
+  const invTarget1 = await createMember({
+    fullName: `Clan Target One ${randInv}`,
+    username: `inv_target1_${randInv}`,
+    phoneNumber: `0891${randInv}002`,
+    email: `inv_target1_${randInv}@dreamtest.com`,
+  });
+  await prisma.member.update({
+    where: { id: invTarget1.id },
+    data: { dreamRating: 2000, dreamRank: DreamRank.PLATINUM },
+  });
+
+  const invTarget2 = await createMember({
+    fullName: `Clan Target Two ${randInv}`,
+    username: `inv_target2_${randInv}`,
+    phoneNumber: `0891${randInv}003`,
+    email: `inv_target2_${randInv}@dreamtest.com`,
+  });
+  await prisma.member.update({
+    where: { id: invTarget2.id },
+    data: { dreamRating: 1200, dreamRank: DreamRank.SILVER },
+  });
+
+  const invStranger = await createMember({
+    fullName: `Clan Stranger ${randInv}`,
+    username: `inv_stranger_${randInv}`,
+    phoneNumber: `0891${randInv}004`,
+    email: `inv_stranger_${randInv}@dreamtest.com`,
+  });
+  await prisma.member.update({
+    where: { id: invStranger.id },
+    data: { dreamRating: 800, dreamRank: DreamRank.BRONZE },
+  });
+
+  // 1. Create isolated test team
+  const invTeam = await createTeam({
+    name: `Invitation Test Clan ${randInv}`,
+    tag: `ITC${randInv % 1000}`,
+    ownerId: invOwner.id,
+  });
+  assert(invTeam.id !== undefined, `Test 1: Create isolated test team (${invTeam.name})`);
+
+  // 2. Owner sends invitation
+  const inv1 = await createTeamInvitation(invTeam.id, {
+    memberId: invTarget1.id,
+    invitedById: invOwner.id,
+  });
+  assert(inv1.id !== undefined, "Test 2: Owner sends invitation");
+
+  // 3-6: Status, team, member, inviter verification
+  assert(inv1.status === TeamInvitationStatus.PENDING, "Test 3: Invitation status is PENDING");
+  assert(inv1.teamId === invTeam.id && inv1.teamTag === invTeam.tag, "Test 4: Invitation contains correct team");
+  assert(inv1.memberId === invTarget1.id && inv1.memberName === invTarget1.fullName, "Test 5: Invitation contains correct member");
+  assert(inv1.invitedById === invOwner.id && inv1.invitedByName === invOwner.fullName, "Test 6: Invitation contains inviter");
+
+  // 7-8: List appearances
+  const incomingList = await listIncomingInvitations(invTarget1.id);
+  assert(incomingList.some((i) => i.id === inv1.id), "Test 7: Pending invitation appears in incoming list");
+
+  const teamInvs = await listTeamInvitations(invTeam.id);
+  assert(teamInvs.some((i) => i.id === inv1.id), "Test 8: Pending invitation appears in team invitation list");
+
+  // 9. Duplicate pending invitation rejected
+  let duplicateInvRejected = false;
+  try {
+    await createTeamInvitation(invTeam.id, {
+      memberId: invTarget1.id,
+      invitedById: invOwner.id,
+    });
+  } catch (err: unknown) {
+    duplicateInvRejected = err instanceof Error && err.message.includes("sudah memiliki undangan");
+  }
+  assert(duplicateInvRejected === true, "Test 9: Duplicate pending invitation rejected");
+
+  // 10. Existing team member cannot be invited
+  let existingMemberInvRejected = false;
+  try {
+    await createTeamInvitation(invTeam.id, {
+      memberId: invOwner.id,
+      invitedById: invOwner.id,
+    });
+  } catch (err: unknown) {
+    existingMemberInvRejected = err instanceof Error && err.message.includes("sudah terdaftar");
+  }
+  assert(existingMemberInvRejected === true, "Test 10: Existing team member cannot be invited");
+
+  // 11. Non-owner cannot invite
+  let nonOwnerInviteRejected = false;
+  try {
+    await createTeamInvitation(invTeam.id, {
+      memberId: invTarget2.id,
+      invitedById: invStranger.id,
+    });
+  } catch (err: unknown) {
+    nonOwnerInviteRejected = err instanceof Error && err.message.includes("Hanya owner");
+  }
+  assert(nonOwnerInviteRejected === true, "Test 11: Non-owner cannot invite");
+
+  // 12. Non-owner cannot cancel
+  let nonOwnerCancelRejected = false;
+  try {
+    await cancelTeamInvitation(inv1.id, invStranger.id);
+  } catch (err: unknown) {
+    nonOwnerCancelRejected = err instanceof Error && err.message.includes("Hanya owner");
+  }
+  assert(nonOwnerCancelRejected === true, "Test 12: Non-owner cannot cancel");
+
+  // 13. Non-invited member cannot accept
+  let nonInvitedAcceptRejected = false;
+  try {
+    await acceptTeamInvitation(inv1.id, invStranger.id);
+  } catch (err: unknown) {
+    nonInvitedAcceptRejected = err instanceof Error && err.message.includes("Hanya member yang diundang");
+  }
+  assert(nonInvitedAcceptRejected === true, "Test 13: Non-invited member cannot accept");
+
+  // 14. Non-invited member cannot reject
+  let nonInvitedRejectRejected = false;
+  try {
+    await rejectTeamInvitation(inv1.id, invStranger.id);
+  } catch (err: unknown) {
+    nonInvitedRejectRejected = err instanceof Error && err.message.includes("Hanya member yang diundang");
+  }
+  assert(nonInvitedRejectRejected === true, "Test 14: Non-invited member cannot reject");
+
+  // 15-19: Accept invitation flow
+  const acceptResult = await acceptTeamInvitation(inv1.id, invTarget1.id);
+  assert(acceptResult.invitation !== undefined, "Test 15: Accept invitation");
+  assert(acceptResult.invitation.status === TeamInvitationStatus.ACCEPTED, "Test 16: Accepted invitation becomes ACCEPTED");
+  assert(acceptResult.membership.memberId === invTarget1.id && acceptResult.membership.teamId === invTeam.id, "Test 17: TeamMember created after acceptance");
+  assert(acceptResult.membership.role === TeamMemberRole.MEMBER, "Test 18: Accepted member role is MEMBER");
+  assert(acceptResult.invitation.respondedAt !== null, "Test 19: respondedAt populated");
+
+  // 20. Accepted invitation cannot be accepted twice
+  let doubleAcceptRejected = false;
+  try {
+    await acceptTeamInvitation(inv1.id, invTarget1.id);
+  } catch (err: unknown) {
+    doubleAcceptRejected = err instanceof Error && err.message.includes("sudah tidak berlaku");
+  }
+  assert(doubleAcceptRejected === true, "Test 20: Accepted invitation cannot be accepted twice");
+
+  // 21-24: Reject invitation flow with invTarget2
+  const inv2 = await createTeamInvitation(invTeam.id, {
+    memberId: invTarget2.id,
+    invitedById: invOwner.id,
+  });
+  const rejectResult = await rejectTeamInvitation(inv2.id, invTarget2.id);
+  assert(rejectResult !== undefined, "Test 21: Reject invitation");
+  assert(rejectResult.status === TeamInvitationStatus.REJECTED, "Test 22: Rejected invitation becomes REJECTED");
+
+  const target2Membership = await prisma.teamMember.findUnique({
+    where: { teamId_memberId: { teamId: invTeam.id, memberId: invTarget2.id } },
+  });
+  assert(target2Membership === null, "Test 23: Rejected invitation does not create membership");
+
+  let rejectedAcceptRejected = false;
+  try {
+    await acceptTeamInvitation(inv2.id, invTarget2.id);
+  } catch (err: unknown) {
+    rejectedAcceptRejected = err instanceof Error && err.message.includes("sudah tidak berlaku");
+  }
+  assert(rejectedAcceptRejected === true, "Test 24: Rejected invitation cannot be accepted");
+
+  // 25-29: Owner sends second invitation & Owner cancels it
+  const inv3 = await createTeamInvitation(invTeam.id, {
+    memberId: invTarget2.id,
+    invitedById: invOwner.id,
+  });
+  assert(inv3.id !== undefined, "Test 25: Owner sends second invitation");
+
+  const cancelResult = await cancelTeamInvitation(inv3.id, invOwner.id);
+  assert(cancelResult !== undefined, "Test 26: Owner cancels invitation");
+  assert(cancelResult.status === TeamInvitationStatus.CANCELLED, "Test 27: Cancelled invitation becomes CANCELLED");
+
+  const target2CancelMembership = await prisma.teamMember.findUnique({
+    where: { teamId_memberId: { teamId: invTeam.id, memberId: invTarget2.id } },
+  });
+  assert(target2CancelMembership === null, "Test 28: Cancelled invitation does not create membership");
+
+  let cancelledAcceptRejected = false;
+  try {
+    await acceptTeamInvitation(inv3.id, invTarget2.id);
+  } catch (err: unknown) {
+    cancelledAcceptRejected = err instanceof Error && err.message.includes("sudah tidak berlaku");
+  }
+  assert(cancelledAcceptRejected === true, "Test 29: Cancelled invitation cannot be accepted");
+
+  // 30. Historical invitations remain queryable
+  const historyInvs = await listTeamInvitations(invTeam.id);
+  assert(
+    historyInvs.length === 3 &&
+      historyInvs.some((i) => i.status === TeamInvitationStatus.ACCEPTED) &&
+      historyInvs.some((i) => i.status === TeamInvitationStatus.REJECTED) &&
+      historyInvs.some((i) => i.status === TeamInvitationStatus.CANCELLED),
+    "Test 30: Historical invitations remain queryable"
+  );
+
+  // 31. Existing Team Phase 1 functionality still works
+  const invTeamSummary = await getTeamSummary(invTeam.id);
+  assert(invTeamSummary.memberCount === 2, "Test 31: Existing Team Phase 1 functionality still works (memberCount 2)");
+  assert(invTeamSummary.averageRating === 1750, "Test 31b: Team average rating is 1750 RR");
+  assert(invTeamSummary.highestRating === 2000 && invTeamSummary.highestRank === DreamRank.PLATINUM, "Test 31c: Highest rating is 2000 PLATINUM");
+
+  // 32. DREAMRANK remains unchanged
+  const target1After = await prisma.member.findUnique({ where: { id: invTarget1.id } });
+  const ownerAfter = await prisma.member.findUnique({ where: { id: invOwner.id } });
+  assert(
+    target1After?.dreamRating === 2000 &&
+      target1After?.dreamRank === DreamRank.PLATINUM &&
+      ownerAfter?.dreamRating === 1500 &&
+      ownerAfter?.dreamRank === DreamRank.GOLD,
+    "Test 32: DREAMRANK remains unchanged"
+  );
+
+  // 33. Gaming Profile remains correct
+  const target1Gaming = await getGamingProfile(invTarget1.id);
+  assert(
+    target1Gaming.teams.some((t) => t.teamId === invTeam.id) && target1Gaming.member.dreamRating === 2000,
+    "Test 33: Gaming Profile remains correct"
+  );
+
+  // 34. Clean up team and verify Member records remain intact
+  await deleteTeam(invTeam.id);
+  const target1Final = await prisma.member.findUnique({ where: { id: invTarget1.id } });
+  const ownerFinal = await prisma.member.findUnique({ where: { id: invOwner.id } });
+  assert(target1Final !== null && ownerFinal !== null, "Test 34: Member records remain intact");
+
+  // Cleanup test fixtures
+  await deleteMember(invOwner.id);
+  await deleteMember(invTarget1.id);
+  await deleteMember(invTarget2.id);
+  await deleteMember(invStranger.id);
+  console.log("  ✓ Test 34b: Isolated INVITATION test fixtures cleaned up cleanly.\n");
 
   console.log("==================================================");
   console.log(`SUMMARY: ${passedCount} PASSED, ${failedCount} FAILED`);

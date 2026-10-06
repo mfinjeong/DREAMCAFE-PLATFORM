@@ -109,6 +109,13 @@ enum TeamMemberRole {
   MEMBER
 }
 
+enum TeamInvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
 model User {
   id           String   @id @default(cuid())
   username     String   @unique
@@ -144,10 +151,12 @@ model Member {
   sessions     Session[]
   bookings     Booking[]
   transactions    Transaction[]
-  ownedTeams      Team[]             @relation("TeamOwner")
-  teamMemberships TeamMember[]       @relation("TeamMemberships")
-  gameStats       MemberGameStat[]
-  rankHistory  DreamRankHistory[]
+  ownedTeams          Team[]             @relation("TeamOwner")
+  teamMemberships     TeamMember[]       @relation("TeamMemberships")
+  receivedInvitations TeamInvitation[]   @relation("MemberInvitations")
+  sentInvitations     TeamInvitation[]   @relation("SentInvitations")
+  gameStats           MemberGameStat[]
+  rankHistory         DreamRankHistory[]
 
   @@index([tier])
   @@index([dreamRank])
@@ -454,6 +463,7 @@ model Team {
   owner       Member           @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members     TeamMember[]
   tournaments TournamentTeam[]
+  invitations TeamInvitation[]
 
   @@index([ownerId])
   @@index([tag])
@@ -472,6 +482,27 @@ model TeamMember {
   @@unique([teamId, memberId])
   @@index([teamId])
   @@index([memberId])
+}
+
+model TeamInvitation {
+  id          String               @id @default(cuid())
+  teamId      String
+  memberId    String
+  invitedById String
+  status      TeamInvitationStatus @default(PENDING)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  respondedAt DateTime?
+
+  team      Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  member    Member @relation("MemberInvitations", fields: [memberId], references: [id], onDelete: Cascade)
+  invitedBy Member @relation("SentInvitations", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+  @@index([memberId])
+  @@index([invitedById])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model TournamentTeam {

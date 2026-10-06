@@ -251,3 +251,16 @@ export const transferTeamOwnershipSchema = z.object({
   newOwnerId: z.string().trim().min(1, "New Owner Member ID wajib dipilih"),
 });
 
+export const createTeamInvitationSchema = z.object({
+  memberId: z.string().trim().min(1, "Member ID target wajib diisi"),
+  invitedById: z.string().trim().min(1, "ID pengundang wajib diisi").optional(),
+});
+
+export const cancelTeamInvitationSchema = z.object({
+  actorMemberId: z.string().trim().min(1, "ID pelaku pembatalan wajib diisi"),
+});
+
+export const respondTeamInvitationSchema = z.object({
+  actorMemberId: z.string().trim().min(1, "ID member wajib diisi"),
+});
+

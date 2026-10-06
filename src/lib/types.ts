@@ -13,6 +13,7 @@ export type InventoryAction = "STOCK_IN" | "STOCK_OUT" | "ADJUSTMENT";
 export type TournamentStatus = "UPCOMING" | "ONGOING" | "COMPLETED" | "CANCELLED";
 export type MaintenanceStatus = "SCHEDULED" | "IN_PROGRESS" | "RESOLVED";
 export type TeamMemberRole = "OWNER" | "MEMBER";
+export type TeamInvitationStatus = "PENDING" | "ACCEPTED" | "REJECTED" | "CANCELLED";
 
 export interface PCStation {
   id: string;
@@ -290,6 +291,22 @@ export interface MemberTeamMembershipDTO {
   role: TeamMemberRole;
   memberCount: number;
   joinedAt: string;
+}
+
+export interface TeamInvitationDTO {
+  id: string;
+  teamId: string;
+  teamName: string;
+  teamTag: string;
+  memberId: string;
+  memberName: string;
+  memberUsername?: string;
+  invitedById: string;
+  invitedByName: string;
+  invitedByUsername?: string;
+  status: TeamInvitationStatus;
+  createdAt: string;
+  respondedAt?: string | null;
 }
 
 export interface MaintenanceItem {
