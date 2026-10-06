@@ -181,3 +181,9 @@ export const maintenanceUpdateSchema = z
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
     message: "Tidak ada data yang diubah",
   });
+
+export const reportFilterSchema = z.object({
+  period: z.enum(["today", "yesterday", "this_week", "this_month", "custom"]).optional().default("today"),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD").optional(),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD").optional(),
+});

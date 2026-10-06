@@ -255,3 +255,124 @@ export interface MaintenanceItem {
   reportedAt: string;
   resolvedAt?: string | null;
 }
+
+export interface DailyRevenueItem {
+  date: string;
+  revenue: number;
+  transactionCount: number;
+  sessionRevenue: number;
+  storeRevenue: number;
+}
+
+export interface RevenueSummaryDTO {
+  totalRevenue: number;
+  totalTransactions: number;
+  averageTransactionValue: number;
+  cashReceived: number;
+  cashChange: number;
+  sessionRevenue: number;
+  sessionCount: number;
+  storeRevenue: number;
+  storeCount: number;
+  mixedRevenue: number;
+  mixedCount: number;
+}
+
+export interface SessionAnalyticsDTO {
+  totalSessions: number;
+  completedSessions: number;
+  activeSessions: number;
+  cancelledSessions: number;
+  totalPlayHours: number;
+  averageDurationMinutes: number;
+  totalSessionRevenue: number;
+  pcSessionsCount: number;
+  pcPlayHours: number;
+  pcRevenue: number;
+  consoleSessionsCount: number;
+  consolePlayHours: number;
+  consoleRevenue: number;
+}
+
+export interface StationPerformanceItem {
+  id: string;
+  stationNumber: string;
+  name: string;
+  type: "PC" | "CONSOLE";
+  sessionCount: number;
+  totalPlayHours: number;
+  revenue: number;
+}
+
+export interface StationUtilizationDTO {
+  pcUsageHours: number;
+  consoleUsageHours: number;
+  totalSessions: number;
+  mostUsedPC: string | null;
+  mostUsedConsole: string | null;
+  leastUsedStation: string | null;
+  stations: StationPerformanceItem[];
+}
+
+export interface BookingAnalyticsDTO {
+  totalBookings: number;
+  confirmedBookings: number;
+  completedBookings: number;
+  cancelledBookings: number;
+  pendingBookings: number;
+  totalBookingValue: number;
+  completionRate: number;
+}
+
+export interface MemberAnalyticsDTO {
+  totalMembers: number;
+  newMembers: number;
+  activeMembers: number;
+  memberRevenue: number;
+  memberTransactionCount: number;
+  guestRevenue: number;
+  guestTransactionCount: number;
+}
+
+export interface TopProductItem {
+  productId: string;
+  productName: string;
+  categoryName?: string;
+  unitsSold: number;
+  revenue: number;
+  averagePrice: number;
+}
+
+export interface ProductAnalyticsDTO {
+  storeRevenue: number;
+  totalUnitsSold: number;
+  uniqueProductsSold: number;
+  topProducts: TopProductItem[];
+}
+
+export interface InventoryAnalyticsDTO {
+  stockInCount: number;
+  stockInUnits: number;
+  stockOutCount: number;
+  stockOutUnits: number;
+  adjustmentCount: number;
+  totalStockMovement: number;
+  lowStockProducts: number;
+  outOfStockProducts: number;
+  totalValuation: number;
+}
+
+export interface ComprehensiveReportDTO {
+  period: string;
+  startDate: string;
+  endDate: string;
+  revenueSummary: RevenueSummaryDTO;
+  dailyRevenue: DailyRevenueItem[];
+  sessionAnalytics: SessionAnalyticsDTO;
+  stationUtilization: StationUtilizationDTO;
+  bookingAnalytics: BookingAnalyticsDTO;
+  memberAnalytics: MemberAnalyticsDTO;
+  productAnalytics: ProductAnalyticsDTO;
+  inventoryAnalytics: InventoryAnalyticsDTO;
+  recentTransactions: TransactionRecord[];
+}

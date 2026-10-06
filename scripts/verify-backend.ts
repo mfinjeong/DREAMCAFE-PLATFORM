@@ -1,5 +1,5 @@
 import { prisma } from "../src/lib/prisma";
-import { PCStatus, ConsoleStatus, ConsoleType, SessionStatus, PaymentStatus, PaymentMethod, BookingStatus } from "@prisma/client";
+import { PCStatus, ConsoleStatus, ConsoleType, SessionStatus, PaymentStatus, PaymentMethod, BookingStatus, InventoryAction } from "@prisma/client";
 import { listPCs, getPCById, updatePCStatus } from "../src/services/pc.service";
 import { listConsoles, getConsoleById, createConsole, updateConsole, updateConsoleStatus, deleteConsole } from "../src/services/console.service";
 import { listMembers, getMemberById, createMember, updateMember, deleteMember, searchMembers } from "../src/services/member.service";
@@ -17,6 +17,20 @@ import {
   startBookingSession,
   deleteBooking,
 } from "../src/services/booking.service";
+import {
+  getComprehensiveReports,
+  getRevenueSummary,
+  getDailyRevenue,
+  getSessionAnalytics,
+  getStationUtilization,
+  getBookingAnalytics,
+  getMemberAnalytics,
+  getProductAnalytics,
+  getInventoryAnalytics,
+  getJakartaDateString,
+  getJakartaDateBoundaries,
+  resolveDateRange,
+} from "../src/services/report.service";
 
 let passedCount = 0;
 let failedCount = 0;
@@ -1060,6 +1074,394 @@ async function runTests() {
   await deleteBooking(sessionBooking.id);
   await deleteMember(bookingTestMember.id);
   console.log("  ✓ Test 28: Isolated booking test fixtures cleaned up cleanly.\n");
+
+  // -------------------------------------------------------------------
+  // TEST GROUP 8: REPORTS & ANALYTICS (33 TESTS)
+  // -------------------------------------------------------------------
+  console.log("▶ TEST GROUP 8: Reports & Analytics");
+
+  const reportTestDate = "2027-01-15";
+  const { start: rStart, end: rEnd } = getJakartaDateBoundaries(reportTestDate);
+
+  // Test 26 & 27: Empty date range handling and date boundary correctness
+  const emptyRev = await getRevenueSummary(rStart, rEnd);
+  assert(emptyRev.totalRevenue === 0, "Test 26: Empty date range returns totalRevenue = 0 (no NaN)");
+  assert(emptyRev.totalTransactions === 0, "Test 26b: Empty date range returns totalTransactions = 0");
+  assert(emptyRev.averageTransactionValue === 0, "Test 26c: Empty date range returns averageTransactionValue = 0 (no division by zero)");
+
+  const emptyDaily = await getDailyRevenue(rStart, rEnd);
+  assert(emptyDaily.length === 0, "Test 26d: Empty date range returns empty daily revenue array");
+
+  const emptySess = await getSessionAnalytics(rStart, rEnd);
+  assert(emptySess.totalSessions === 0, "Test 26e: Empty date range returns totalSessions = 0");
+  assert(emptySess.averageDurationMinutes === 0, "Test 26f: Empty date range returns averageDurationMinutes = 0");
+
+  // Date boundary correctness test with resolveDateRange
+  const resolvedToday = resolveDateRange({ period: "today" });
+  assert(Boolean(resolvedToday.startDate && resolvedToday.endDate), "Test 27: resolveDateRange resolves 'today'");
+  assert(resolvedToday.startDate < resolvedToday.endDate, "Test 27b: startDate is before endDate");
+  const resolvedWeek = resolveDateRange({ period: "this_week" });
+  assert(resolvedWeek.startDate <= resolvedToday.startDate, "Test 27c: 'this_week' starts on or before today");
+
+  // Setup isolated fixtures for 2027-01-15
+  const reportMember = await createMember({
+    fullName: `Report Tester ${Date.now().toString().slice(-4)}`,
+  });
+
+  // Ensure member createdAt is stamped to reportTestDate for testing new member filtering
+  await prisma.member.update({
+    where: { id: reportMember.id },
+    data: { createdAt: new Date("2027-01-15T08:00:00+07:00") },
+  });
+
+  const availablePCForReport = (await listPCs()).find((p) => p.status === PCStatus.AVAILABLE) || testPC;
+  const availableConsoleForReport = (await listConsoles()).find((c) => c.status === ConsoleStatus.AVAILABLE) || testConsole;
+
+  // Create isolated Transactions on 2027-01-15:
+  // 1. Paid STORE transaction: Rp15.000 with items
+  const trxStorePaid = await prisma.transaction.create({
+    data: {
+      invoiceNumber: `INV-REP-STORE-${Date.now().toString().slice(-4)}`,
+      memberId: reportMember.id,
+      cashierName: "Admin",
+      type: "STORE",
+      subtotal: 15000,
+      tax: 0,
+      discount: 0,
+      totalAmount: 15000,
+      cashReceived: 20000,
+      cashChange: 5000,
+      paymentMethod: PaymentMethod.CASH,
+      status: PaymentStatus.PAID,
+      createdAt: new Date("2027-01-15T09:30:00+07:00"),
+      items: {
+        create: [
+          {
+            description: "Ultra Energy Drink",
+            unitPrice: 5000,
+            quantity: 3,
+            subtotal: 15000,
+          },
+        ],
+      },
+    },
+  });
+
+  // 2. Paid SESSION transaction: Rp30.000
+  const trxSessionPaid = await prisma.transaction.create({
+    data: {
+      invoiceNumber: `INV-REP-SESS-${Date.now().toString().slice(-4)}`,
+      memberId: reportMember.id,
+      cashierName: "Admin",
+      type: "SESSION",
+      subtotal: 30000,
+      tax: 0,
+      discount: 0,
+      totalAmount: 30000,
+      cashReceived: 30000,
+      cashChange: 0,
+      paymentMethod: PaymentMethod.CASH,
+      status: PaymentStatus.PAID,
+      createdAt: new Date("2027-01-15T14:00:00+07:00"),
+    },
+  });
+
+  // 3. Paid MIXED transaction: Rp25.000 (Guest transaction)
+  const trxMixedPaid = await prisma.transaction.create({
+    data: {
+      invoiceNumber: `INV-REP-MIXD-${Date.now().toString().slice(-4)}`,
+      memberId: null, // Guest
+      cashierName: "Admin",
+      type: "MIXED",
+      subtotal: 25000,
+      tax: 0,
+      discount: 0,
+      totalAmount: 25000,
+      cashReceived: 50000,
+      cashChange: 25000,
+      paymentMethod: PaymentMethod.CASH,
+      status: PaymentStatus.PAID,
+      createdAt: new Date("2027-01-15T16:00:00+07:00"),
+      items: {
+        create: [
+          {
+            description: "Gaming Snack",
+            unitPrice: 10000,
+            quantity: 1,
+            subtotal: 10000,
+          },
+        ],
+      },
+    },
+  });
+
+  // 4. UNPAID transaction: Rp999.999 (MUST BE EXCLUDED)
+  const trxUnpaid = await prisma.transaction.create({
+    data: {
+      invoiceNumber: `INV-REP-UNPD-${Date.now().toString().slice(-4)}`,
+      memberId: reportMember.id,
+      cashierName: "Admin",
+      type: "STORE",
+      subtotal: 999999,
+      tax: 0,
+      discount: 0,
+      totalAmount: 999999,
+      cashReceived: 0,
+      cashChange: 0,
+      paymentMethod: PaymentMethod.CASH,
+      status: PaymentStatus.PENDING,
+      createdAt: new Date("2027-01-15T11:00:00+07:00"),
+    },
+  });
+
+  // 5. REFUNDED / CANCELLED transaction: Rp888.888 (MUST BE EXCLUDED)
+  const trxRefunded = await prisma.transaction.create({
+    data: {
+      invoiceNumber: `INV-REP-RFND-${Date.now().toString().slice(-4)}`,
+      memberId: reportMember.id,
+      cashierName: "Admin",
+      type: "STORE",
+      subtotal: 888888,
+      tax: 0,
+      discount: 0,
+      totalAmount: 888888,
+      cashReceived: 888888,
+      cashChange: 0,
+      paymentMethod: PaymentMethod.CASH,
+      status: PaymentStatus.REFUNDED,
+      createdAt: new Date("2027-01-15T12:00:00+07:00"),
+    },
+  });
+
+  // Create isolated Sessions on 2027-01-15:
+  // PC Session: 120 minutes, Rp20.000
+  const sessionPCReport = await prisma.session.create({
+    data: {
+      sessionNumber: `SES-REP-PC-${Date.now().toString().slice(-4)}`,
+      type: "PC",
+      pcId: availablePCForReport.id,
+      memberId: reportMember.id,
+      startTime: new Date("2027-01-15T10:00:00+07:00"),
+      endTime: new Date("2027-01-15T12:00:00+07:00"),
+      durationMinutes: 120,
+      remainingMinutes: 0,
+      hourlyRate: 10000,
+      totalPrice: 20000,
+      status: SessionStatus.COMPLETED,
+      paymentStatus: PaymentStatus.PAID,
+    },
+  });
+
+  // Console Session: 90 minutes, Rp30.000
+  const sessionConsoleReport = await prisma.session.create({
+    data: {
+      sessionNumber: `SES-REP-CON-${Date.now().toString().slice(-4)}`,
+      type: "CONSOLE",
+      consoleId: availableConsoleForReport.id,
+      memberId: reportMember.id,
+      startTime: new Date("2027-01-15T14:00:00+07:00"),
+      endTime: new Date("2027-01-15T15:30:00+07:00"),
+      durationMinutes: 90,
+      remainingMinutes: 0,
+      hourlyRate: 20000,
+      totalPrice: 30000,
+      status: SessionStatus.COMPLETED,
+      paymentStatus: PaymentStatus.PAID,
+    },
+  });
+
+  // Create isolated Bookings on 2027-01-15:
+  const bookingConf = await prisma.booking.create({
+    data: {
+      bookingCode: `BK-REP-CNF-${Date.now().toString().slice(-4)}`,
+      type: "PC",
+      pcId: availablePCForReport.id,
+      memberId: reportMember.id,
+      bookingDate: new Date("2027-01-15T00:00:00.000Z"),
+      startTime: "10:00",
+      endTime: "12:00",
+      durationHours: 2,
+      totalPrice: 20000,
+      status: BookingStatus.CONFIRMED,
+    },
+  });
+
+  const bookingComp = await prisma.booking.create({
+    data: {
+      bookingCode: `BK-REP-CMP-${Date.now().toString().slice(-4)}`,
+      type: "PC",
+      pcId: availablePCForReport.id,
+      memberId: reportMember.id,
+      bookingDate: new Date("2027-01-15T00:00:00.000Z"),
+      startTime: "13:00",
+      endTime: "15:00",
+      durationHours: 2,
+      totalPrice: 20000,
+      status: BookingStatus.COMPLETED,
+    },
+  });
+
+  const bookingCanc = await prisma.booking.create({
+    data: {
+      bookingCode: `BK-REP-CNC-${Date.now().toString().slice(-4)}`,
+      type: "PC",
+      pcId: availablePCForReport.id,
+      memberId: reportMember.id,
+      bookingDate: new Date("2027-01-15T00:00:00.000Z"),
+      startTime: "16:00",
+      endTime: "17:00",
+      durationHours: 1,
+      totalPrice: 10000,
+      status: BookingStatus.CANCELLED,
+    },
+  });
+
+  // Create InventoryLog movement for testing
+  const someProduct = await prisma.product.findFirst({ where: { isActive: true } });
+  let repInvLog = null;
+  if (someProduct) {
+    repInvLog = await prisma.inventoryLog.create({
+      data: {
+        productId: someProduct.id,
+        action: InventoryAction.STOCK_IN,
+        quantity: 12,
+        previousStock: someProduct.stock,
+        newStock: someProduct.stock + 12,
+        reason: "Report Verification Stock Test",
+        createdAt: new Date("2027-01-15T11:00:00+07:00"),
+      },
+    });
+  }
+
+  // 1. Revenue Summary
+  const repRev = await getRevenueSummary(rStart, rEnd);
+  assert(repRev.totalRevenue === 70000, `Test 1: Revenue summary total is exactly Rp70.000 (${repRev.totalRevenue})`);
+
+  // 2. Paid transaction included
+  assert(repRev.totalRevenue >= 70000, "Test 2: All 3 paid transactions included in total revenue");
+
+  // 3. Unpaid transaction excluded
+  assert(!String(repRev.totalRevenue).includes("999999"), "Test 3: Unpaid PENDING transaction (Rp999.999) was excluded");
+
+  // 4. Cancelled transaction excluded
+  assert(!String(repRev.totalRevenue).includes("888888"), "Test 4: Cancelled/Refunded transaction (Rp888.888) was excluded");
+
+  // 5. Store revenue
+  assert(repRev.storeRevenue === 15000, `Test 5: Store revenue is exactly Rp15.000 (${repRev.storeRevenue})`);
+
+  // 6. Session revenue
+  assert(repRev.sessionRevenue === 30000, `Test 6: Session revenue is exactly Rp30.000 (${repRev.sessionRevenue})`);
+
+  // 7. Mixed revenue
+  assert(repRev.mixedRevenue === 25000, `Test 7: Mixed revenue is exactly Rp25.000 (${repRev.mixedRevenue})`);
+
+  // 8. Transaction count
+  assert(repRev.totalTransactions === 3, `Test 8: Total transactions count is exactly 3 (${repRev.totalTransactions})`);
+
+  // 9. Average transaction value
+  assert(repRev.averageTransactionValue === 23333, `Test 9: Average transaction value is round(70000/3) = 23333 (${repRev.averageTransactionValue})`);
+
+  // 10. Daily revenue grouping
+  const repDaily = await getDailyRevenue(rStart, rEnd);
+  assert(repDaily.length === 1, `Test 10: Daily revenue grouped into 1 day (${repDaily.length})`);
+  assert(repDaily[0].date === "2027-01-15", `Test 10b: Grouped date key is 2027-01-15 (${repDaily[0].date})`);
+  assert(repDaily[0].revenue === 70000, `Test 10c: Daily total matches Rp70.000 (${repDaily[0].revenue})`);
+
+  // 11. Session count
+  const repSess = await getSessionAnalytics(rStart, rEnd);
+  assert(repSess.totalSessions === 2, `Test 11: Total sessions count is 2 (${repSess.totalSessions})`);
+  assert(repSess.completedSessions === 2, "Test 11b: Completed sessions count is 2");
+
+  // 12. Session duration
+  assert(repSess.totalPlayHours === 3.5, `Test 12: Total play hours is 3.5 hrs (${repSess.totalPlayHours})`);
+  assert(repSess.averageDurationMinutes === 105, `Test 12b: Average session duration is 105 mins (${repSess.averageDurationMinutes})`);
+
+  // 13. PC session analytics
+  assert(repSess.pcSessionsCount === 1, "Test 13: PC session count is 1");
+  assert(repSess.pcPlayHours === 2, "Test 13b: PC play hours is 2 hrs");
+  assert(repSess.pcRevenue === 20000, "Test 13c: PC session revenue is Rp20.000");
+
+  // 14. Console session analytics
+  assert(repSess.consoleSessionsCount === 1, "Test 14: Console session count is 1");
+  assert(repSess.consolePlayHours === 1.5, "Test 14b: Console play hours is 1.5 hrs");
+  assert(repSess.consoleRevenue === 30000, "Test 14c: Console session revenue is Rp30.000");
+
+  // 15. Booking count
+  const repBook = await getBookingAnalytics(rStart, rEnd);
+  assert(repBook.totalBookings === 3, `Test 15: Booking analytics total bookings is 3 (${repBook.totalBookings})`);
+
+  // 16. Booking status breakdown
+  assert(repBook.confirmedBookings === 1, "Test 16: Confirmed bookings is 1");
+  assert(repBook.completedBookings === 1, "Test 16b: Completed bookings is 1");
+  assert(repBook.cancelledBookings === 1, "Test 16c: Cancelled bookings is 1");
+  assert(repBook.completionRate === 33, `Test 16d: Completion rate is round(1/3*100) = 33% (${repBook.completionRate}%)`);
+
+  // 17. Member count
+  const repMem = await getMemberAnalytics(rStart, rEnd);
+  assert(repMem.totalMembers > 0, `Test 17: Total registered members is ${repMem.totalMembers}`);
+
+  // 18. New member date filtering
+  assert(repMem.newMembers >= 1, `Test 18: New members in date range is ${repMem.newMembers}`);
+  assert(repMem.memberRevenue === 45000, `Test 18b: Member revenue (Rp15k + Rp30k) = Rp45.000 (${repMem.memberRevenue})`);
+  assert(repMem.guestRevenue === 25000, `Test 18c: Guest revenue = Rp25.000 (${repMem.guestRevenue})`);
+
+  // 19. Product units sold
+  const repProd = await getProductAnalytics(rStart, rEnd);
+  assert(repProd.totalUnitsSold === 4, `Test 19: Product units sold is 4 (${repProd.totalUnitsSold})`);
+
+  // 20. Product revenue
+  assert(repProd.storeRevenue === 25000, `Test 20: Product sales revenue is Rp25.000 (${repProd.storeRevenue})`);
+
+  // 21. Top product ranking
+  assert(repProd.topProducts.length >= 2, `Test 21: Top products returned ${repProd.topProducts.length} items`);
+  assert(repProd.topProducts[0].productName === "Ultra Energy Drink", `Test 21b: Top product is Ultra Energy Drink (${repProd.topProducts[0].productName})`);
+  assert(repProd.topProducts[0].unitsSold === 3, `Test 21c: Ultra Energy Drink units sold is 3 (${repProd.topProducts[0].unitsSold})`);
+
+  // 22. Inventory movement counts
+  const repInv = await getInventoryAnalytics(rStart, rEnd);
+  assert(repInv.stockInCount >= 1, `Test 22: Inventory STOCK_IN count is ${repInv.stockInCount}`);
+  assert(repInv.stockInUnits >= 12, `Test 22b: Inventory STOCK_IN units is ${repInv.stockInUnits}`);
+
+  // 23. Low-stock report
+  assert(typeof repInv.lowStockProducts === "number", `Test 23: Low stock products count is ${repInv.lowStockProducts}`);
+
+  // 24. Out-of-stock report
+  assert(typeof repInv.outOfStockProducts === "number", `Test 24: Out of stock products count is ${repInv.outOfStockProducts}`);
+  assert(typeof repInv.totalValuation === "number" && repInv.totalValuation > 0, `Test 24b: Inventory valuation is Rp${repInv.totalValuation}`);
+
+  // 25. Top station ranking
+  const repStat = await getStationUtilization(rStart, rEnd);
+  assert(repStat.totalSessions === 2, `Test 25: Station utilization reports 2 sessions (${repStat.totalSessions})`);
+  assert(repStat.mostUsedPC === availablePCForReport.stationNumber, `Test 25b: Most used PC is ${repStat.mostUsedPC}`);
+  assert(repStat.mostUsedConsole === availableConsoleForReport.stationNumber, `Test 25c: Most used Console is ${repStat.mostUsedConsole}`);
+
+  // Comprehensive report aggregate endpoint test
+  const fullReport = await getComprehensiveReports({
+    period: "custom",
+    startDate: "2027-01-15",
+    endDate: "2027-01-15",
+  });
+  assert(fullReport.revenueSummary.totalRevenue === 70000, "Comprehensive report DTO aggregates correctly");
+  assert(fullReport.recentTransactions.length === 3, "Recent transactions list in DTO contains 3 records");
+
+  // Clean up isolated test fixtures
+  await prisma.transactionItem.deleteMany({
+    where: { transactionId: { in: [trxStorePaid.id, trxMixedPaid.id] } },
+  });
+  await prisma.transaction.deleteMany({
+    where: { id: { in: [trxStorePaid.id, trxSessionPaid.id, trxMixedPaid.id, trxUnpaid.id, trxRefunded.id] } },
+  });
+  await prisma.session.deleteMany({
+    where: { id: { in: [sessionPCReport.id, sessionConsoleReport.id] } },
+  });
+  await prisma.booking.deleteMany({
+    where: { id: { in: [bookingConf.id, bookingComp.id, bookingCanc.id] } },
+  });
+  if (repInvLog) {
+    await prisma.inventoryLog.delete({ where: { id: repInvLog.id } });
+  }
+  await deleteMember(reportMember.id);
+  console.log("  ✓ Test 33: Isolated report test fixtures cleaned up cleanly.\n");
 
   console.log("==================================================");
   console.log(`SUMMARY: ${passedCount} PASSED, ${failedCount} FAILED`);
