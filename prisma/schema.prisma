@@ -129,7 +129,8 @@ model Member {
   dreamCoins   Int        @default(100)
   xp           Int        @default(0)
   level        Int        @default(1)
-  dreamRank    DreamRank  @default(UNRANKED)
+  dreamRating  Int        @default(0)
+  dreamRank    DreamRank  @default(BRONZE)
   avatarUrl    String?
   notes        String?
   createdAt    DateTime   @default(now())
@@ -139,9 +140,12 @@ model Member {
   bookings     Booking[]
   transactions Transaction[]
   teamMembers  TeamMember[]
+  gameStats    MemberGameStat[]
+  rankHistory  DreamRankHistory[]
 
   @@index([tier])
   @@index([dreamRank])
+  @@index([dreamRating])
 }
 
 model PC {
@@ -218,11 +222,15 @@ model Session {
   member          Member?       @relation(fields: [memberId], references: [id], onDelete: SetNull)
   transaction     Transaction?  @relation(fields: [transactionId], references: [id], onDelete: SetNull)
   transactionId   String?
+  gameId          String?
+  isXpAwarded     Boolean       @default(false)
+  game            Game?         @relation(fields: [gameId], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([pcId])
   @@index([consoleId])
   @@index([memberId])
+  @@index([gameId])
 }
 
 model Booking {
@@ -348,16 +356,64 @@ model TransactionItem {
 model Game {
   id                 String   @id @default(cuid())
   title              String   @unique
+  slug               String?
   genre              String
   publisher          String
   iconUrl            String?
+  bannerUrl          String?
+  description        String?
   minGpuRequired     String   @default("GTX 1650")
   popularityRank     Int      @default(1)
   isInstalledOnPc    Boolean  @default(true)
   isInstalledConsole Boolean  @default(false)
+  isActive           Boolean  @default(true)
   tags               String[] @default([])
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+
+  sessions           Session[]
+  memberStats        MemberGameStat[]
+
+  @@index([genre])
+  @@index([isActive])
+}
+
+model MemberGameStat {
+  id               String    @id @default(cuid())
+  memberId         String
+  gameId           String
+  totalSessions    Int       @default(0)
+  totalPlayMinutes Int       @default(0)
+  wins             Int       @default(0)
+  losses           Int       @default(0)
+  xp               Int       @default(0)
+  lastPlayedAt     DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  member           Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  game             Game      @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, gameId])
+  @@index([memberId])
+  @@index([gameId])
+}
+
+model DreamRankHistory {
+  id             String    @id @default(cuid())
+  memberId       String
+  previousRating Int
+  newRating      Int
+  previousRank   DreamRank
+  newRank        DreamRank
+  change         Int
+  reason         String
+  createdAt      DateTime  @default(now())
+
+  member         Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+  @@index([createdAt])
 }
 
 model Tournament {

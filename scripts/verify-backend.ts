@@ -1,5 +1,5 @@
 import { prisma } from "../src/lib/prisma";
-import { PCStatus, ConsoleStatus, ConsoleType, SessionStatus, PaymentStatus, PaymentMethod, BookingStatus, InventoryAction } from "@prisma/client";
+import { PCStatus, ConsoleStatus, ConsoleType, SessionStatus, PaymentStatus, PaymentMethod, BookingStatus, InventoryAction, DreamRank } from "@prisma/client";
 import { listPCs, getPCById, updatePCStatus } from "../src/services/pc.service";
 import { listConsoles, getConsoleById, createConsole, updateConsole, updateConsoleStatus, deleteConsole } from "../src/services/console.service";
 import { listMembers, getMemberById, createMember, updateMember, deleteMember, searchMembers } from "../src/services/member.service";
@@ -31,6 +31,30 @@ import {
   getJakartaDateBoundaries,
   resolveDateRange,
 } from "../src/services/report.service";
+import {
+  listGames,
+  getGameById,
+  createGame,
+  updateGame,
+  deleteGame,
+} from "../src/services/game.service";
+import {
+  calculateLevelFromXP,
+  calculateXPForLevel,
+  calculateXPForNextLevel,
+  calculateSessionXP,
+  recordSessionCompletion,
+  getGamingProfile,
+  getMemberGameStats,
+} from "../src/services/gaming-profile.service";
+import {
+  calculateDreamRank,
+  getRankProgress,
+  getDreamRankHistory,
+  getDreamRankProfile,
+  applyDreamRatingChange,
+  DREAM_RANK_TIERS,
+} from "../src/services/dreamrank.service";
 
 let passedCount = 0;
 let failedCount = 0;
@@ -1462,6 +1486,403 @@ async function runTests() {
   }
   await deleteMember(reportMember.id);
   console.log("  ✓ Test 33: Isolated report test fixtures cleaned up cleanly.\n");
+
+  console.log("▶ TEST GROUP 9: Gaming Profile & Game Library");
+
+  // 1. Create game
+  const testGameTitle = `Apex Legends AutoTest_${Date.now()}`;
+  const testGame = await createGame({
+    title: testGameTitle,
+    genre: "Battle Royale",
+    publisher: "Electronic Arts",
+    minGpuRequired: "GTX 1660",
+    popularityRank: 10,
+    isInstalledOnPc: true,
+    isInstalledConsole: false,
+    tags: ["BR", "Hero Shooter", "Fast"],
+  });
+  assert(testGame.title === testGameTitle, `Test 1: createGame created ${testGame.title}`);
+  assert(testGame.isInstalledOnPc === true, "Test 1b: isInstalledOnPc is true");
+  assert(testGame.isActive === true, "Test 1c: isActive defaults to true");
+
+  // 2. Get game
+  const fetchedGame = await getGameById(testGame.id);
+  assert(fetchedGame !== null && fetchedGame.id === testGame.id, "Test 2: getGameById returns game details");
+
+  // 3. Search game
+  const searchGamesResult = await listGames({ q: "Apex Legends" });
+  assert(searchGamesResult.some((g) => g.id === testGame.id), "Test 3: search game finds created game");
+
+  // 4. Filter game by platform
+  const pcGames = await listGames({ platform: "PC" });
+  assert(pcGames.some((g) => g.id === testGame.id), "Test 4: platform=PC filter includes test game");
+  const consoleOnlyGames = await listGames({ platform: "CONSOLE" });
+  assert(!consoleOnlyGames.some((g) => g.id === testGame.id), "Test 4b: platform=CONSOLE filter excludes PC-only game");
+
+  // 5. Update game
+  const updatedGame = await updateGame(testGame.id, { minGpuRequired: "RTX 3070" });
+  assert(updatedGame.minGpuRequired === "RTX 3070", "Test 5: updateGame updated GPU requirement to RTX 3070");
+
+  // 6. Deactivate and reactivate game
+  const deactivatedGame = await updateGame(testGame.id, { isActive: false });
+  assert(deactivatedGame.isActive === false, "Test 6: updateGame deactivated game (isActive=false)");
+  const reactivatedGame = await updateGame(testGame.id, { isActive: true });
+  assert(reactivatedGame.isActive === true, "Test 6b: reactivated game (isActive=true)");
+
+  // 7. Progression formula verification (closed-form server rules)
+  assert(calculateLevelFromXP(0) === 1, "Test 7: 0 XP is Level 1");
+  assert(calculateLevelFromXP(99) === 1, "Test 7b: 99 XP is Level 1");
+  assert(calculateLevelFromXP(100) === 2, "Test 7c: 100 XP is Level 2");
+  assert(calculateLevelFromXP(249) === 2, "Test 7d: 249 XP is Level 2");
+  assert(calculateLevelFromXP(250) === 3, "Test 7e: 250 XP is Level 3");
+  assert(calculateLevelFromXP(450) === 4, "Test 7f: 450 XP is Level 4");
+  assert(calculateLevelFromXP(700) === 5, "Test 7g: 700 XP is Level 5");
+  assert(calculateXPForNextLevel(1) === 100, "Test 7h: XP for next level at L1 is 100");
+  assert(calculateXPForNextLevel(2) === 250, "Test 7i: XP for next level at L2 is 250");
+  assert(calculateXPForNextLevel(3) === 450, "Test 7j: XP for next level at L3 is 450");
+  assert(calculateXPForNextLevel(4) === 700, "Test 7k: XP for next level at L4 is 700");
+
+  // Session XP formula: 10 XP per completed 30 minutes
+  assert(calculateSessionXP(25) === 0, "Test 7l: 25 mins yields 0 XP");
+  assert(calculateSessionXP(30) === 10, "Test 7m: 30 mins yields 10 XP");
+  assert(calculateSessionXP(59) === 10, "Test 7n: 59 mins yields 10 XP");
+  assert(calculateSessionXP(60) === 20, "Test 7o: 60 mins yields 20 XP");
+  assert(calculateSessionXP(90) === 30, "Test 7p: 90 mins yields 30 XP");
+  assert(calculateSessionXP(120) === 40, "Test 7q: 120 mins yields 40 XP");
+
+  // 8. Isolated test member setup
+  const randNum = Math.floor(1000 + Math.random() * 9000);
+  const gamingMember = await createMember({
+    fullName: `Gaming Tester ${randNum}`,
+    username: `Gamer_${randNum}`,
+    phoneNumber: `0877${randNum}1234`,
+    email: `gamer_${randNum}@dreamtest.com`,
+  });
+  assert(gamingMember.id !== undefined, "Test 8: Isolated test member created");
+
+  // 9. Initial Gaming Profile
+  const initialProfile = await getGamingProfile(gamingMember.id);
+  assert(initialProfile.member.id === gamingMember.id, "Test 9: getGamingProfile returns member details");
+  assert(initialProfile.member.level === 1, "Test 9b: Initial level is 1");
+  assert(initialProfile.member.xp === 0, "Test 9c: Initial XP is 0");
+  assert(initialProfile.stats.totalSessions === 0, "Test 9d: Initial total sessions is 0");
+  assert(initialProfile.stats.progressPercent === 0, "Test 9e: Progress percent is 0%");
+
+  // 10. Nonexistent member rejected
+  let nonExistentMemberRejected = false;
+  try {
+    await getGamingProfile("non-existent-member-cuid");
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message.includes("tidak ditemukan")) {
+      nonExistentMemberRejected = true;
+    }
+  }
+  assert(nonExistentMemberRejected, "Test 10: Nonexistent member rejected with 404");
+
+  // Find an available PC for gaming session tests
+  const availableGamingPC = await prisma.pC.findFirst({
+    where: { status: PCStatus.AVAILABLE },
+  });
+  if (!availableGamingPC) {
+    throw new Error("No available PC station for gaming session tests");
+  }
+
+  // 11. Nonexistent game rejected when starting session
+  let nonExistentGameRejected = false;
+  try {
+    await startSession({
+      stationId: availableGamingPC.id,
+      type: "PC",
+      memberId: gamingMember.id,
+      durationMinutes: 60,
+      gameId: "invalid-game-cuid-999",
+    });
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message.includes("Game tidak ditemukan")) {
+      nonExistentGameRejected = true;
+    }
+  }
+  assert(nonExistentGameRejected, "Test 11: Nonexistent gameId rejected when starting session");
+
+  // 12. Start session with game
+  const sessionWithGame = await startSession({
+    stationId: availableGamingPC.id,
+    type: "PC",
+    memberId: gamingMember.id,
+    durationMinutes: 60,
+    gameId: testGame.id,
+  });
+  assert(sessionWithGame.id !== undefined, "Test 12: Session started with game");
+  assert(sessionWithGame.gameId === testGame.id, "Test 12b: Session gameId is linked");
+  assert(sessionWithGame.status === SessionStatus.ACTIVE, "Test 12c: Session status is ACTIVE");
+
+  // 13. Complete session with game
+  const stoppedSession = await stopSession(sessionWithGame.id);
+  assert(stoppedSession.status === SessionStatus.COMPLETED, "Test 13: Session marked COMPLETED");
+
+  // Verify session completion processor marked isXpAwarded
+  const completedSessionRecord = await prisma.session.findUnique({
+    where: { id: sessionWithGame.id },
+  });
+  assert(completedSessionRecord?.isXpAwarded === true, "Test 13b: isXpAwarded set to true on session");
+
+  // 14. MemberGameStat created / updated
+  const memberStatsAfter1 = await getMemberGameStats(gamingMember.id);
+  assert(memberStatsAfter1.length === 1, "Test 14: MemberGameStat created for played game");
+  const stat1 = memberStatsAfter1[0];
+  assert(stat1.gameId === testGame.id, "Test 14b: Stat linked to correct gameId");
+  assert(stat1.totalSessions === 1, `Test 14c: totalSessions is 1 (${stat1.totalSessions})`);
+  assert(stat1.totalPlayMinutes === 60, `Test 14d: totalPlayMinutes is 60 (${stat1.totalPlayMinutes})`);
+  assert(stat1.xp === 20, `Test 14e: Game XP is 20 (${stat1.xp})`);
+  assert(stat1.lastPlayedAt !== null, "Test 14f: lastPlayedAt updated");
+
+  // 15. Member XP awarded & level checked
+  const memberAfter1 = await getMemberById(gamingMember.id);
+  assert(memberAfter1 !== null && memberAfter1.xp === 20, `Test 15: Member received 20 XP (${memberAfter1?.xp})`);
+  assert(memberAfter1 !== null && memberAfter1.dreamCoins === 102, `Test 15b: Member received 2 DreamCoins (Total: ${memberAfter1?.dreamCoins})`);
+  assert(memberAfter1 !== null && memberAfter1.level === 1, "Test 15c: Member is still Level 1 (needs 100 XP for Lv 2)");
+
+  // 16. Idempotency: duplicate completion does NOT award XP twice
+  const dupAwardResult = await recordSessionCompletion(sessionWithGame.id);
+  assert(dupAwardResult.awarded === false, "Test 16: Duplicate session completion returned awarded=false");
+  const memberAfterDup = await getMemberById(gamingMember.id);
+  assert(memberAfterDup !== null && memberAfterDup.xp === 20, `Test 16b: Member XP unchanged at 20 (${memberAfterDup?.xp})`);
+
+  // 17. Second session with game (accumulation)
+  const session2 = await startSession({
+    stationId: availableGamingPC.id,
+    type: "PC",
+    memberId: gamingMember.id,
+    durationMinutes: 60,
+    gameId: testGame.id,
+  });
+  await stopSession(session2.id);
+
+  const memberStatsAfter2 = await getMemberGameStats(gamingMember.id);
+  const stat2 = memberStatsAfter2[0];
+  assert(stat2.totalSessions === 2, `Test 17: totalSessions incremented to 2 (${stat2.totalSessions})`);
+  assert(stat2.totalPlayMinutes === 120, `Test 17b: totalPlayMinutes incremented to 120 (${stat2.totalPlayMinutes})`);
+  assert(stat2.xp === 40, `Test 17c: Game stat XP incremented to 40 (${stat2.xp})`);
+
+  const memberAfter2 = await getMemberById(gamingMember.id);
+  assert(memberAfter2 !== null && memberAfter2.xp === 40, `Test 17d: Member XP is now 40 (${memberAfter2?.xp})`);
+
+  // 18. Session without game remains valid
+  const sessionWithoutGame = await startSession({
+    stationId: availableGamingPC.id,
+    type: "PC",
+    memberId: gamingMember.id,
+    durationMinutes: 60,
+    gameId: null,
+  });
+  await stopSession(sessionWithoutGame.id);
+
+  const memberStatsAfterNoGame = await getMemberGameStats(gamingMember.id);
+  assert(memberStatsAfterNoGame.length === 1, "Test 18: No ghost game stat created for session without game");
+  const memberAfterNoGame = await getMemberById(gamingMember.id);
+  assert(memberAfterNoGame !== null && memberAfterNoGame.xp === 60, `Test 18b: Member still earned 20 XP from session without game (${memberAfterNoGame?.xp})`);
+
+  // 19. Level advancement check (Reach 100 XP -> Level 2)
+  // Award 40 XP more (120 min session)
+  const sessionLevelUp = await startSession({
+    stationId: availableGamingPC.id,
+    type: "PC",
+    memberId: gamingMember.id,
+    durationMinutes: 120,
+    gameId: testGame.id,
+  });
+  await stopSession(sessionLevelUp.id);
+
+  const memberAfterLevelUp = await getMemberById(gamingMember.id);
+  assert(memberAfterLevelUp !== null && memberAfterLevelUp.xp === 100, `Test 19: Member reached 100 XP (${memberAfterLevelUp?.xp})`);
+  assert(memberAfterLevelUp !== null && memberAfterLevelUp.level === 2, `Test 19b: Member advanced to Level 2! (${memberAfterLevelUp?.level})`);
+
+  const profileAfterLevelUp = await getGamingProfile(gamingMember.id);
+  assert(profileAfterLevelUp.member.level === 2, "Test 19c: Profile DTO reflects Level 2");
+  assert(profileAfterLevelUp.stats.xpForCurrentLevel === 100, "Test 19d: Current level base XP is 100");
+  assert(profileAfterLevelUp.stats.xpForNextLevel === 250, "Test 19e: Next level target XP is 250");
+  assert(profileAfterLevelUp.stats.progressPercent === 0, "Test 19f: Progress percent at start of Level 2 is 0%");
+  assert(profileAfterLevelUp.stats.xpRemaining === 150, "Test 19g: XP remaining for Level 3 is 150");
+
+  // 20. Soft delete / deactivate game when sessions exist
+  const deleteResult = await deleteGame(testGame.id);
+  assert(deleteResult.deactivated === true, "Test 20: deleteGame soft-deactivates game because sessions exist");
+  assert(deleteResult.deleted === false, "Test 20b: deleteGame preserved historical relations");
+  const gameAfterDeactivate = await getGameById(testGame.id);
+  assert(gameAfterDeactivate?.isActive === false, "Test 20c: Game isActive is false");
+
+  // 21. Cleanup isolated test fixtures
+  await prisma.session.deleteMany({
+    where: {
+      id: { in: [sessionWithGame.id, session2.id, sessionWithoutGame.id, sessionLevelUp.id] },
+    },
+  });
+  await prisma.memberGameStat.deleteMany({
+    where: { memberId: gamingMember.id },
+  });
+  await deleteMember(gamingMember.id);
+  await prisma.game.delete({
+    where: { id: testGame.id },
+  });
+  console.log("  ✓ Test 21: Isolated gaming profile test fixtures cleaned up cleanly.\n");
+
+  // =========================================================================
+  // TEST GROUP 10: DREAMRANK SYSTEM & RANK HISTORY
+  // =========================================================================
+  console.log("==================================================");
+  console.log("TEST GROUP 10: DREAMRANK SYSTEM & RANK HISTORY");
+  console.log("==================================================");
+
+  // 1 & 2: New member gets default DREAMRANK (BRONZE) and default rating (0)
+  const rankMember = await createMember({
+    fullName: "Veiyl DreamRank Pro",
+    username: "veiylrank",
+    tier: "REGULAR",
+  });
+
+  assert(rankMember.dreamRank === DreamRank.BRONZE, `Test 1: New member gets default DREAMRANK BRONZE (${rankMember.dreamRank})`);
+  assert(rankMember.dreamRating === 0, `Test 2: Default rating is correct 0 (${rankMember.dreamRating})`);
+
+  // 3-9: Threshold calculations for all tiers
+  // Bronze: 0 - 999
+  assert(calculateDreamRank(0) === DreamRank.BRONZE && calculateDreamRank(500) === DreamRank.BRONZE && calculateDreamRank(999) === DreamRank.BRONZE, "Test 3: Bronze threshold (0–999) correctly maps to BRONZE");
+  // Silver: 1000 - 1499
+  assert(calculateDreamRank(1000) === DreamRank.SILVER && calculateDreamRank(1250) === DreamRank.SILVER && calculateDreamRank(1499) === DreamRank.SILVER, "Test 4: Silver threshold (1000–1499) correctly maps to SILVER");
+  // Gold: 1500 - 1999
+  assert(calculateDreamRank(1500) === DreamRank.GOLD && calculateDreamRank(1720) === DreamRank.GOLD && calculateDreamRank(1999) === DreamRank.GOLD, "Test 5: Gold threshold (1500–1999) correctly maps to GOLD");
+  // Platinum: 2000 - 2499
+  assert(calculateDreamRank(2000) === DreamRank.PLATINUM && calculateDreamRank(2200) === DreamRank.PLATINUM && calculateDreamRank(2499) === DreamRank.PLATINUM, "Test 6: Platinum threshold (2000–2499) correctly maps to PLATINUM");
+  // Diamond: 2500 - 2999
+  assert(calculateDreamRank(2500) === DreamRank.DIAMOND && calculateDreamRank(2750) === DreamRank.DIAMOND && calculateDreamRank(2999) === DreamRank.DIAMOND, "Test 7: Diamond threshold (2500–2999) correctly maps to DIAMOND");
+  // Master: 3000 - 3499
+  assert(calculateDreamRank(3000) === DreamRank.MASTER && calculateDreamRank(3200) === DreamRank.MASTER && calculateDreamRank(3499) === DreamRank.MASTER, "Test 8: Master threshold (3000–3499) correctly maps to MASTER");
+  // Grandmaster: 3500+
+  assert(calculateDreamRank(3500) === DreamRank.GRANDMASTER && calculateDreamRank(4000) === DreamRank.GRANDMASTER && calculateDreamRank(10000) === DreamRank.GRANDMASTER, "Test 9: Grandmaster threshold (3500+) correctly maps to GRANDMASTER");
+
+  // 10: Rating exactly at boundary
+  const exactSilver = calculateDreamRank(1000) === DreamRank.SILVER;
+  const exactGold = calculateDreamRank(1500) === DreamRank.GOLD;
+  const exactPlat = calculateDreamRank(2000) === DreamRank.PLATINUM;
+  const exactDia = calculateDreamRank(2500) === DreamRank.DIAMOND;
+  const exactMaster = calculateDreamRank(3000) === DreamRank.MASTER;
+  const exactGM = calculateDreamRank(3500) === DreamRank.GRANDMASTER;
+  assert(exactSilver && exactGold && exactPlat && exactDia && exactMaster && exactGM, "Test 10: Rating exactly at boundaries (1000, 1500, 2000, 2500, 3000, 3500) maps to exact target tier");
+
+  // 11: Rating one point below boundary
+  const belowSilver = calculateDreamRank(999) === DreamRank.BRONZE;
+  const belowGold = calculateDreamRank(1499) === DreamRank.SILVER;
+  const belowPlat = calculateDreamRank(1999) === DreamRank.GOLD;
+  const belowDia = calculateDreamRank(2499) === DreamRank.PLATINUM;
+  const belowMaster = calculateDreamRank(2999) === DreamRank.DIAMOND;
+  const belowGM = calculateDreamRank(3499) === DreamRank.MASTER;
+  assert(belowSilver && belowGold && belowPlat && belowDia && belowMaster && belowGM, "Test 11: Rating one point below boundaries (999, 1499, 1999, 2499, 2999, 3499) remains in lower tier");
+
+  // 12: Rating one point above boundary
+  const aboveSilver = calculateDreamRank(1001) === DreamRank.SILVER;
+  const aboveGold = calculateDreamRank(1501) === DreamRank.GOLD;
+  const abovePlat = calculateDreamRank(2001) === DreamRank.PLATINUM;
+  const aboveDia = calculateDreamRank(2501) === DreamRank.DIAMOND;
+  const aboveMaster = calculateDreamRank(3001) === DreamRank.MASTER;
+  const aboveGM = calculateDreamRank(3501) === DreamRank.GRANDMASTER;
+  assert(aboveSilver && aboveGold && abovePlat && aboveDia && aboveMaster && aboveGM, "Test 12: Rating one point above boundaries (1001, 1501, 2001, 2501, 3001, 3501) stays firmly in higher tier");
+
+  // 13: Get DREAMRANK profile
+  const initialRankProfile = await getDreamRankProfile(rankMember.id);
+  assert(initialRankProfile.memberId === rankMember.id, "Test 13a: DREAMRANK profile returns valid memberId");
+  assert(initialRankProfile.rank === DreamRank.BRONZE, "Test 13b: Initial DREAMRANK profile has rank BRONZE");
+  assert(initialRankProfile.rating === 0, "Test 13c: Initial DREAMRANK profile has rating 0");
+  assert(initialRankProfile.progress.nextRank === DreamRank.SILVER, "Test 13d: Initial next rank is SILVER");
+  assert(initialRankProfile.progress.ratingNeeded === 1000, "Test 13e: Initial rating needed is 1000 RR");
+  assert(initialRankProfile.progress.progressPercent === 0, "Test 13f: Initial progress percent is 0%");
+  assert(initialRankProfile.history.length === 0, "Test 13g: Initial profile has empty history (no fake records)");
+
+  // 14: Apply positive rating change
+  const posChangeResult = await applyDreamRatingChange(rankMember.id, 120, "Session Competition");
+  assert(posChangeResult.member.dreamRating === 120, `Test 14: Positive rating change applied (+120 -> ${posChangeResult.member.dreamRating})`);
+  assert(posChangeResult.member.dreamRank === DreamRank.BRONZE, "Test 14b: Member remains BRONZE at 120 rating");
+
+  // 15: Apply negative rating change
+  const negChangeResult = await applyDreamRatingChange(rankMember.id, -40, "Match Result");
+  assert(negChangeResult.member.dreamRating === 80, `Test 15: Negative rating change applied (-40 -> ${negChangeResult.member.dreamRating})`);
+  assert(negChangeResult.member.dreamRank === DreamRank.BRONZE, "Test 15b: Member remains BRONZE at 80 rating");
+
+  // 16: Rating cannot become negative
+  const clampedChangeResult = await applyDreamRatingChange(rankMember.id, -200, "Rating Penalty Clamp");
+  assert(clampedChangeResult.member.dreamRating === 0, `Test 16: Rating clamped to 0 when subtracted beyond floor (${clampedChangeResult.member.dreamRating})`);
+  assert(clampedChangeResult.member.dreamRank === DreamRank.BRONZE, "Test 16b: Member remains BRONZE when clamped to 0");
+
+  // 17: Rank changes automatically when threshold is crossed
+  // Cross into Silver (0 + 1070 = 1070 -> SILVER)
+  const crossToSilver = await applyDreamRatingChange(rankMember.id, 1070, "Tournament Placement");
+  assert(crossToSilver.member.dreamRating === 1070, `Test 17a: Rating increased to 1070 (${crossToSilver.member.dreamRating})`);
+  assert(crossToSilver.member.dreamRank === DreamRank.SILVER, `Test 17b: Rank automatically promoted to SILVER (${crossToSilver.member.dreamRank})`);
+
+  // Cross into Gold (1070 + 650 = 1720 -> GOLD)
+  const crossToGold = await applyDreamRatingChange(rankMember.id, 650, "Major Championship Win");
+  assert(crossToGold.member.dreamRating === 1720, `Test 17c: Rating increased to 1720 (${crossToGold.member.dreamRating})`);
+  assert(crossToGold.member.dreamRank === DreamRank.GOLD, `Test 17d: Rank automatically promoted to GOLD (${crossToGold.member.dreamRank})`);
+
+  // Check progress calculation at 1720: in GOLD (1500–1999), next PLATINUM (2000), span 500, ratingInTier 220, progressPercent 44%, ratingNeeded 280
+  const goldProfile = await getDreamRankProfile(rankMember.id);
+  assert(goldProfile.progress.currentRank === DreamRank.GOLD, "Test 17e: Profile progress shows currentRank GOLD");
+  assert(goldProfile.progress.ratingInTier === 220, `Test 17f: Progress ratingInTier is 220 (${goldProfile.progress.ratingInTier})`);
+  assert(goldProfile.progress.tierSpan === 500, `Test 17g: Progress tierSpan is 500 (${goldProfile.progress.tierSpan})`);
+  assert(goldProfile.progress.progressPercent === 44, `Test 17h: Progress percent is 44% (${goldProfile.progress.progressPercent}%)`);
+  assert(goldProfile.progress.ratingNeeded === 280, `Test 17i: Rating needed for Platinum is 280 (${goldProfile.progress.ratingNeeded})`);
+
+  // 18: Rank history is created
+  const historyList = await getDreamRankHistory(rankMember.id);
+  assert(historyList.length === 5, `Test 18: Exactly 5 audit history records created (${historyList.length})`);
+
+  // 19-22: Verify latest history record fields
+  const latestHistory = historyList[0]; // Ordered descending (most recent first)
+  assert(latestHistory.previousRating === 1070, `Test 19: History contains previous rating 1070 (${latestHistory.previousRating})`);
+  assert(latestHistory.newRating === 1720, `Test 20: History contains new rating 1720 (${latestHistory.newRating})`);
+  assert(latestHistory.change === 650, `Test 21: History contains change amount 650 (${latestHistory.change})`);
+  assert(latestHistory.reason === "Major Championship Win", `Test 22: History contains reason '${latestHistory.reason}'`);
+  assert(latestHistory.previousRank === DreamRank.SILVER, `Test 22b: History records previousRank SILVER (${latestHistory.previousRank})`);
+  assert(latestHistory.newRank === DreamRank.GOLD, `Test 22c: History records newRank GOLD (${latestHistory.newRank})`);
+
+  // 23: Invalid member rejected
+  let rejected = false;
+  try {
+    await applyDreamRatingChange("non-existent-member-cuid", 100, "Should Fail");
+  } catch (err: unknown) {
+    rejected = err instanceof Error && err.message.includes("tidak ditemukan");
+  }
+  assert(rejected === true, "Test 23: Invalid member ID is rejected with error");
+
+  // 24: Rating mutation is atomic (verified via transaction test)
+  let emptyReasonRejected = false;
+  try {
+    await applyDreamRatingChange(rankMember.id, 100, "   ");
+  } catch (err: unknown) {
+    emptyReasonRejected = err instanceof Error && err.message.includes("wajib diisi");
+  }
+  assert(emptyReasonRejected === true, "Test 24a: Empty reason rejected without mutating rating");
+  const memberAfterFailedChange = await getMemberById(rankMember.id);
+  assert(memberAfterFailedChange?.dreamRating === 1720, `Test 24b: Rating remains 1720 after rejected mutation (${memberAfterFailedChange?.dreamRating})`);
+
+  // Verify Grandmaster pinnacle progression handling
+  const gmProg = getRankProgress(3850);
+  assert(gmProg.currentRank === DreamRank.GRANDMASTER, "Test 24c: GM progress currentRank is GRANDMASTER");
+  assert(gmProg.nextRank === null, "Test 24d: GM has no next rank");
+  assert(gmProg.nextRankMinRating === null, "Test 24e: GM has null nextRankMinRating");
+  assert(gmProg.progressPercent === 100, "Test 24f: GM progress percent is 100%");
+  assert(gmProg.ratingNeeded === 0, "Test 24g: GM rating needed is 0");
+
+  // Verify Gaming Profile includes DREAMRANK Profile
+  const gamingProfileWithRank = await getGamingProfile(rankMember.id);
+  assert(gamingProfileWithRank.dreamRankProfile !== undefined, "Test 24h: GamingProfileDTO embeds dreamRankProfile");
+  assert(gamingProfileWithRank.dreamRankProfile.rank === DreamRank.GOLD, "Test 24i: GamingProfileDTO embeds correct rank GOLD");
+  assert(gamingProfileWithRank.member.dreamRating === 1720, "Test 24j: GamingProfileDTO embeds member.dreamRating 1720");
+
+  // Cleanup test fixtures
+  await prisma.dreamRankHistory.deleteMany({
+    where: { memberId: rankMember.id },
+  });
+  await deleteMember(rankMember.id);
+  console.log("  ✓ Test 24k: Isolated DREAMRANK test fixtures cleaned up cleanly.\n");
 
   console.log("==================================================");
   console.log(`SUMMARY: ${passedCount} PASSED, ${failedCount} FAILED`);

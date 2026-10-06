@@ -15,6 +15,8 @@ import {
   BarChart3,
   Settings,
   Wrench,
+  Users,
+  Swords,
 } from "lucide-react";
 
 interface NavItem {
@@ -27,8 +29,10 @@ const mainNavItems: NavItem[] = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
   { label: "PC", href: "/pc", icon: Monitor },
   { label: "Console", href: "/consoles", icon: Gamepad2 },
+  { label: "Games", href: "/games", icon: Swords },
   { label: "Sessions", href: "/sessions", icon: Clock },
   { label: "Booking", href: "/booking", icon: CalendarDays },
+  { label: "Members", href: "/members", icon: Users },
   { label: "Store", href: "/store", icon: ShoppingBag },
   { label: "Inventory", href: "/inventory", icon: Package },
   { label: "Maintenance", href: "/maintenance", icon: Wrench },

@@ -66,6 +66,7 @@ function getInitialStore(): DreamCafeStore {
       xp: 8400,
       level: 18,
       dreamRank: "DIAMOND",
+      dreamRating: 2650,
       createdAt: "2026-08-10T10:00:00Z",
     },
     {
@@ -81,6 +82,7 @@ function getInitialStore(): DreamCafeStore {
       xp: 15200,
       level: 32,
       dreamRank: "MASTER",
+      dreamRating: 3120,
       createdAt: "2026-07-04T12:30:00Z",
     },
     {
@@ -96,6 +98,7 @@ function getInitialStore(): DreamCafeStore {
       xp: 2300,
       level: 5,
       dreamRank: "GOLD",
+      dreamRating: 1720,
       createdAt: "2026-09-12T14:15:00Z",
     },
     {
@@ -111,6 +114,7 @@ function getInitialStore(): DreamCafeStore {
       xp: 6100,
       level: 14,
       dreamRank: "PLATINUM",
+      dreamRating: 2150,
       createdAt: "2026-09-01T16:00:00Z",
     },
     {
@@ -126,6 +130,7 @@ function getInitialStore(): DreamCafeStore {
       xp: 1100,
       level: 3,
       dreamRank: "SILVER",
+      dreamRating: 1100,
       createdAt: "2026-09-20T11:45:00Z",
     },
   ];
@@ -553,7 +558,10 @@ function getInitialStore(): DreamCafeStore {
       popularityRank: 1,
       isInstalledOnPc: true,
       isInstalledConsole: false,
+      isActive: true,
       tags: ["Competitive", "Esports", "Shooter", "5v5"],
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
     },
     {
       id: "g-2",
@@ -564,7 +572,10 @@ function getInitialStore(): DreamCafeStore {
       popularityRank: 2,
       isInstalledOnPc: true,
       isInstalledConsole: false,
+      isActive: true,
       tags: ["FPS", "Classic", "Tactical", "Esports"],
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
     },
     {
       id: "g-3",
@@ -575,7 +586,10 @@ function getInitialStore(): DreamCafeStore {
       popularityRank: 3,
       isInstalledOnPc: true,
       isInstalledConsole: false,
+      isActive: true,
       tags: ["Strategy", "MOBA", "Esports", "Team"],
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
     },
     {
       id: "g-4",
@@ -586,7 +600,10 @@ function getInitialStore(): DreamCafeStore {
       popularityRank: 4,
       isInstalledOnPc: true,
       isInstalledConsole: true,
+      isActive: true,
       tags: ["Football", "Multiplayer", "Controller Friendly"],
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
     },
     {
       id: "g-5",
@@ -597,7 +614,10 @@ function getInitialStore(): DreamCafeStore {
       popularityRank: 5,
       isInstalledOnPc: true,
       isInstalledConsole: true,
+      isActive: true,
       tags: ["Fighting", "Versus", "Arcade"],
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
     },
   ];
 

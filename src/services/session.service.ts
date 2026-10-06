@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { SessionStatus, PaymentStatus, PaymentMethod, PCStatus, ConsoleStatus, SessionType, Prisma, InventoryAction } from "@prisma/client";
 import { addMemberXP } from "./member.service";
+import { recordSessionCompletion } from "./gaming-profile.service";
 
 export interface StartSessionInput {
   stationId: string;
@@ -8,6 +9,7 @@ export interface StartSessionInput {
   memberId?: string | null;
   guestName?: string | null;
   durationMinutes: number;
+  gameId?: string | null;
   currentGame?: string | null;
   notes?: string | null;
 }
@@ -51,6 +53,7 @@ export async function listSessions(filters: {
       console: true,
       member: true,
       transaction: true,
+      game: true,
     },
   });
 
@@ -81,7 +84,8 @@ export async function listSessions(filters: {
       totalPrice: s.totalPrice,
       status: s.status,
       paymentStatus: s.paymentStatus,
-      currentGame: s.pc?.currentGame || s.console?.currentGame || null,
+      gameId: s.gameId,
+      currentGame: s.game?.title || s.pc?.currentGame || s.console?.currentGame || null,
       notes: s.notes,
       transactionId: s.transactionId,
       invoiceNumber: s.transaction?.invoiceNumber || null,
@@ -196,6 +200,29 @@ export async function startSession(data: StartSessionInput) {
     stationNumber = con.stationNumber;
   }
 
+  // Resolve Game if provided
+  let resolvedGameId: string | null = null;
+  let resolvedGameTitle: string | null = data.currentGame || null;
+
+  if (data.gameId) {
+    const game = await prisma.game.findUnique({
+      where: { id: data.gameId },
+    });
+    if (!game) {
+      throw new Error("Game tidak ditemukan (ID tidak valid)");
+    }
+    resolvedGameId = game.id;
+    resolvedGameTitle = game.title;
+  } else if (data.currentGame && data.currentGame.trim()) {
+    const matched = await prisma.game.findFirst({
+      where: { title: { equals: data.currentGame.trim(), mode: "insensitive" } },
+    });
+    if (matched) {
+      resolvedGameId = matched.id;
+      resolvedGameTitle = matched.title;
+    }
+  }
+
   // Calculate server-authoritative price using integer Rupiah arithmetic
   const durationMinutes = Math.max(15, data.durationMinutes);
   const totalPrice = Math.round((durationMinutes * hourlyRate) / 60);
@@ -223,9 +250,11 @@ export async function startSession(data: StartSessionInput) {
         status: SessionStatus.ACTIVE,
         paymentStatus: PaymentStatus.PENDING,
         notes: data.notes || null,
+        gameId: resolvedGameId,
       },
       include: {
         member: true,
+        game: true,
       },
     });
 
@@ -235,7 +264,7 @@ export async function startSession(data: StartSessionInput) {
         where: { id: data.stationId },
         data: {
           status: PCStatus.IN_USE,
-          currentGame: data.currentGame || "Online Session",
+          currentGame: resolvedGameTitle || "Online Session",
         },
       });
     } else {
@@ -243,7 +272,7 @@ export async function startSession(data: StartSessionInput) {
         where: { id: data.stationId },
         data: {
           status: ConsoleStatus.IN_USE,
-          currentGame: data.currentGame || "Gaming Session",
+          currentGame: resolvedGameTitle || "Gaming Session",
         },
       });
     }
@@ -334,6 +363,10 @@ export async function stopSession(sessionId: string) {
       });
     }
 
+    return updatedSession;
+  }).then(async (updatedSession) => {
+    // Record server-authoritative session completion, XP, and game stats
+    await recordSessionCompletion(sessionId);
     return updatedSession;
   });
 }
@@ -553,11 +586,8 @@ export async function checkoutSession(data: CheckoutSessionInput) {
       cashChange,
     };
   }).then(async (result) => {
-    // Add Member XP and DreamCoins if member session
-    if (session.memberId) {
-      const xpEarned = Math.floor(durationMinutes * 5) + Math.floor(productsTotal / 1000);
-      await addMemberXP(session.memberId, xpEarned);
-    }
+    // Record server-authoritative session completion, XP, and game stats
+    await recordSessionCompletion(session.id);
     return result;
   });
 }

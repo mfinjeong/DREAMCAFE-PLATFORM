@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { MemberItem, MemberTier, DreamRank } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -8,7 +9,7 @@ import { Select } from "@/components/ui/Select";
 import { Modal } from "@/components/ui/Modal";
 import { Table, TableHeader, TableRow, TableHead, TableCell } from "@/components/ui/Table";
 import { formatRupiah, formatDateTime } from "@/lib/formatters";
-import { Plus, Search, Eye, Edit2, Trash2, RefreshCw, AlertTriangle, Trophy, Coins, Wallet, Clock, Receipt } from "lucide-react";
+import { Plus, Search, Eye, Edit2, Trash2, RefreshCw, AlertTriangle, Trophy, Coins, Wallet, Clock, Receipt, Gamepad2 } from "lucide-react";
 
 interface MemberDetailData extends MemberItem {
   totalSpending?: number;
@@ -393,9 +394,10 @@ export default function MembersPage() {
                     {m.tier}
                   </span>
                 </TableCell>
-                <TableCell className="font-sans text-xs font-bold text-persona-red flex items-center gap-1">
-                  <Trophy className="w-3 h-3 text-persona-red" />
-                  <span>{m.dreamRank}</span>
+                <TableCell className="font-sans text-xs font-bold flex items-center gap-1">
+                  <Trophy className="w-3 h-3 text-amber-400" />
+                  <span className="text-text-primary">{m.dreamRank}</span>
+                  <span className="text-[10px] text-text-muted font-mono">({m.dreamRating || 0} RR)</span>
                 </TableCell>
                 <TableCell className="font-mono text-xs text-text-secondary font-medium">
                   Lv. {m.level} ({m.xp} XP)
@@ -408,6 +410,13 @@ export default function MembersPage() {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1.5">
+                    <Link
+                      href={`/members/${m.id}/gaming`}
+                      className="p-1.5 rounded-[4px] bg-surface-muted hover:bg-surface-hover text-persona-blue hover:text-white border border-surface-border cursor-pointer transition-colors"
+                      title="Gaming Profile & Stats"
+                    >
+                      <Gamepad2 className="w-3.5 h-3.5" />
+                    </Link>
                     <button
                       onClick={() => handleOpenDetail(m)}
                       className="p-1.5 rounded-[4px] bg-surface-muted hover:bg-surface-hover text-text-secondary hover:text-[#F2F3F5] border border-surface-border cursor-pointer transition-colors"
@@ -719,7 +728,13 @@ export default function MembersPage() {
               </div>
             )}
 
-            <div className="flex justify-end pt-2 border-t border-surface-border">
+            <div className="flex items-center justify-between pt-2 border-t border-surface-border">
+              <Link href={`/members/${selectedMember.id}/gaming`}>
+                <Button variant="primary" size="sm" className="flex items-center gap-1.5">
+                  <Gamepad2 className="w-3.5 h-3.5" />
+                  <span>Buka Gaming Profile</span>
+                </Button>
+              </Link>
               <Button variant="outline" size="sm" onClick={() => setDetailModalOpen(false)}>
                 Close
               </Button>

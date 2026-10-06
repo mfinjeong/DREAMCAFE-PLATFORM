@@ -87,6 +87,7 @@ export interface MemberItem {
   dreamCoins: number;
   xp: number;
   level: number;
+  dreamRating?: number;
   dreamRank: DreamRank;
   notes?: string | null;
   createdAt: string;
@@ -376,3 +377,124 @@ export interface ComprehensiveReportDTO {
   inventoryAnalytics: InventoryAnalyticsDTO;
   recentTransactions: TransactionRecord[];
 }
+
+// ==========================================
+// GAME LIBRARY & GAMING PROFILE TYPES
+// ==========================================
+
+export interface GameItem {
+  id: string;
+  title: string;
+  slug?: string | null;
+  genre: string;
+  publisher: string;
+  iconUrl?: string | null;
+  bannerUrl?: string | null;
+  description?: string | null;
+  minGpuRequired: string;
+  popularityRank: number;
+  isInstalledOnPc: boolean;
+  isInstalledConsole: boolean;
+  isActive: boolean;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+  totalSessions?: number;
+  totalPlayMinutes?: number;
+}
+
+export interface MemberGameStatItem {
+  id: string;
+  memberId: string;
+  gameId: string;
+  gameTitle: string;
+  gameGenre: string;
+  gameIconUrl?: string | null;
+  totalSessions: number;
+  totalPlayMinutes: number;
+  totalPlayHours: number;
+  wins: number;
+  losses: number;
+  xp: number;
+  lastPlayedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GamingActivityItem {
+  id: string;
+  sessionNumber: string;
+  gameId?: string | null;
+  gameTitle?: string | null;
+  stationType: string;
+  stationNumber: string;
+  durationMinutes: number;
+  startTime: string;
+  endTime?: string | null;
+  status: string;
+  xpEarned: number;
+}
+
+export interface DreamRankProgressDTO {
+  currentRank: DreamRank;
+  currentRating: number;
+  minRating: number;
+  maxRating: number | null;
+  nextRank: DreamRank | null;
+  nextRankMinRating: number | null;
+  ratingInTier: number;
+  tierSpan: number | null;
+  progressPercent: number;
+  ratingNeeded: number;
+}
+
+export interface DreamRankHistoryItem {
+  id: string;
+  memberId: string;
+  previousRating: number;
+  newRating: number;
+  previousRank: DreamRank;
+  newRank: DreamRank;
+  change: number;
+  reason: string;
+  createdAt: string;
+}
+
+export interface DreamRankProfileDTO {
+  memberId: string;
+  rank: DreamRank;
+  rating: number;
+  progress: DreamRankProgressDTO;
+  history: DreamRankHistoryItem[];
+}
+
+export interface GamingProfileDTO {
+  member: {
+    id: string;
+    memberCode: string;
+    fullName: string;
+    username: string;
+    tier: MemberTier;
+    dreamRank: DreamRank;
+    dreamRating: number;
+    avatarUrl?: string | null;
+    dreamCoins: number;
+    xp: number;
+    level: number;
+    createdAt: string;
+  };
+  stats: {
+    totalSessions: number;
+    totalPlayMinutes: number;
+    totalPlayHours: number;
+    xpForCurrentLevel: number;
+    xpForNextLevel: number;
+    progressPercent: number;
+    xpRemaining: number;
+  };
+  dreamRankProfile: DreamRankProfileDTO;
+  favoriteGames: MemberGameStatItem[];
+  gamesPlayed: MemberGameStatItem[];
+  recentActivity: GamingActivityItem[];
+}
+

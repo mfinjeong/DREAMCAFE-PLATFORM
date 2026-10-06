@@ -74,6 +74,7 @@ export async function listMembers(filters: MemberFilterOptions = {}) {
     xp: m.xp,
     level: m.level,
     dreamRank: m.dreamRank,
+    dreamRating: m.dreamRating,
     notes: m.notes,
     createdAt: m.createdAt.toISOString(),
     updatedAt: m.updatedAt.toISOString(),
@@ -218,7 +219,8 @@ export async function createMember(data: MemberCreateInput) {
       dreamCoins: 100, // Sign-up bonus
       xp: 0,
       level: 1,
-      dreamRank: DreamRank.UNRANKED,
+      dreamRating: 0,
+      dreamRank: DreamRank.BRONZE,
       notes: validated.notes || null,
     },
   });
@@ -309,22 +311,11 @@ export async function addMemberXP(id: string, xpToAdd: number) {
   const totalXP = member.xp + xpToAdd;
   const newLevel = Math.max(1, Math.floor(totalXP / 500) + 1);
 
-  // Determine DreamRank based on XP
-  let rank: DreamRank = member.dreamRank;
-  if (totalXP >= 20000) rank = DreamRank.GRANDMASTER;
-  else if (totalXP >= 12000) rank = DreamRank.MASTER;
-  else if (totalXP >= 7000) rank = DreamRank.DIAMOND;
-  else if (totalXP >= 4000) rank = DreamRank.PLATINUM;
-  else if (totalXP >= 2000) rank = DreamRank.GOLD;
-  else if (totalXP >= 800) rank = DreamRank.SILVER;
-  else if (totalXP >= 200) rank = DreamRank.BRONZE;
-
   return await prisma.member.update({
     where: { id },
     data: {
       xp: totalXP,
       level: newLevel,
-      dreamRank: rank,
       dreamCoins: { increment: Math.floor(xpToAdd / 10) },
     },
   });

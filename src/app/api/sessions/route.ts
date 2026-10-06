@@ -35,6 +35,7 @@ export async function POST(request: Request) {
       memberId: validated.data.memberId,
       guestName: validated.data.guestName,
       durationMinutes: validated.data.durationMinutes,
+      gameId: validated.data.gameId,
       currentGame: validated.data.currentGame,
       notes: validated.data.notes,
     });

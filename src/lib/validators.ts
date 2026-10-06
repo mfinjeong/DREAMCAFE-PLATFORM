@@ -54,6 +54,7 @@ export const startSessionSchema = z.object({
   memberId: z.string().optional().nullable(),
   guestName: z.string().optional().nullable(),
   durationMinutes: z.number().int().min(15, "Durasi minimal 15 menit"),
+  gameId: z.string().optional().nullable(),
   currentGame: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
 }).refine((data) => data.memberId || (data.guestName && data.guestName.trim().length > 0), {
@@ -187,3 +188,29 @@ export const reportFilterSchema = z.object({
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD").optional(),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD").optional(),
 });
+
+export const gameSchema = z.object({
+  title: z.string().trim().min(1, "Judul game wajib diisi").max(100, "Judul game maksimal 100 karakter"),
+  slug: z.string().trim().optional().nullable(),
+  genre: z.string().trim().min(1, "Genre game wajib diisi").max(50, "Genre maksimal 50 karakter"),
+  publisher: z.string().trim().min(1, "Publisher wajib diisi").max(100, "Publisher maksimal 100 karakter"),
+  iconUrl: z.string().trim().optional().nullable(),
+  bannerUrl: z.string().trim().optional().nullable(),
+  description: z.string().trim().optional().nullable(),
+  minGpuRequired: z.string().trim().default("GTX 1650"),
+  popularityRank: z.coerce.number().int().min(1).default(1),
+  isInstalledOnPc: z.boolean().default(true),
+  isInstalledConsole: z.boolean().default(false),
+  isActive: z.boolean().default(true),
+  tags: z.array(z.string()).default([]),
+});
+
+export const updateGameSchema = gameSchema.partial();
+
+export const gameQuerySchema = z.object({
+  q: z.string().trim().optional(),
+  platform: z.enum(["ALL", "PC", "CONSOLE"]).optional().default("ALL"),
+  genre: z.string().trim().optional(),
+  status: z.enum(["ALL", "ACTIVE", "INACTIVE"]).optional().default("ALL"),
+});
+
