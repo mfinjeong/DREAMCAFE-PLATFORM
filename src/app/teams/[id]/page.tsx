@@ -27,6 +27,8 @@ import {
   Mail,
   Check,
   X,
+  Gamepad2,
+  Clock,
 } from "lucide-react";
 import { formatDateTime } from "@/lib/formatters";
 
@@ -624,8 +626,8 @@ export default function TeamDetailPage({
           <div className="text-lg font-bold text-persona-blue font-mono">
             {highestRating.toLocaleString("id-ID")} RR
           </div>
-          <div className="text-[10px] text-text-muted mt-0.5 font-mono">
-            Top Rank: {highestRank}
+          <div className="text-[10px] text-text-muted mt-0.5 font-mono truncate">
+            Top: {summary.highestRatedMember ? `${summary.highestRatedMember.memberName} (${highestRank})` : highestRank}
           </div>
         </div>
 
@@ -637,8 +639,65 @@ export default function TeamDetailPage({
           <div className="text-lg font-bold text-text-primary font-mono">
             {lowestRating.toLocaleString("id-ID")} RR
           </div>
-          <div className="text-[10px] text-text-muted mt-0.5 font-mono">
-            Base Rank: {lowestRank}
+          <div className="text-[10px] text-text-muted mt-0.5 font-mono truncate">
+            Base: {summary.lowestRatedMember ? `${summary.lowestRatedMember.memberName} (${lowestRank})` : lowestRank}
+          </div>
+        </div>
+      </div>
+
+      {/* Team Activity & Playtime Statistics (Real Database Records) */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-3.5 bg-emerald-500 persona-slash rounded-[1px]"></div>
+            <h2 className="text-xs font-mono font-bold tracking-wider text-text-primary uppercase flex items-center gap-2">
+              <Gamepad2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Statistik Aktivitas & Jam Terbang Roster</span>
+            </h2>
+          </div>
+          <span className="text-[11px] font-mono text-text-muted">
+            Data Riwayat Sesi Nyata
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="bg-surface-card border border-surface-border p-3.5 rounded-[4px]">
+            <div className="flex items-center justify-between text-text-muted mb-1">
+              <span className="text-[10px] font-mono uppercase tracking-wider">Sesi Selesai</span>
+              <Clock className="w-3.5 h-3.5 text-emerald-400" />
+            </div>
+            <div className="text-lg font-bold text-text-primary font-mono">
+              {summary.statistics?.totalCompletedSessions ?? 0} Sesi
+            </div>
+            <div className="text-[10px] text-text-muted mt-0.5">
+              Total sesi bermain selesai oleh anggota
+            </div>
+          </div>
+
+          <div className="bg-surface-card border border-surface-border p-3.5 rounded-[4px]">
+            <div className="flex items-center justify-between text-text-muted mb-1">
+              <span className="text-[10px] font-mono uppercase tracking-wider">Total Jam Terbang</span>
+              <Clock className="w-3.5 h-3.5 text-persona-blue" />
+            </div>
+            <div className="text-lg font-bold text-persona-blue font-mono">
+              {summary.statistics?.totalPlayHours ?? 0} Jam
+            </div>
+            <div className="text-[10px] text-text-muted mt-0.5 font-mono">
+              Durasi: {(summary.statistics?.totalPlayMinutes ?? 0).toLocaleString("id-ID")} Menit
+            </div>
+          </div>
+
+          <div className="bg-surface-card border border-surface-border p-3.5 rounded-[4px]">
+            <div className="flex items-center justify-between text-text-muted mb-1">
+              <span className="text-[10px] font-mono uppercase tracking-wider">Variasi Game</span>
+              <Gamepad2 className="w-3.5 h-3.5 text-amber-400" />
+            </div>
+            <div className="text-lg font-bold text-amber-400 font-mono">
+              {summary.statistics?.uniqueGamesPlayed ?? 0} Game
+            </div>
+            <div className="text-[10px] text-text-muted mt-0.5">
+              Judul game berbeda yang dimainkan anggota
+            </div>
           </div>
         </div>
       </div>
@@ -664,6 +723,7 @@ export default function TeamDetailPage({
                 <tr>
                   <th className="px-4 py-2.5">Player / Member</th>
                   <th className="px-4 py-2.5">Role Tim</th>
+                  <th className="px-4 py-2.5">Level</th>
                   <th className="px-4 py-2.5">Member Tier</th>
                   <th className="px-4 py-2.5">DREAMRANK</th>
                   <th className="px-4 py-2.5">Rating (RR)</th>
@@ -709,6 +769,12 @@ export default function TeamDetailPage({
                         }`}
                       >
                         {member.role}
+                      </span>
+                    </td>
+
+                    <td className="px-4 py-2.5">
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 bg-surface-dark border border-surface-border text-persona-blue font-bold rounded">
+                        Lv. {member.level}
                       </span>
                     </td>
 

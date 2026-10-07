@@ -259,11 +259,58 @@ export interface TeamMemberDTO {
   username: string;
   memberCode: string;
   tier: MemberTier;
+  level: number;
   role: TeamMemberRole;
   dreamRating: number;
   dreamRank: DreamRank;
   avatarUrl?: string | null;
   joinedAt: string;
+}
+
+export interface TeamMemberRatingInfo {
+  memberId: string;
+  memberName: string;
+  username: string;
+  rating: number;
+  rank: DreamRank;
+}
+
+export interface TeamStatisticsDTO {
+  teamId: string;
+  totalMembers: number;
+  averageRating: number;
+  highestRating: number;
+  lowestRating: number;
+  highestRank: DreamRank;
+  lowestRank: DreamRank;
+  highestRatedMember: TeamMemberRatingInfo | null;
+  lowestRatedMember: TeamMemberRatingInfo | null;
+  totalCompletedSessions: number;
+  totalPlayMinutes: number;
+  totalPlayHours: number;
+  uniqueGamesPlayed: number;
+}
+
+export interface TeamProfileDTO {
+  team: TeamItem;
+  owner: {
+    id: string;
+    fullName: string;
+    username: string;
+    memberCode: string;
+  };
+  memberCount: number;
+  members: TeamMemberDTO[];
+  summary: {
+    averageRating: number;
+    highestRating: number;
+    lowestRating: number;
+    highestRank: DreamRank;
+    lowestRank: DreamRank;
+    highestRatedMember: TeamMemberRatingInfo | null;
+    lowestRatedMember: TeamMemberRatingInfo | null;
+  };
+  statistics: TeamStatisticsDTO;
 }
 
 export interface TeamSummaryDTO {
@@ -281,6 +328,9 @@ export interface TeamSummaryDTO {
   lowestRating: number;
   highestRank: DreamRank;
   lowestRank: DreamRank;
+  highestRatedMember?: TeamMemberRatingInfo | null;
+  lowestRatedMember?: TeamMemberRatingInfo | null;
+  statistics?: TeamStatisticsDTO;
 }
 
 export interface MemberTeamMembershipDTO {

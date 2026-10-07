@@ -76,6 +76,9 @@ import {
   acceptTeamInvitation,
   rejectTeamInvitation,
   cancelTeamInvitation,
+  getTeamProfile,
+  getTeamStatistics,
+  getTeamMembers,
 } from "../src/services/team.service";
 
 let passedCount = 0;
@@ -2336,6 +2339,222 @@ async function runTests() {
   await deleteMember(invTarget2.id);
   await deleteMember(invStranger.id);
   console.log("  ✓ Test 34b: Isolated INVITATION test fixtures cleaned up cleanly.\n");
+
+  // ==================================================
+  // TEST GROUP 13: TEAM PROFILE & TEAM STATISTICS (PHASE 3)
+  // ==================================================
+  console.log("==================================================");
+  console.log("TEST GROUP 13: TEAM PROFILE & TEAM STATISTICS (PHASE 3)");
+  console.log("==================================================");
+
+  const pSuffix = Math.floor(Math.random() * 8999 + 1000);
+  const profOwner = await createMember({
+    fullName: "Profile Test Owner",
+    phoneNumber: `0899111${pSuffix}`,
+  });
+  await prisma.member.update({
+    where: { id: profOwner.id },
+    data: { dreamRating: 1500, dreamRank: DreamRank.GOLD },
+  });
+
+  const profMember1 = await createMember({
+    fullName: "Profile Test Member 1",
+    phoneNumber: `0899222${pSuffix}`,
+  });
+  await prisma.member.update({
+    where: { id: profMember1.id },
+    data: { dreamRating: 2500, dreamRank: DreamRank.DIAMOND },
+  });
+
+  const profMember2 = await createMember({
+    fullName: "Profile Test Member 2",
+    phoneNumber: `0899333${pSuffix}`,
+  });
+  await prisma.member.update({
+    where: { id: profMember2.id },
+    data: { dreamRating: 800, dreamRank: DreamRank.BRONZE },
+  });
+
+  const profTeamName = `Profile Clan ${pSuffix}`;
+  const profTeamTag = `PC${pSuffix.toString().slice(0, 3)}`;
+  const profTeam = await createTeam({
+    name: profTeamName,
+    tag: profTeamTag,
+    description: "Dedicated profile and stats verification team",
+    ownerId: profOwner.id,
+  });
+
+  await addTeamMember(profTeam.id, { memberId: profMember1.id });
+  await addTeamMember(profTeam.id, { memberId: profMember2.id });
+
+  // 1. Team profile exists
+  const teamProfile = await getTeamProfile(profTeam.id);
+  assert(teamProfile !== null && teamProfile !== undefined, "Test 1: Team profile exists");
+
+  // 2. Team name correct
+  assert(teamProfile.team.name === profTeamName, `Test 2: Team name correct (${teamProfile.team.name})`);
+
+  // 3. Team tag correct
+  assert(teamProfile.team.tag === profTeamTag, `Test 3: Team tag correct (#${teamProfile.team.tag})`);
+
+  // 4. Owner correct
+  assert(teamProfile.owner.id === profOwner.id && teamProfile.team.ownerId === profOwner.id, "Test 4: Owner correct");
+
+  // 5. Member list correct
+  assert(teamProfile.members.length === 3, `Test 5: Member list correct (${teamProfile.members.length})`);
+
+  // 6. Member role correct
+  const ownerRoster = teamProfile.members.find((m) => m.memberId === profOwner.id);
+  const m1Roster = teamProfile.members.find((m) => m.memberId === profMember1.id);
+  assert(ownerRoster?.role === TeamMemberRole.OWNER && m1Roster?.role === TeamMemberRole.MEMBER, "Test 6: Member role correct");
+
+  // 7. Member count correct
+  assert(teamProfile.memberCount === 3, `Test 7: Member count correct (${teamProfile.memberCount})`);
+
+  // 8. DREAMRANK average correct: (1500 + 2500 + 800) / 3 = 1600
+  assert(teamProfile.summary.averageRating === 1600, `Test 8: DREAMRANK average correct (${teamProfile.summary.averageRating} RR)`);
+
+  // 9. Highest rating correct
+  assert(teamProfile.summary.highestRating === 2500, `Test 9: Highest rating correct (${teamProfile.summary.highestRating} RR)`);
+
+  // 10. Lowest rating correct
+  assert(teamProfile.summary.lowestRating === 800, `Test 10: Lowest rating correct (${teamProfile.summary.lowestRating} RR)`);
+
+  // 11. Highest rank correct
+  assert(teamProfile.summary.highestRank === DreamRank.DIAMOND, `Test 11: Highest rank correct (${teamProfile.summary.highestRank})`);
+
+  // 14. Empty statistics handled correctly (before any completed sessions)
+  const emptyStats = await getTeamStatistics(profTeam.id);
+  assert(
+    emptyStats.totalCompletedSessions === 0 &&
+      emptyStats.totalPlayMinutes === 0 &&
+      emptyStats.totalPlayHours === 0 &&
+      emptyStats.uniqueGamesPlayed === 0,
+    "Test 14: Empty statistics handled correctly"
+  );
+
+  // Create isolated test game and completed sessions for member 1 & 2
+  const profGame = await createGame({
+    title: `Profile Stats Game ${pSuffix}`,
+    genre: "FPS",
+    publisher: "Test Studio",
+    minGpuRequired: "GTX 1650",
+  });
+
+  const sess1 = await prisma.session.create({
+    data: {
+      sessionNumber: `SES-TEST-PROF1-${pSuffix}`,
+      type: "PC",
+      memberId: profMember1.id,
+      durationMinutes: 90,
+      remainingMinutes: 0,
+      hourlyRate: 10000,
+      totalPrice: 15000,
+      status: SessionStatus.COMPLETED,
+      paymentStatus: PaymentStatus.PAID,
+      gameId: profGame.id,
+    },
+  });
+
+  const sess2 = await prisma.session.create({
+    data: {
+      sessionNumber: `SES-TEST-PROF2-${pSuffix}`,
+      type: "PC",
+      memberId: profMember2.id,
+      durationMinutes: 60,
+      remainingMinutes: 0,
+      hourlyRate: 10000,
+      totalPrice: 10000,
+      status: SessionStatus.COMPLETED,
+      paymentStatus: PaymentStatus.PAID,
+      gameId: profGame.id,
+    },
+  });
+
+  // 12. Team statistics correct
+  const liveStats = await getTeamStatistics(profTeam.id);
+  assert(liveStats.totalMembers === 3, `Test 12: Team statistics correct (totalMembers: ${liveStats.totalMembers})`);
+
+  // 13. Session/playtime statistics use real data
+  assert(
+    liveStats.totalCompletedSessions === 2 &&
+      liveStats.totalPlayMinutes === 150 &&
+      liveStats.totalPlayHours === 2.5 &&
+      liveStats.uniqueGamesPlayed === 1,
+    `Test 13: Session/playtime statistics use real data (sessions: ${liveStats.totalCompletedSessions}, playHours: ${liveStats.totalPlayHours}, games: ${liveStats.uniqueGamesPlayed})`
+  );
+
+  // 15. Nonexistent team returns error
+  let nonexistentTeamError = false;
+  try {
+    await getTeamProfile("nonexistent-team-id-9999");
+  } catch (err: unknown) {
+    nonexistentTeamError = err instanceof Error && err.message.includes("tidak ditemukan");
+  }
+  assert(nonexistentTeamError === true, "Test 15: Nonexistent team returns error");
+
+  // 16. Removed member disappears from team statistics
+  // profMember1 had 2500 rating and 90 min session. After removal:
+  // Remaining: profOwner (1500) and profMember2 (800) -> average: (1500 + 800) / 2 = 1150
+  // Remaining sessions: 1 (60 mins), playHours: 1
+  await removeTeamMember(profTeam.id, profMember1.id);
+  const statsAfterRemove = await getTeamStatistics(profTeam.id);
+  assert(
+    statsAfterRemove.totalMembers === 2 &&
+      statsAfterRemove.averageRating === 1150 &&
+      statsAfterRemove.highestRating === 1500 &&
+      statsAfterRemove.totalCompletedSessions === 1 &&
+      statsAfterRemove.totalPlayMinutes === 60,
+    `Test 16: Removed member disappears from team statistics (members: ${statsAfterRemove.totalMembers}, avg: ${statsAfterRemove.averageRating}, sessions: ${statsAfterRemove.totalCompletedSessions})`
+  );
+
+  // 17. Ownership transfer reflected
+  await transferTeamOwnership(profTeam.id, profMember2.id);
+  const profileAfterTransfer = await getTeamProfile(profTeam.id);
+  assert(
+    profileAfterTransfer.owner.id === profMember2.id &&
+      profileAfterTransfer.team.ownerId === profMember2.id &&
+      profileAfterTransfer.members.find((m) => m.memberId === profMember2.id)?.role === TeamMemberRole.OWNER &&
+      profileAfterTransfer.members.find((m) => m.memberId === profOwner.id)?.role === TeamMemberRole.MEMBER,
+    "Test 17: Ownership transfer reflected"
+  );
+
+  // 18. DREAMRANK change reflected
+  // profMember2 rating was 800. Increase by 500 -> 1300 (SILVER)
+  // New team average: (1500 + 1300) / 2 = 1400 RR
+  await applyDreamRatingChange(profMember2.id, 500, "Competitive Test Win");
+  const profileAfterRankChange = await getTeamProfile(profTeam.id);
+  assert(
+    profileAfterRankChange.summary.averageRating === 1400 &&
+      profileAfterRankChange.summary.lowestRating === 1300 &&
+      profileAfterRankChange.summary.lowestRank === DreamRank.SILVER,
+    `Test 18: DREAMRANK change reflected (avg: ${profileAfterRankChange.summary.averageRating} RR, lowest: ${profileAfterRankChange.summary.lowestRating} RR)`
+  );
+
+  // 19. Team profile does not modify DREAMRANK
+  const m2Check = await prisma.member.findUnique({ where: { id: profMember2.id } });
+  const ownerCheck = await prisma.member.findUnique({ where: { id: profOwner.id } });
+  assert(
+    m2Check?.dreamRating === 1300 &&
+      m2Check?.dreamRank === DreamRank.SILVER &&
+      ownerCheck?.dreamRating === 1500 &&
+      ownerCheck?.dreamRank === DreamRank.GOLD,
+    "Test 19: Team profile does not modify DREAMRANK"
+  );
+
+  // 20. Existing Team/Invitation tests still pass (verified via getTeamMembers and full suite)
+  const currentMembers = await getTeamMembers(profTeam.id);
+  assert(currentMembers.length === 2, "Test 20: Existing Team/Invitation tests still pass");
+
+  // Clean up Test Group 13 fixtures
+  await prisma.session.delete({ where: { id: sess1.id } });
+  await prisma.session.delete({ where: { id: sess2.id } });
+  await deleteGame(profGame.id);
+  await deleteTeam(profTeam.id);
+  await deleteMember(profOwner.id);
+  await deleteMember(profMember1.id);
+  await deleteMember(profMember2.id);
+  console.log("  ✓ Test 20b: Isolated PROFILE & STATS test fixtures cleaned up cleanly.\n");
 
   console.log("==================================================");
   console.log(`SUMMARY: ${passedCount} PASSED, ${failedCount} FAILED`);

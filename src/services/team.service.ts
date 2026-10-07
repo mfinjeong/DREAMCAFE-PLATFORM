@@ -1,11 +1,14 @@
 import { prisma } from "@/lib/prisma";
-import { TeamMemberRole, TeamInvitationStatus, DreamRank, MemberTier } from "@prisma/client";
+import { TeamMemberRole, TeamInvitationStatus, DreamRank, MemberTier, SessionStatus } from "@prisma/client";
 import {
   TeamItem,
   TeamMemberDTO,
   TeamSummaryDTO,
   MemberTeamMembershipDTO,
   TeamInvitationDTO,
+  TeamStatisticsDTO,
+  TeamProfileDTO,
+  TeamMemberRatingInfo,
 } from "@/lib/types";
 import {
   createTeamSchema,
@@ -362,6 +365,7 @@ export async function listTeamMembers(teamId: string): Promise<TeamMemberDTO[]> 
           username: true,
           memberCode: true,
           tier: true,
+          level: true,
           dreamRating: true,
           dreamRank: true,
           avatarUrl: true,
@@ -378,6 +382,7 @@ export async function listTeamMembers(teamId: string): Promise<TeamMemberDTO[]> 
     username: tm.member.username,
     memberCode: tm.member.memberCode,
     tier: tm.member.tier as MemberTier,
+    level: tm.member.level || 1,
     role: tm.role as TeamMemberRole,
     dreamRating: tm.member.dreamRating,
     dreamRank: tm.member.dreamRank as DreamRank,
@@ -411,6 +416,7 @@ export async function addTeamMember(
       username: true,
       memberCode: true,
       tier: true,
+      level: true,
       dreamRating: true,
       dreamRank: true,
       avatarUrl: true,
@@ -449,6 +455,7 @@ export async function addTeamMember(
     username: member.username,
     memberCode: member.memberCode,
     tier: member.tier as MemberTier,
+    level: member.level || 1,
     role: created.role as TeamMemberRole,
     dreamRating: member.dreamRating,
     dreamRank: member.dreamRank as DreamRank,
@@ -651,6 +658,7 @@ export async function transferTeamOwnership(
         username: newOwnerMembership.member.username,
         memberCode: newOwnerMembership.member.memberCode,
         tier: newOwnerMembership.member.tier as MemberTier,
+        level: newOwnerMembership.member.level || 1,
         role: updatedMembership.role as TeamMemberRole,
         dreamRating: newOwnerMembership.member.dreamRating,
         dreamRank: newOwnerMembership.member.dreamRank as DreamRank,
@@ -689,6 +697,7 @@ export async function getTeamSummary(teamId: string): Promise<TeamSummaryDTO> {
               username: true,
               memberCode: true,
               tier: true,
+              level: true,
               dreamRating: true,
               dreamRank: true,
               avatarUrl: true,
@@ -711,6 +720,7 @@ export async function getTeamSummary(teamId: string): Promise<TeamSummaryDTO> {
     username: tm.member.username,
     memberCode: tm.member.memberCode,
     tier: tm.member.tier as MemberTier,
+    level: tm.member.level || 1,
     role: tm.role as TeamMemberRole,
     dreamRating: tm.member.dreamRating,
     dreamRank: tm.member.dreamRank as DreamRank,
@@ -718,13 +728,7 @@ export async function getTeamSummary(teamId: string): Promise<TeamSummaryDTO> {
     joinedAt: tm.joinedAt.toISOString(),
   }));
 
-  const ratings = memberList.map((m) => m.dreamRating);
-  const totalRating = ratings.reduce((sum, r) => sum + r, 0);
-  const averageRating = ratings.length > 0 ? Math.round(totalRating / ratings.length) : 0;
-  const highestRating = ratings.length > 0 ? Math.max(...ratings) : 0;
-  const lowestRating = ratings.length > 0 ? Math.min(...ratings) : 0;
-  const highestRank = calculateDreamRank(highestRating);
-  const lowestRank = calculateDreamRank(lowestRating);
+  const statistics = await getTeamStatistics(teamId);
 
   return {
     team: {
@@ -748,11 +752,254 @@ export async function getTeamSummary(teamId: string): Promise<TeamSummaryDTO> {
     },
     memberCount: memberList.length,
     members: memberList,
+    averageRating: statistics.averageRating,
+    highestRating: statistics.highestRating,
+    lowestRating: statistics.lowestRating,
+    highestRank: statistics.highestRank,
+    lowestRank: statistics.lowestRank,
+    highestRatedMember: statistics.highestRatedMember,
+    lowestRatedMember: statistics.lowestRatedMember,
+    statistics,
+  };
+}
+
+/**
+ * Returns list of team members (alias for listTeamMembers).
+ */
+export const getTeamMembers = listTeamMembers;
+
+/**
+ * Computes derived team statistics strictly from real database records:
+ * - Real roster and member DREAMRANK aggregates
+ * - Real completed sessions and playtime (hours & minutes)
+ * - Real distinct games engaged by the team's members
+ */
+export async function getTeamStatistics(teamId: string): Promise<TeamStatisticsDTO> {
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    select: {
+      id: true,
+      members: {
+        include: {
+          member: {
+            select: {
+              id: true,
+              fullName: true,
+              username: true,
+              memberCode: true,
+              level: true,
+              dreamRating: true,
+              dreamRank: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!team) {
+    throw new Error("Tim tidak ditemukan");
+  }
+
+  const memberList = team.members;
+  const totalMembers = memberList.length;
+
+  if (totalMembers === 0) {
+    return {
+      teamId,
+      totalMembers: 0,
+      averageRating: 0,
+      highestRating: 0,
+      lowestRating: 0,
+      highestRank: DreamRank.BRONZE,
+      lowestRank: DreamRank.BRONZE,
+      highestRatedMember: null,
+      lowestRatedMember: null,
+      totalCompletedSessions: 0,
+      totalPlayMinutes: 0,
+      totalPlayHours: 0,
+      uniqueGamesPlayed: 0,
+    };
+  }
+
+  const ratings = memberList.map((m) => m.member.dreamRating);
+  const totalRating = ratings.reduce((sum, r) => sum + r, 0);
+  const averageRating = Math.round(totalRating / totalMembers);
+  const highestRating = Math.max(...ratings);
+  const lowestRating = Math.min(...ratings);
+  const highestRank = calculateDreamRank(highestRating);
+  const lowestRank = calculateDreamRank(lowestRating);
+
+  const highestMem = memberList.find((m) => m.member.dreamRating === highestRating)?.member;
+  const lowestMem = memberList.find((m) => m.member.dreamRating === lowestRating)?.member;
+
+  const highestRatedMember: TeamMemberRatingInfo | null = highestMem
+    ? {
+        memberId: highestMem.id,
+        memberName: highestMem.fullName,
+        username: highestMem.username,
+        rating: highestMem.dreamRating,
+        rank: highestMem.dreamRank as DreamRank,
+      }
+    : null;
+
+  const lowestRatedMember: TeamMemberRatingInfo | null = lowestMem
+    ? {
+        memberId: lowestMem.id,
+        memberName: lowestMem.fullName,
+        username: lowestMem.username,
+        rating: lowestMem.dreamRating,
+        rank: lowestMem.dreamRank as DreamRank,
+      }
+    : null;
+
+  // Real completed sessions by members
+  const memberIds = memberList.map((m) => m.memberId);
+  const completedSessions = await prisma.session.findMany({
+    where: {
+      memberId: { in: memberIds },
+      status: SessionStatus.COMPLETED,
+    },
+    select: {
+      id: true,
+      durationMinutes: true,
+      gameId: true,
+    },
+  });
+
+  const totalCompletedSessions = completedSessions.length;
+  const totalPlayMinutes = completedSessions.reduce((acc, s) => acc + (s.durationMinutes || 0), 0);
+  const totalPlayHours = Math.round((totalPlayMinutes / 60) * 10) / 10;
+
+  // Real distinct games played by members
+  const memberGameStats = await prisma.memberGameStat.findMany({
+    where: {
+      memberId: { in: memberIds },
+      totalSessions: { gt: 0 },
+    },
+    select: {
+      gameId: true,
+    },
+  });
+
+  const uniqueGamesSet = new Set<string>();
+  completedSessions.forEach((s) => {
+    if (s.gameId) uniqueGamesSet.add(s.gameId);
+  });
+  memberGameStats.forEach((gs) => {
+    if (gs.gameId) uniqueGamesSet.add(gs.gameId);
+  });
+
+  return {
+    teamId,
+    totalMembers,
     averageRating,
     highestRating,
     lowestRating,
     highestRank,
     lowestRank,
+    highestRatedMember,
+    lowestRatedMember,
+    totalCompletedSessions,
+    totalPlayMinutes,
+    totalPlayHours,
+    uniqueGamesPlayed: uniqueGamesSet.size,
+  };
+}
+
+/**
+ * Returns comprehensive Team Profile DTO including identity, member list, and real statistics.
+ */
+export async function getTeamProfile(teamId: string): Promise<TeamProfileDTO> {
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    include: {
+      owner: {
+        select: {
+          id: true,
+          fullName: true,
+          username: true,
+          memberCode: true,
+        },
+      },
+      members: {
+        orderBy: [
+          { role: "asc" }, // OWNER first
+          { joinedAt: "asc" },
+        ],
+        include: {
+          member: {
+            select: {
+              id: true,
+              fullName: true,
+              username: true,
+              memberCode: true,
+              tier: true,
+              level: true,
+              dreamRating: true,
+              dreamRank: true,
+              avatarUrl: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!team) {
+    throw new Error("Tim tidak ditemukan");
+  }
+
+  const memberList: TeamMemberDTO[] = team.members.map((tm) => ({
+    id: tm.id,
+    teamId: tm.teamId,
+    memberId: tm.memberId,
+    memberName: tm.member.fullName,
+    username: tm.member.username,
+    memberCode: tm.member.memberCode,
+    tier: tm.member.tier as MemberTier,
+    level: tm.member.level || 1,
+    role: tm.role as TeamMemberRole,
+    dreamRating: tm.member.dreamRating,
+    dreamRank: tm.member.dreamRank as DreamRank,
+    avatarUrl: tm.member.avatarUrl,
+    joinedAt: tm.joinedAt.toISOString(),
+  }));
+
+  const statistics = await getTeamStatistics(teamId);
+
+  return {
+    team: {
+      id: team.id,
+      name: team.name,
+      tag: team.tag,
+      description: team.description,
+      logoUrl: team.logoUrl,
+      ownerId: team.ownerId,
+      ownerName: team.owner.fullName,
+      ownerUsername: team.owner.username,
+      memberCount: memberList.length,
+      createdAt: team.createdAt.toISOString(),
+      updatedAt: team.updatedAt.toISOString(),
+    },
+    owner: {
+      id: team.owner.id,
+      fullName: team.owner.fullName,
+      username: team.owner.username,
+      memberCode: team.owner.memberCode,
+    },
+    memberCount: memberList.length,
+    members: memberList,
+    summary: {
+      averageRating: statistics.averageRating,
+      highestRating: statistics.highestRating,
+      lowestRating: statistics.lowestRating,
+      highestRank: statistics.highestRank,
+      lowestRank: statistics.lowestRank,
+      highestRatedMember: statistics.highestRatedMember,
+      lowestRatedMember: statistics.lowestRatedMember,
+    },
+    statistics,
   };
 }
 
@@ -1009,6 +1256,7 @@ export async function acceptTeamInvitation(
           username: true,
           memberCode: true,
           tier: true,
+          level: true,
           dreamRating: true,
           dreamRank: true,
           avatarUrl: true,
@@ -1080,6 +1328,7 @@ export async function acceptTeamInvitation(
         username: invitation.member.username,
         memberCode: invitation.member.memberCode,
         tier: invitation.member.tier as MemberTier,
+        level: invitation.member.level || 1,
         role: membership.role as TeamMemberRole,
         dreamRating: invitation.member.dreamRating,
         dreamRank: invitation.member.dreamRank as DreamRank,
