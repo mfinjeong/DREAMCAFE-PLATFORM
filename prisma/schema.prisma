@@ -116,6 +116,23 @@ enum TeamInvitationStatus {
   CANCELLED
 }
 
+enum ScrimStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  SCHEDULED
+  LIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ScrimResult {
+  TEAM_A_WIN
+  TEAM_B_WIN
+  DRAW
+  NO_CONTEST
+}
+
 model User {
   id           String   @id @default(cuid())
   username     String   @unique
@@ -155,6 +172,7 @@ model Member {
   teamMemberships     TeamMember[]       @relation("TeamMemberships")
   receivedInvitations TeamInvitation[]   @relation("MemberInvitations")
   sentInvitations     TeamInvitation[]   @relation("SentInvitations")
+  createdScrims       Scrim[]            @relation("CreatedScrims")
   gameStats           MemberGameStat[]
   rankHistory         DreamRankHistory[]
 
@@ -388,6 +406,7 @@ model Game {
 
   sessions           Session[]
   memberStats        MemberGameStat[]
+  scrims             Scrim[]
 
   @@index([genre])
   @@index([isActive])
@@ -462,8 +481,11 @@ model Team {
 
   owner       Member           @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members     TeamMember[]
-  tournaments TournamentTeam[]
-  invitations TeamInvitation[]
+  tournaments      TournamentTeam[]
+  invitations      TeamInvitation[]
+  challengerScrims Scrim[]          @relation("ChallengerScrims")
+  opponentScrims   Scrim[]          @relation("OpponentScrims")
+  wonScrims        Scrim[]          @relation("WonScrims")
 
   @@index([ownerId])
   @@index([tag])
@@ -516,6 +538,38 @@ model TournamentTeam {
   team         Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@unique([tournamentId, teamId])
+}
+
+model Scrim {
+  id               String       @id @default(cuid())
+  challengerTeamId String
+  opponentTeamId   String
+  gameId           String
+  scheduledAt      DateTime
+  bestOf           Int          @default(1)
+  status           ScrimStatus  @default(PENDING)
+  result           ScrimResult?
+  winnerTeamId     String?
+  note             String?
+  createdById      String
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  startedAt        DateTime?
+  completedAt      DateTime?
+
+  challengerTeam   Team         @relation("ChallengerScrims", fields: [challengerTeamId], references: [id], onDelete: Cascade)
+  opponentTeam     Team         @relation("OpponentScrims", fields: [opponentTeamId], references: [id], onDelete: Cascade)
+  winnerTeam       Team?        @relation("WonScrims", fields: [winnerTeamId], references: [id], onDelete: SetNull)
+  game             Game         @relation(fields: [gameId], references: [id], onDelete: Restrict)
+  createdBy        Member       @relation("CreatedScrims", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([challengerTeamId])
+  @@index([opponentTeamId])
+  @@index([gameId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([createdById])
+  @@index([winnerTeamId])
 }
 
 model Maintenance {

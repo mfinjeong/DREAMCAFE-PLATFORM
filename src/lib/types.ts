@@ -616,3 +616,52 @@ export interface GamingProfileDTO {
   recentActivity: GamingActivityItem[];
 }
 
+// ==========================================
+// SCRIM SYSTEM TYPES (PHASE 1)
+// ==========================================
+
+export type { ScrimStatus, ScrimResult } from "@prisma/client";
+
+export interface ScrimTeamSummary {
+  id: string;
+  name: string;
+  tag: string;
+  logoUrl?: string | null;
+  ownerId: string;
+  ownerName: string;
+  ownerUsername: string;
+  memberCount: number;
+}
+
+export interface ScrimItem {
+  id: string;
+  challengerTeamId: string;
+  challengerTeam: ScrimTeamSummary;
+  opponentTeamId: string;
+  opponentTeam: ScrimTeamSummary;
+  gameId: string;
+  game: {
+    id: string;
+    title: string;
+    genre: string;
+    iconUrl?: string | null;
+  };
+  scheduledAt: string;
+  bestOf: number;
+  status: import("@prisma/client").ScrimStatus;
+  result?: import("@prisma/client").ScrimResult | null;
+  winnerTeamId?: string | null;
+  winnerTeam?: ScrimTeamSummary | null;
+  note?: string | null;
+  createdById: string;
+  createdBy: {
+    id: string;
+    fullName: string;
+    username: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+}
+

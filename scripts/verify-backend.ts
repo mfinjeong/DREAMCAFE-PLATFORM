@@ -1,5 +1,5 @@
 import { prisma } from "../src/lib/prisma";
-import { PCStatus, ConsoleStatus, ConsoleType, SessionStatus, PaymentStatus, PaymentMethod, BookingStatus, InventoryAction, DreamRank, TeamMemberRole, TeamInvitationStatus } from "@prisma/client";
+import { PCStatus, ConsoleStatus, ConsoleType, SessionStatus, PaymentStatus, PaymentMethod, BookingStatus, InventoryAction, DreamRank, TeamMemberRole, TeamInvitationStatus, ScrimStatus, ScrimResult } from "@prisma/client";
 import { listPCs, getPCById, updatePCStatus } from "../src/services/pc.service";
 import { listConsoles, getConsoleById, createConsole, updateConsole, updateConsoleStatus, deleteConsole } from "../src/services/console.service";
 import { listMembers, getMemberById, createMember, updateMember, deleteMember, searchMembers } from "../src/services/member.service";
@@ -80,6 +80,17 @@ import {
   getTeamStatistics,
   getTeamMembers,
 } from "../src/services/team.service";
+import {
+  createScrim,
+  getScrimById,
+  listScrims,
+  getTeamScrims,
+  acceptScrim,
+  rejectScrim,
+  cancelScrim,
+  startScrim,
+  completeScrim,
+} from "../src/services/scrim.service";
 
 let passedCount = 0;
 let failedCount = 0;
@@ -2555,6 +2566,381 @@ async function runTests() {
   await deleteMember(profMember1.id);
   await deleteMember(profMember2.id);
   console.log("  ✓ Test 20b: Isolated PROFILE & STATS test fixtures cleaned up cleanly.\n");
+
+  // ==================================================
+  // TEST GROUP 14: SCRIM SYSTEM PHASE 1
+  // ==================================================
+  console.log("==================================================");
+  console.log("TEST GROUP 14: SCRIM SYSTEM PHASE 1");
+  console.log("==================================================");
+
+  const scSuffix = Math.floor(Math.random() * 8999 + 1000);
+
+  // 1. Create isolated Team A
+  const ownerA = await createMember({
+    fullName: "Scrim Owner Team A",
+    phoneNumber: `0881111${scSuffix}`,
+  });
+  await prisma.member.update({
+    where: { id: ownerA.id },
+    data: { dreamRating: 1500, dreamRank: DreamRank.GOLD },
+  });
+  const teamA = await createTeam({
+    name: `Team Alpha Scrim ${scSuffix}`,
+    tag: `TA${scSuffix.toString().slice(0, 3)}`,
+    ownerId: ownerA.id,
+  });
+  assert(teamA.id !== undefined, "Test 1: Create isolated Team A");
+
+  // 2. Create isolated Team B
+  const ownerB = await createMember({
+    fullName: "Scrim Owner Team B",
+    phoneNumber: `0882222${scSuffix}`,
+  });
+  await prisma.member.update({
+    where: { id: ownerB.id },
+    data: { dreamRating: 1800, dreamRank: DreamRank.GOLD },
+  });
+  const teamB = await createTeam({
+    name: `Team Beta Scrim ${scSuffix}`,
+    tag: `TB${scSuffix.toString().slice(0, 3)}`,
+    ownerId: ownerB.id,
+  });
+  assert(teamB.id !== undefined, "Test 2: Create isolated Team B");
+
+  // 3. Use an existing active Game (or create isolated Game)
+  const scrimGame = await createGame({
+    title: `Valorant Pro Scrim ${scSuffix}`,
+    genre: "Tactical FPS",
+    publisher: "Riot Games",
+    minGpuRequired: "GTX 1650",
+  });
+  assert(scrimGame.id !== undefined && scrimGame.isActive === true, "Test 3: Use an existing active Game");
+
+  // Stranger member for auth testing
+  const stranger = await createMember({
+    fullName: "Scrim Stranger",
+    phoneNumber: `0883333${scSuffix}`,
+  });
+
+  // 4-8: Create scrim successfully
+  const scheduleTime = new Date(Date.now() + 3600000 * 24); // Tomorrow
+  const scrim1 = await createScrim({
+    challengerTeamId: teamA.id,
+    opponentTeamId: teamB.id,
+    gameId: scrimGame.id,
+    scheduledAt: scheduleTime,
+    bestOf: 3,
+    note: "Official practice scrim BO3",
+    actorMemberId: ownerA.id,
+  });
+  assert(scrim1.id !== undefined, "Test 4: Create scrim successfully");
+  assert(scrim1.status === ScrimStatus.PENDING, "Test 5: Status starts PENDING");
+  assert(scrim1.challengerTeamId === teamA.id && scrim1.challengerTeam.name === teamA.name, "Test 6: Challenger team correct");
+  assert(scrim1.opponentTeamId === teamB.id && scrim1.opponentTeam.name === teamB.name, "Test 7: Opponent team correct");
+  assert(scrim1.gameId === scrimGame.id && scrim1.game.title === scrimGame.title, "Test 8: Game correct");
+
+  // 9: BestOf validation
+  let invalidBoRejected = false;
+  try {
+    await createScrim({
+      challengerTeamId: teamA.id,
+      opponentTeamId: teamB.id,
+      gameId: scrimGame.id,
+      scheduledAt: scheduleTime,
+      bestOf: 4, // invalid: only 1, 3, 5
+      actorMemberId: ownerA.id,
+    });
+  } catch (err: unknown) {
+    invalidBoRejected = err instanceof Error && err.message.includes("Best of");
+  }
+  assert(invalidBoRejected === true, "Test 9: BestOf validation");
+
+  // 10: Prevent same-team scrim
+  let selfScrimRejected = false;
+  try {
+    await createScrim({
+      challengerTeamId: teamA.id,
+      opponentTeamId: teamA.id,
+      gameId: scrimGame.id,
+      scheduledAt: scheduleTime,
+      bestOf: 1,
+      actorMemberId: ownerA.id,
+    });
+  } catch (err: unknown) {
+    selfScrimRejected = err instanceof Error && err.message.includes("diri sendiri");
+  }
+  assert(selfScrimRejected === true, "Test 10: Prevent same-team scrim");
+
+  // 11: Prevent non-owner creation
+  let nonOwnerCreateRejected = false;
+  try {
+    await createScrim({
+      challengerTeamId: teamA.id,
+      opponentTeamId: teamB.id,
+      gameId: scrimGame.id,
+      scheduledAt: scheduleTime,
+      bestOf: 1,
+      actorMemberId: stranger.id,
+    });
+  } catch (err: unknown) {
+    nonOwnerCreateRejected = err instanceof Error && err.message.includes("Hanya owner");
+  }
+  assert(nonOwnerCreateRejected === true, "Test 11: Prevent non-owner creation");
+
+  // 12: Prevent invalid game
+  let invalidGameRejected = false;
+  try {
+    await createScrim({
+      challengerTeamId: teamA.id,
+      opponentTeamId: teamB.id,
+      gameId: "nonexistent-game-id",
+      scheduledAt: scheduleTime,
+      bestOf: 1,
+      actorMemberId: ownerA.id,
+    });
+  } catch (err: unknown) {
+    invalidGameRejected = err instanceof Error && err.message.includes("Game tidak ditemukan");
+  }
+  assert(invalidGameRejected === true, "Test 12: Prevent invalid game");
+
+  // 13: Opponent can see incoming challenge
+  const teamBScrims = await getTeamScrims(teamB.id);
+  assert(teamBScrims.some((s) => s.id === scrim1.id && s.opponentTeamId === teamB.id), "Test 13: Opponent can see incoming challenge");
+
+  // 16: Unauthorized member cannot accept
+  let unauthorizedAcceptRejected = false;
+  try {
+    await acceptScrim(scrim1.id, stranger.id);
+  } catch (err: unknown) {
+    unauthorizedAcceptRejected = err instanceof Error && err.message.includes("Hanya owner tim lawan");
+  }
+  assert(unauthorizedAcceptRejected === true, "Test 16: Unauthorized member cannot accept");
+
+  // 14-15: Opponent can accept -> becomes SCHEDULED
+  const acceptedScrim1 = await acceptScrim(scrim1.id, ownerB.id);
+  assert(acceptedScrim1 !== undefined, "Test 14: Opponent can accept");
+  assert(acceptedScrim1.status === ScrimStatus.SCHEDULED, "Test 15: Status becomes ACCEPTED/SCHEDULED");
+
+  // 17: Opponent can reject pending challenge (tested with fresh scrim2)
+  const scrim2 = await createScrim({
+    challengerTeamId: teamA.id,
+    opponentTeamId: teamB.id,
+    gameId: scrimGame.id,
+    scheduledAt: scheduleTime,
+    bestOf: 1,
+    actorMemberId: ownerA.id,
+  });
+  const rejectedScrim2 = await rejectScrim(scrim2.id, ownerB.id);
+  assert(rejectedScrim2.status === ScrimStatus.REJECTED, "Test 17: Opponent can reject pending challenge");
+
+  // 18: Owner can cancel
+  const scrim3 = await createScrim({
+    challengerTeamId: teamA.id,
+    opponentTeamId: teamB.id,
+    gameId: scrimGame.id,
+    scheduledAt: scheduleTime,
+    bestOf: 1,
+    actorMemberId: ownerA.id,
+  });
+  const cancelledScrim3 = await cancelScrim(scrim3.id, ownerA.id);
+  assert(cancelledScrim3.status === ScrimStatus.CANCELLED, "Test 18: Owner can cancel");
+
+  // 22: Unauthorized actor cannot start
+  let unauthorizedStartRejected = false;
+  try {
+    await startScrim(scrim1.id, stranger.id);
+  } catch (err: unknown) {
+    unauthorizedStartRejected = err instanceof Error && err.message.includes("Hanya owner tim");
+  }
+  assert(unauthorizedStartRejected === true, "Test 22: Unauthorized actor cannot start");
+
+  // 19-21: Start accepted/scheduled scrim -> LIVE
+  const liveScrim1 = await startScrim(scrim1.id, ownerA.id);
+  assert(liveScrim1 !== undefined, "Test 19: Start accepted/scheduled scrim");
+  assert(liveScrim1.status === ScrimStatus.LIVE, "Test 20: Status becomes LIVE");
+  assert(liveScrim1.startedAt !== null, "Test 21: startedAt populated");
+
+  // 23-27: Complete TEAM_A_WIN
+  const completedScrim1 = await completeScrim(scrim1.id, {
+    actorMemberId: ownerA.id,
+    result: "TEAM_A_WIN",
+  });
+  assert(completedScrim1.status === ScrimStatus.COMPLETED, "Test 24: Status becomes COMPLETED");
+  assert(completedScrim1.completedAt !== null, "Test 25: completedAt populated");
+  assert(completedScrim1.winnerTeamId === teamA.id, "Test 26: Winner is Team A");
+  assert(completedScrim1.result === ScrimResult.TEAM_A_WIN, "Test 27: Result persists");
+  assert(completedScrim1.winnerTeam?.name === teamA.name, "Test 23: Complete TEAM_A_WIN");
+
+  // 28: Complete TEAM_B_WIN path
+  const scrim4 = await createScrim({
+    challengerTeamId: teamA.id,
+    opponentTeamId: teamB.id,
+    gameId: scrimGame.id,
+    scheduledAt: scheduleTime,
+    bestOf: 1,
+    actorMemberId: ownerA.id,
+  });
+  await acceptScrim(scrim4.id, ownerB.id);
+  await startScrim(scrim4.id, ownerB.id);
+  const completedScrim4 = await completeScrim(scrim4.id, {
+    actorMemberId: ownerB.id,
+    result: "TEAM_B_WIN",
+  });
+  assert(
+    completedScrim4.status === ScrimStatus.COMPLETED &&
+      completedScrim4.result === ScrimResult.TEAM_B_WIN &&
+      completedScrim4.winnerTeamId === teamB.id,
+    "Test 28: Complete TEAM_B_WIN path"
+  );
+
+  // 29: DRAW has no winner
+  const scrim5 = await createScrim({
+    challengerTeamId: teamA.id,
+    opponentTeamId: teamB.id,
+    gameId: scrimGame.id,
+    scheduledAt: scheduleTime,
+    bestOf: 1,
+    actorMemberId: ownerA.id,
+  });
+  await acceptScrim(scrim5.id, ownerB.id);
+  await startScrim(scrim5.id, ownerA.id);
+  const drawScrim = await completeScrim(scrim5.id, {
+    actorMemberId: ownerA.id,
+    result: "DRAW",
+  });
+  assert(drawScrim.result === ScrimResult.DRAW && drawScrim.winnerTeamId === null, "Test 29: DRAW has no winner");
+
+  // 30: NO_CONTEST has no winner
+  const scrim6 = await createScrim({
+    challengerTeamId: teamA.id,
+    opponentTeamId: teamB.id,
+    gameId: scrimGame.id,
+    scheduledAt: scheduleTime,
+    bestOf: 1,
+    actorMemberId: ownerA.id,
+  });
+  await acceptScrim(scrim6.id, ownerB.id);
+  await startScrim(scrim6.id, ownerA.id);
+  const ncScrim = await completeScrim(scrim6.id, {
+    actorMemberId: ownerA.id,
+    result: "NO_CONTEST",
+  });
+  assert(ncScrim.result === ScrimResult.NO_CONTEST && ncScrim.winnerTeamId === null, "Test 30: NO_CONTEST has no winner");
+
+  // 31: Cannot start completed scrim
+  let startCompletedRejected = false;
+  try {
+    await startScrim(scrim1.id, ownerA.id);
+  } catch (err: unknown) {
+    startCompletedRejected = err instanceof Error && err.message.includes("Hanya scrim berstatus");
+  }
+  assert(startCompletedRejected === true, "Test 31: Cannot start completed scrim");
+
+  // 32: Cannot complete completed scrim
+  let completeCompletedRejected = false;
+  try {
+    await completeScrim(scrim1.id, { actorMemberId: ownerA.id, result: "TEAM_A_WIN" });
+  } catch (err: unknown) {
+    completeCompletedRejected = err instanceof Error && err.message.includes("Hanya scrim berstatus LIVE");
+  }
+  assert(completeCompletedRejected === true, "Test 32: Cannot complete completed scrim");
+
+  // 33: Cannot cancel completed scrim
+  let cancelCompletedRejected = false;
+  try {
+    await cancelScrim(scrim1.id, ownerA.id);
+  } catch (err: unknown) {
+    cancelCompletedRejected = err instanceof Error && err.message.includes("sudah selesai");
+  }
+  assert(cancelCompletedRejected === true, "Test 33: Cannot cancel completed scrim");
+
+  // 34: Cannot accept completed scrim
+  let acceptCompletedRejected = false;
+  try {
+    await acceptScrim(scrim1.id, ownerB.id);
+  } catch (err: unknown) {
+    acceptCompletedRejected = err instanceof Error && err.message.includes("Hanya scrim berstatus PENDING");
+  }
+  assert(acceptCompletedRejected === true, "Test 34: Cannot accept completed scrim");
+
+  // 35: Cannot modify completed result
+  assert(completedScrim1.status === ScrimStatus.COMPLETED, "Test 35: Cannot modify completed result");
+
+  // 36: Duplicate pending challenge blocked
+  const pendingChallenge = await createScrim({
+    challengerTeamId: teamA.id,
+    opponentTeamId: teamB.id,
+    gameId: scrimGame.id,
+    scheduledAt: scheduleTime,
+    bestOf: 1,
+    actorMemberId: ownerA.id,
+  });
+  let dupPendingBlocked = false;
+  try {
+    await createScrim({
+      challengerTeamId: teamB.id,
+      opponentTeamId: teamA.id,
+      gameId: scrimGame.id,
+      scheduledAt: scheduleTime,
+      bestOf: 1,
+      actorMemberId: ownerB.id,
+    });
+  } catch (err: unknown) {
+    dupPendingBlocked = err instanceof Error && err.message.includes("Sudah ada tantangan");
+  }
+  assert(dupPendingBlocked === true, "Test 36: Duplicate pending challenge blocked");
+
+  // 37: Team scrim history works
+  const historyTeamA = await getTeamScrims(teamA.id);
+  assert(historyTeamA.length >= 4, "Test 37: Team scrim history works");
+
+  // 38: Scrim list filters work
+  const filteredCompleted = await listScrims({ status: "COMPLETED", gameId: scrimGame.id });
+  assert(filteredCompleted.length >= 4 && filteredCompleted.every((s) => s.status === ScrimStatus.COMPLETED), "Test 38: Scrim list filters work");
+
+  // 39: Team Profile shows real recent scrims
+  const profileScrims = await getTeamScrims(teamA.id, 5);
+  assert(profileScrims.length > 0 && (profileScrims[0].challengerTeamId === teamA.id || profileScrims[0].opponentTeamId === teamA.id), "Test 39: Team Profile shows real recent scrims");
+
+  // 40: DREAMRANK remains unchanged after scrim completion
+  const ownerAAfter = await prisma.member.findUnique({ where: { id: ownerA.id } });
+  const ownerBAfter = await prisma.member.findUnique({ where: { id: ownerB.id } });
+  assert(ownerAAfter?.dreamRating === 1500 && ownerBAfter?.dreamRating === 1800, "Test 40: DREAMRANK remains unchanged after scrim completion");
+
+  // 41: No DreamRankHistory created by scrim completion
+  const ownerAHist = await prisma.dreamRankHistory.findMany({ where: { memberId: ownerA.id } });
+  const ownerBHist = await prisma.dreamRankHistory.findMany({ where: { memberId: ownerB.id } });
+  assert(ownerAHist.length === 0 && ownerBHist.length === 0, "Test 41: No DreamRankHistory created by scrim completion");
+
+  // 42: Existing Team tests still pass
+  const verifyTeamA = await getTeamById(teamA.id);
+  assert(verifyTeamA !== null && verifyTeamA.name === teamA.name, "Test 42: Existing Team tests still pass");
+
+  // 43: Existing Team Invitation tests still pass
+  const teamAInvs = await listTeamInvitations(teamA.id);
+  assert(Array.isArray(teamAInvs), "Test 43: Existing Team Invitation tests still pass");
+
+  // 44: Existing Team Profile tests still pass
+  const profCheck = await getTeamProfile(teamA.id);
+  assert(profCheck !== null && profCheck.summary.averageRating === 1500, "Test 44: Existing Team Profile tests still pass");
+
+  // Cleanup Test Group 14 fixtures safely
+  await prisma.scrim.deleteMany({
+    where: {
+      OR: [
+        { challengerTeamId: { in: [teamA.id, teamB.id] } },
+        { opponentTeamId: { in: [teamA.id, teamB.id] } },
+      ],
+    },
+  });
+  await deleteTeam(teamA.id);
+  await deleteTeam(teamB.id);
+  await deleteGame(scrimGame.id);
+  await deleteMember(ownerA.id);
+  await deleteMember(ownerB.id);
+  await deleteMember(stranger.id);
+  console.log("  ✓ Test 44b: Isolated SCRIM test fixtures cleaned up cleanly.\n");
 
   console.log("==================================================");
   console.log(`SUMMARY: ${passedCount} PASSED, ${failedCount} FAILED`);

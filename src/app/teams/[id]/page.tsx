@@ -3,7 +3,7 @@
 import React, { useState, useEffect, use, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { TeamSummaryDTO, TeamMemberDTO, MemberItem, TeamInvitationDTO } from "@/lib/types";
+import { TeamSummaryDTO, TeamMemberDTO, MemberItem, TeamInvitationDTO, ScrimItem } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
@@ -29,6 +29,7 @@ import {
   X,
   Gamepad2,
   Clock,
+  Swords,
 } from "lucide-react";
 import { formatDateTime } from "@/lib/formatters";
 
@@ -57,6 +58,7 @@ export default function TeamDetailPage({
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
   const [invitations, setInvitations] = useState<TeamInvitationDTO[]>([]);
+  const [teamScrims, setTeamScrims] = useState<ScrimItem[]>([]);
   const [selectedMember, setSelectedMember] = useState<TeamMemberDTO | null>(null);
   const [newMemberId, setNewMemberId] = useState("");
   const [inviteMemberId, setInviteMemberId] = useState("");
@@ -76,9 +78,10 @@ export default function TeamDetailPage({
   const fetchTeamSummary = useCallback(async () => {
     try {
       setErrorMessage(null);
-      const [sumRes, invRes] = await Promise.all([
+      const [sumRes, invRes, scrimsRes] = await Promise.all([
         fetch(`/api/teams/${teamId}/summary`),
         fetch(`/api/teams/${teamId}/invitations`),
+        fetch(`/api/teams/${teamId}/scrims?limit=5`),
       ]);
       const json = await sumRes.json();
       if (!sumRes.ok || !json.success) {
@@ -95,6 +98,13 @@ export default function TeamDetailPage({
         const invJson = await invRes.json();
         if (invJson.success) {
           setInvitations(invJson.data);
+        }
+      }
+
+      if (scrimsRes.ok) {
+        const scrimsJson = await scrimsRes.json();
+        if (scrimsJson.success) {
+          setTeamScrims(scrimsJson.data);
         }
       }
     } catch (err: unknown) {
@@ -958,6 +968,144 @@ export default function TeamDetailPage({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Recent Scrims Section (Phase 1 Scrim Integration) */}
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-3.5 bg-rose-500 persona-slash rounded-[1px]"></div>
+            <div>
+              <h2 className="text-xs font-mono font-bold tracking-wider text-text-primary uppercase flex items-center gap-2">
+                <Swords className="w-3.5 h-3.5 text-rose-400" />
+                <span>Riwayat & Jadwal Scrim Terkini</span>
+                <span className="text-[10px] px-1.5 py-0.2 bg-surface-dark border border-surface-border text-text-muted font-mono rounded">
+                  {teamScrims.length} Terdata
+                </span>
+              </h2>
+              <p className="text-[11px] text-text-secondary mt-0.5">
+                Pertandingan sparring dan rekap match antar tim esports.
+              </p>
+            </div>
+          </div>
+
+          <Link href="/scrims">
+            <Button variant="outline" size="sm" className="h-7 text-xs flex items-center gap-1.5">
+              <span>Ke Jadwal Scrim</span>
+            </Button>
+          </Link>
+        </div>
+
+        {teamScrims.length === 0 ? (
+          <div className="p-6 text-center bg-surface-card border border-surface-border rounded-[4px]">
+            <p className="text-xs text-text-muted font-mono">Belum ada riwayat scrim.</p>
+          </div>
+        ) : (
+          <div className="bg-surface-card border border-surface-border rounded-[4px] overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-surface-dark border-b border-surface-border text-text-muted uppercase font-mono text-[10px]">
+                  <tr>
+                    <th className="px-4 py-2.5">Lawan (Opponent)</th>
+                    <th className="px-4 py-2.5">Game</th>
+                    <th className="px-4 py-2.5">Format</th>
+                    <th className="px-4 py-2.5">Jadwal / Waktu</th>
+                    <th className="px-4 py-2.5">Status</th>
+                    <th className="px-4 py-2.5">Hasil Match</th>
+                    <th className="px-4 py-2.5 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-surface-border">
+                  {teamScrims.map((scrim) => {
+                    const isChallenger = scrim.challengerTeamId === teamId;
+                    const opponent = isChallenger ? scrim.opponentTeam : scrim.challengerTeam;
+
+                    let outcomeText = "-";
+                    let outcomeBadgeClass = "text-text-muted";
+                    if (scrim.status === "COMPLETED") {
+                      if (scrim.result === "DRAW") {
+                        outcomeText = "SERI (DRAW)";
+                        outcomeBadgeClass = "text-amber-400 bg-amber-950/40 border-amber-800/40";
+                      } else if (scrim.result === "NO_CONTEST") {
+                        outcomeText = "NO CONTEST";
+                        outcomeBadgeClass = "text-text-muted bg-surface-dark border-surface-border";
+                      } else {
+                        const won = scrim.winnerTeamId === teamId;
+                        outcomeText = won ? "MENANG" : "KALAH";
+                        outcomeBadgeClass = won
+                          ? "text-emerald-400 bg-emerald-950/40 border-emerald-800/40 font-bold"
+                          : "text-rose-400 bg-rose-950/40 border-rose-800/40";
+                      }
+                    }
+
+                    return (
+                      <tr key={scrim.id} className="hover:bg-surface-hover transition-colors">
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-1.5 font-bold">
+                            <span className="font-mono text-persona-blue">#{opponent.tag}</span>
+                            <span className="text-text-primary">{opponent.name}</span>
+                          </div>
+                          <div className="text-[10px] text-text-muted font-mono">
+                            {isChallenger ? "Tantangan Keluar" : "Tantangan Masuk"}
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-2.5">
+                          <span className="font-bold text-text-primary block">{scrim.game.title}</span>
+                          <span className="text-[10px] text-text-muted font-mono">{scrim.game.genre}</span>
+                        </td>
+
+                        <td className="px-4 py-2.5 font-mono text-text-secondary">
+                          BO{scrim.bestOf}
+                        </td>
+
+                        <td className="px-4 py-2.5 font-mono text-[11px] text-text-secondary">
+                          {formatDateTime(scrim.scheduledAt)}
+                        </td>
+
+                        <td className="px-4 py-2.5">
+                          <span
+                            className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
+                              scrim.status === "LIVE"
+                                ? "bg-rose-950/50 text-rose-400 border-rose-800/50 animate-pulse"
+                                : scrim.status === "SCHEDULED" || scrim.status === "ACCEPTED"
+                                ? "bg-persona-blue/10 text-persona-blue border-persona-blue/30"
+                                : scrim.status === "PENDING"
+                                ? "bg-amber-950/40 text-amber-400 border-amber-800/40"
+                                : scrim.status === "COMPLETED"
+                                ? "bg-emerald-950/40 text-emerald-400 border-emerald-800/40"
+                                : "bg-surface-dark text-text-muted border-surface-border"
+                            }`}
+                          >
+                            {scrim.status}
+                          </span>
+                        </td>
+
+                        <td className="px-4 py-2.5">
+                          {outcomeText !== "-" ? (
+                            <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${outcomeBadgeClass}`}>
+                              {outcomeText}
+                            </span>
+                          ) : (
+                            <span className="text-text-muted font-mono text-[10px]">-</span>
+                          )}
+                        </td>
+
+                        <td className="px-4 py-2.5 text-right">
+                          <Link href={`/scrims/${scrim.id}`}>
+                            <Button variant="outline" size="sm" className="h-6 text-[10px] px-2">
+                              Lihat Match
+                            </Button>
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Invite Member Modal */}

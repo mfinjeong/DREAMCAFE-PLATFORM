@@ -264,3 +264,41 @@ export const respondTeamInvitationSchema = z.object({
   actorMemberId: z.string().trim().min(1, "ID member wajib diisi"),
 });
 
+// ==========================================
+// SCRIM VALIDATION SCHEMAS
+// ==========================================
+
+export const createScrimSchema = z.object({
+  challengerTeamId: z.string().trim().min(1, "Challenger team ID wajib diisi"),
+  opponentTeamId: z.string().trim().min(1, "Opponent team ID wajib diisi"),
+  gameId: z.string().trim().min(1, "Game ID wajib diisi"),
+  scheduledAt: z.string().trim().min(1, "Jadwal scrim wajib diisi"),
+  bestOf: z.coerce.number().int().refine((val) => [1, 3, 5].includes(val), {
+    message: "Format Best of hanya boleh 1, 3, atau 5",
+  }).default(1),
+  note: z.string().trim().max(500, "Catatan maksimal 500 karakter").optional().nullable(),
+  createdById: z.string().trim().min(1, "Creator member ID wajib diisi").optional(),
+});
+
+export const scrimActionSchema = z.object({
+  actorMemberId: z.string().trim().min(1, "Actor member ID wajib diisi"),
+});
+
+export const completeScrimSchema = z.object({
+  actorMemberId: z.string().trim().min(1, "Actor member ID wajib diisi"),
+  result: z.enum(["TEAM_A_WIN", "TEAM_B_WIN", "DRAW", "NO_CONTEST"], {
+    errorMap: () => ({ message: "Hasil scrim harus TEAM_A_WIN, TEAM_B_WIN, DRAW, atau NO_CONTEST" }),
+  }),
+});
+
+export const scrimQuerySchema = z.object({
+  status: z
+    .enum(["ALL", "PENDING", "ACCEPTED", "REJECTED", "SCHEDULED", "LIVE", "COMPLETED", "CANCELLED"])
+    .optional()
+    .default("ALL"),
+  gameId: z.string().trim().optional(),
+  teamId: z.string().trim().optional(),
+  q: z.string().trim().optional(),
+});
+
+

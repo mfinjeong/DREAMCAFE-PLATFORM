@@ -278,7 +278,7 @@ export async function startSession(data: StartSessionInput) {
     }
 
     return session;
-  });
+  }, { maxWait: 15000, timeout: 30000 });
 }
 
 export async function addSessionTime(sessionId: string, additionalMinutes: number) {
@@ -364,7 +364,7 @@ export async function stopSession(sessionId: string) {
     }
 
     return updatedSession;
-  }).then(async (updatedSession) => {
+  }, { maxWait: 15000, timeout: 30000 }).then(async (updatedSession) => {
     // Record server-authoritative session completion, XP, and game stats
     await recordSessionCompletion(sessionId);
     return updatedSession;
@@ -585,7 +585,7 @@ export async function checkoutSession(data: CheckoutSessionInput) {
       cashReceived: data.cashReceived,
       cashChange,
     };
-  }).then(async (result) => {
+  }, { maxWait: 15000, timeout: 30000 }).then(async (result) => {
     // Record server-authoritative session completion, XP, and game stats
     await recordSessionCompletion(session.id);
     return result;
