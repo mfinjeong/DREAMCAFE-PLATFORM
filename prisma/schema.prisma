@@ -133,6 +133,23 @@ enum ScrimResult {
   NO_CONTEST
 }
 
+enum CompetitiveMatchStatus {
+  PENDING
+  SCHEDULED
+  LIVE
+  RESULT_PENDING
+  VERIFIED
+  DISPUTED
+  CANCELLED
+}
+
+enum CompetitiveMatchResult {
+  TEAM_A_WIN
+  TEAM_B_WIN
+  DRAW
+  NO_CONTEST
+}
+
 model User {
   id           String   @id @default(cuid())
   username     String   @unique
@@ -173,6 +190,9 @@ model Member {
   receivedInvitations TeamInvitation[]   @relation("MemberInvitations")
   sentInvitations     TeamInvitation[]   @relation("SentInvitations")
   createdScrims       Scrim[]            @relation("CreatedScrims")
+  createdCompetitiveMatches CompetitiveMatch[] @relation("CreatedCompetitiveMatches")
+  competitiveParticipations CompetitiveMatchParticipant[]
+  submittedMatchResults     CompetitiveMatchResultSubmission[]
   gameStats           MemberGameStat[]
   rankHistory         DreamRankHistory[]
 
@@ -407,6 +427,7 @@ model Game {
   sessions           Session[]
   memberStats        MemberGameStat[]
   scrims             Scrim[]
+  competitiveMatches CompetitiveMatch[]
 
   @@index([genre])
   @@index([isActive])
@@ -486,6 +507,11 @@ model Team {
   challengerScrims Scrim[]          @relation("ChallengerScrims")
   opponentScrims   Scrim[]          @relation("OpponentScrims")
   wonScrims        Scrim[]          @relation("WonScrims")
+  competitiveMatchesAsTeamA CompetitiveMatch[] @relation("CompetitiveTeamA")
+  competitiveMatchesAsTeamB CompetitiveMatch[] @relation("CompetitiveTeamB")
+  competitiveWonMatches     CompetitiveMatch[] @relation("CompetitiveWinner")
+  competitiveParticipations CompetitiveMatchParticipant[]
+  submittedMatchResults     CompetitiveMatchResultSubmission[] @relation("ResultSubmittedByTeam")
 
   @@index([ownerId])
   @@index([tag])
@@ -562,6 +588,7 @@ model Scrim {
   winnerTeam       Team?        @relation("WonScrims", fields: [winnerTeamId], references: [id], onDelete: SetNull)
   game             Game         @relation(fields: [gameId], references: [id], onDelete: Restrict)
   createdBy        Member       @relation("CreatedScrims", fields: [createdById], references: [id], onDelete: Cascade)
+  derivedCompetitiveMatches CompetitiveMatch[]
 
   @@index([challengerTeamId])
   @@index([opponentTeamId])
@@ -570,6 +597,90 @@ model Scrim {
   @@index([scheduledAt])
   @@index([createdById])
   @@index([winnerTeamId])
+}
+
+model CompetitiveMatch {
+  id               String                  @id @default(cuid())
+  teamAId          String
+  teamBId          String
+  gameId           String
+  scheduledAt      DateTime
+  bestOf           Int                     @default(1)
+  status           CompetitiveMatchStatus  @default(PENDING)
+
+  result           CompetitiveMatchResult?
+  winnerTeamId     String?
+
+  createdById      String
+
+  sourceScrimId    String?
+
+  note             String?
+
+  startedAt        DateTime?
+  completedAt      DateTime?
+
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  teamA            Team                    @relation("CompetitiveTeamA", fields: [teamAId], references: [id], onDelete: Cascade)
+  teamB            Team                    @relation("CompetitiveTeamB", fields: [teamBId], references: [id], onDelete: Cascade)
+  winnerTeam       Team?                   @relation("CompetitiveWinner", fields: [winnerTeamId], references: [id], onDelete: SetNull)
+
+  game             Game                    @relation(fields: [gameId], references: [id], onDelete: Restrict)
+  createdBy        Member                  @relation("CreatedCompetitiveMatches", fields: [createdById], references: [id], onDelete: Cascade)
+
+  sourceScrim      Scrim?                  @relation(fields: [sourceScrimId], references: [id], onDelete: SetNull)
+
+  participants     CompetitiveMatchParticipant[]
+  submissions      CompetitiveMatchResultSubmission[]
+
+  @@index([teamAId])
+  @@index([teamBId])
+  @@index([gameId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([sourceScrimId])
+  @@index([winnerTeamId])
+  @@index([createdById])
+}
+
+model CompetitiveMatchParticipant {
+  id        String   @id @default(cuid())
+  matchId   String
+  teamId    String
+  memberId  String
+
+  createdAt DateTime @default(now())
+
+  match     CompetitiveMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  team      Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  member    Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, memberId])
+  @@index([matchId])
+  @@index([teamId])
+  @@index([memberId])
+}
+
+model CompetitiveMatchResultSubmission {
+  id                String                   @id @default(cuid())
+  matchId           String
+  submittedByTeamId String
+  submittedById     String
+  result            CompetitiveMatchResult
+  note              String?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  match           CompetitiveMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  submittedByTeam Team             @relation("ResultSubmittedByTeam", fields: [submittedByTeamId], references: [id], onDelete: Cascade)
+  submittedBy     Member           @relation(fields: [submittedById], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, submittedByTeamId])
+  @@index([matchId])
+  @@index([submittedByTeamId])
+  @@index([submittedById])
 }
 
 model Maintenance {

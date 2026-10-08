@@ -1,5 +1,5 @@
 import { prisma } from "../src/lib/prisma";
-import { PCStatus, ConsoleStatus, ConsoleType, SessionStatus, PaymentStatus, PaymentMethod, BookingStatus, InventoryAction, DreamRank, TeamMemberRole, TeamInvitationStatus, ScrimStatus, ScrimResult } from "@prisma/client";
+import { PCStatus, ConsoleStatus, ConsoleType, SessionStatus, PaymentStatus, PaymentMethod, BookingStatus, InventoryAction, DreamRank, TeamMemberRole, TeamInvitationStatus, ScrimStatus, ScrimResult, CompetitiveMatchStatus, CompetitiveMatchResult } from "@prisma/client";
 import { listPCs, getPCById, updatePCStatus } from "../src/services/pc.service";
 import { listConsoles, getConsoleById, createConsole, updateConsole, updateConsoleStatus, deleteConsole } from "../src/services/console.service";
 import { listMembers, getMemberById, createMember, updateMember, deleteMember, searchMembers } from "../src/services/member.service";
@@ -91,6 +91,19 @@ import {
   startScrim,
   completeScrim,
 } from "../src/services/scrim.service";
+import {
+  createCompetitiveMatch,
+  scheduleCompetitiveMatch,
+  registerMatchParticipants,
+  startCompetitiveMatch,
+  submitMatchResult,
+  verifyMatchDirectly,
+  disputeMatch,
+  cancelCompetitiveMatch,
+  getCompetitiveMatchById,
+  listCompetitiveMatches,
+  getTeamCompetitiveMatches,
+} from "../src/services/competitive-match.service";
 
 let passedCount = 0;
 let failedCount = 0;
@@ -2941,6 +2954,445 @@ async function runTests() {
   await deleteMember(ownerB.id);
   await deleteMember(stranger.id);
   console.log("  ✓ Test 44b: Isolated SCRIM test fixtures cleaned up cleanly.\n");
+
+  // ===================================================================
+  // TEST GROUP 15: COMPETITIVE MATCH SYSTEM (PHASE 1)
+  // ===================================================================
+  console.log("==================================================");
+  console.log("TEST GROUP 15: COMPETITIVE MATCH SYSTEM (PHASE 1)");
+  console.log("==================================================");
+
+  const cmSuffix = Math.floor(Math.random() * 9000 + 1000);
+  const cmOwnerA = await createMember({
+    fullName: `CM Owner A ${cmSuffix}`,
+    notes: "Isolated CM Owner A",
+  });
+  const cmOwnerB = await createMember({
+    fullName: `CM Owner B ${cmSuffix}`,
+    notes: "Isolated CM Owner B",
+  });
+  const cmMemberA1 = await createMember({
+    fullName: `CM Roster A1 ${cmSuffix}`,
+    notes: "Isolated CM Roster A1",
+  });
+  const cmMemberB1 = await createMember({
+    fullName: `CM Roster B1 ${cmSuffix}`,
+    notes: "Isolated CM Roster B1",
+  });
+  const cmStranger = await createMember({
+    fullName: `CM Stranger ${cmSuffix}`,
+    notes: "Isolated CM Stranger",
+  });
+
+  const cmTeamA = await createTeam({
+    name: `Apex Legion CM ${cmSuffix}`,
+    tag: `AL${String(cmSuffix).slice(0, 3)}`,
+    ownerId: cmOwnerA.id,
+  });
+  await addTeamMember(cmTeamA.id, { memberId: cmMemberA1.id });
+
+  const cmTeamB = await createTeam({
+    name: `Nova Vanguard CM ${cmSuffix}`,
+    tag: `NV${String(cmSuffix).slice(0, 3)}`,
+    ownerId: cmOwnerB.id,
+  });
+  await addTeamMember(cmTeamB.id, { memberId: cmMemberB1.id });
+
+  assert(cmTeamA !== null && cmTeamA.name.includes("Apex Legion"), "Test 1: Create isolated Team A");
+  assert(cmTeamB !== null && cmTeamB.name.includes("Nova Vanguard"), "Test 2: Create isolated Team B");
+
+  const cmGame = await createGame({
+    title: `Valorant Pro League ${cmSuffix}`,
+    genre: "TACTICAL_FPS",
+    publisher: "Riot Games",
+    isActive: true,
+  });
+  assert(cmGame !== null && cmGame.isActive === true, "Test 3: Use an existing active Game");
+
+  const cmScheduleTime = new Date(Date.now() + 7200000).toISOString();
+
+  // 4-8: Create competitive match successfully
+  const match1 = await createCompetitiveMatch({
+    teamAId: cmTeamA.id,
+    teamBId: cmTeamB.id,
+    gameId: cmGame.id,
+    scheduledAt: cmScheduleTime,
+    bestOf: 3,
+    note: "Official match qualification group stage",
+    actorMemberId: cmOwnerA.id,
+    teamAParticipantMemberIds: [cmOwnerA.id, cmMemberA1.id],
+    teamBParticipantMemberIds: [cmOwnerB.id, cmMemberB1.id],
+  });
+
+  assert(match1 !== null && match1.id.length > 0, "Test 4: Create competitive match successfully");
+  assert(match1.status === CompetitiveMatchStatus.PENDING, "Test 5: Status starts PENDING");
+  assert(match1.teamA.id === cmTeamA.id && match1.teamA.name === cmTeamA.name, "Test 6: Team A correct");
+  assert(match1.teamB.id === cmTeamB.id && match1.teamB.name === cmTeamB.name, "Test 7: Team B correct");
+  assert(match1.game.id === cmGame.id && match1.game.title === cmGame.title, "Test 8: Game correct");
+  assert(match1.bestOf === 3, "Test 9: BestOf validation (BO3 allowed)");
+
+  // 10: Prevent same-team match
+  let sameTeamBlocked = false;
+  try {
+    await createCompetitiveMatch({
+      teamAId: cmTeamA.id,
+      teamBId: cmTeamA.id,
+      gameId: cmGame.id,
+      scheduledAt: cmScheduleTime,
+      actorMemberId: cmOwnerA.id,
+    });
+  } catch (err: unknown) {
+    sameTeamBlocked = err instanceof Error && err.message.includes("tidak boleh sama");
+  }
+  assert(sameTeamBlocked === true, "Test 10: Prevent same-team competitive match");
+
+  // 11: Prevent non-owner creation
+  let nonOwnerBlocked = false;
+  try {
+    await createCompetitiveMatch({
+      teamAId: cmTeamA.id,
+      teamBId: cmTeamB.id,
+      gameId: cmGame.id,
+      scheduledAt: cmScheduleTime,
+      actorMemberId: cmStranger.id,
+    });
+  } catch (err: unknown) {
+    nonOwnerBlocked = err instanceof Error && err.message.includes("Hanya owner");
+  }
+  assert(nonOwnerBlocked === true, "Test 11: Prevent non-owner creation");
+
+  // 12: Prevent invalid/inactive game
+  const inactiveGame = await createGame({
+    title: `Inactive Shooter ${cmSuffix}`,
+    genre: "FPS",
+    publisher: "Test",
+    isActive: false,
+  });
+  let inactiveGameBlocked = false;
+  try {
+    await createCompetitiveMatch({
+      teamAId: cmTeamA.id,
+      teamBId: cmTeamB.id,
+      gameId: inactiveGame.id,
+      scheduledAt: cmScheduleTime,
+      actorMemberId: cmOwnerA.id,
+    });
+  } catch (err: unknown) {
+    inactiveGameBlocked = err instanceof Error && err.message.includes("tidak aktif");
+  }
+  assert(inactiveGameBlocked === true, "Test 12: Prevent invalid/inactive game");
+  await deleteGame(inactiveGame.id);
+
+  // 13: Roster participants registered correctly
+  assert(match1.participants.length === 4, "Test 13: Roster participants registered correctly (4)");
+
+  // 14: Participant must belong to team roster
+  let nonMemberParticipantBlocked = false;
+  try {
+    await registerMatchParticipants(match1.id, {
+      actorMemberId: cmOwnerA.id,
+      teamId: cmTeamA.id,
+      memberIds: [cmStranger.id],
+    });
+  } catch (err: unknown) {
+    nonMemberParticipantBlocked = err instanceof Error && err.message.includes("bukan anggota");
+  }
+  assert(nonMemberParticipantBlocked === true, "Test 14: Participant must belong to team roster");
+
+  // 15: Non-owner cannot register team roster
+  let nonOwnerRosterBlocked = false;
+  try {
+    await registerMatchParticipants(match1.id, {
+      actorMemberId: cmStranger.id,
+      teamId: cmTeamA.id,
+      memberIds: [cmOwnerA.id],
+    });
+  } catch (err: unknown) {
+    nonOwnerRosterBlocked = err instanceof Error && err.message.includes("Hanya owner");
+  }
+  assert(nonOwnerRosterBlocked === true, "Test 15: Non-owner cannot register team roster");
+
+  // 16: Schedule/accept match by Team B owner -> SCHEDULED
+  const scheduledMatch = await scheduleCompetitiveMatch(match1.id, cmOwnerB.id);
+  assert(scheduledMatch.status === CompetitiveMatchStatus.SCHEDULED, "Test 16: Opponent can schedule/accept match -> SCHEDULED");
+
+  // 17: Unauthorized actor cannot schedule match
+  let strangerScheduleBlocked = false;
+  try {
+    await scheduleCompetitiveMatch(match1.id, cmStranger.id);
+  } catch (err: unknown) {
+    strangerScheduleBlocked = true;
+  }
+  assert(strangerScheduleBlocked === true, "Test 17: Unauthorized actor cannot schedule match");
+
+  // 18: Prevent starting from unauthorized actor
+  let strangerStartBlocked = false;
+  try {
+    await startCompetitiveMatch(match1.id, cmStranger.id);
+  } catch (err: unknown) {
+    strangerStartBlocked = err instanceof Error && err.message.includes("Hanya owner");
+  }
+  assert(strangerStartBlocked === true, "Test 18: Prevent starting from unauthorized actor");
+
+  // 19-20: Start scheduled match -> LIVE, startedAt populated
+  const liveMatch = await startCompetitiveMatch(match1.id, cmOwnerA.id);
+  assert(liveMatch.status === CompetitiveMatchStatus.LIVE, "Test 19: Start scheduled match -> LIVE");
+  assert(liveMatch.startedAt !== null, "Test 20: startedAt populated");
+
+  // 21: Team A submits result TEAM_A_WIN -> RESULT_PENDING
+  const subPendingMatch = await submitMatchResult(match1.id, {
+    actorMemberId: cmOwnerA.id,
+    result: "TEAM_A_WIN",
+    note: "Match score 2-0 for Team A",
+  });
+  assert(subPendingMatch.status === CompetitiveMatchStatus.RESULT_PENDING, "Test 21: Team A submits result -> RESULT_PENDING");
+  assert(subPendingMatch.submissions.length === 1, "Test 22: First submission recorded");
+
+  // 23-26: Team B submits matching result TEAM_A_WIN -> auto-transitions to VERIFIED
+  const verifiedMatch = await submitMatchResult(match1.id, {
+    actorMemberId: cmOwnerB.id,
+    result: "TEAM_A_WIN",
+    note: "Confirmed loss 0-2",
+  });
+  assert(verifiedMatch.status === CompetitiveMatchStatus.VERIFIED, "Test 23: Matching result auto-transitions to VERIFIED");
+  assert(verifiedMatch.completedAt !== null, "Test 24: completedAt populated");
+  assert(verifiedMatch.winnerTeamId === cmTeamA.id, "Test 25: Winner is Team A");
+  assert(verifiedMatch.result === CompetitiveMatchResult.TEAM_A_WIN, "Test 26: Result persists as TEAM_A_WIN");
+
+  // 27-29: Conflicting submission path -> DISPUTED
+  const match2 = await createCompetitiveMatch({
+    teamAId: cmTeamA.id,
+    teamBId: cmTeamB.id,
+    gameId: cmGame.id,
+    scheduledAt: cmScheduleTime,
+    bestOf: 1,
+    actorMemberId: cmOwnerA.id,
+  });
+  await scheduleCompetitiveMatch(match2.id, cmOwnerB.id);
+  await startCompetitiveMatch(match2.id, cmOwnerA.id);
+
+  // Team A submits TEAM_A_WIN
+  await submitMatchResult(match2.id, {
+    actorMemberId: cmOwnerA.id,
+    result: "TEAM_A_WIN",
+  });
+  // Team B submits conflicting TEAM_B_WIN
+  const disputedMatch = await submitMatchResult(match2.id, {
+    actorMemberId: cmOwnerB.id,
+    result: "TEAM_B_WIN",
+  });
+  assert(disputedMatch.status === CompetitiveMatchStatus.DISPUTED, "Test 27: Conflicting submissions transition to DISPUTED");
+  assert(disputedMatch.winnerTeamId === null, "Test 28: Disputed match has winnerTeamId null");
+  assert(disputedMatch.isDisputed === true, "Test 29: isDisputed flag set to true");
+
+  // 30: Direct verification of disputed match (verifyMatchDirectly) -> VERIFIED
+  const resolvedMatch = await verifyMatchDirectly(match2.id, {
+    actorMemberId: cmOwnerA.id,
+    result: "TEAM_B_WIN",
+    note: "Arbitrated after review",
+  });
+  assert(resolvedMatch.status === CompetitiveMatchStatus.VERIFIED, "Test 30: Direct verification of disputed match succeeds");
+  assert(resolvedMatch.winnerTeamId === cmTeamB.id, "Test 31: TEAM_B_WIN outcome sets Team B as winner");
+
+  // 32: DRAW outcome path
+  const matchDraw = await createCompetitiveMatch({
+    teamAId: cmTeamA.id,
+    teamBId: cmTeamB.id,
+    gameId: cmGame.id,
+    scheduledAt: cmScheduleTime,
+    bestOf: 1,
+    actorMemberId: cmOwnerA.id,
+  });
+  await scheduleCompetitiveMatch(matchDraw.id, cmOwnerB.id);
+  await startCompetitiveMatch(matchDraw.id, cmOwnerA.id);
+  const verifiedDraw = await verifyMatchDirectly(matchDraw.id, {
+    actorMemberId: cmOwnerA.id,
+    result: "DRAW",
+  });
+  assert(verifiedDraw.result === CompetitiveMatchResult.DRAW && verifiedDraw.winnerTeamId === null, "Test 32: DRAW outcome has winnerTeamId null");
+
+  // 33: NO_CONTEST outcome path
+  const matchNC = await createCompetitiveMatch({
+    teamAId: cmTeamA.id,
+    teamBId: cmTeamB.id,
+    gameId: cmGame.id,
+    scheduledAt: cmScheduleTime,
+    bestOf: 1,
+    actorMemberId: cmOwnerA.id,
+  });
+  await scheduleCompetitiveMatch(matchNC.id, cmOwnerB.id);
+  await startCompetitiveMatch(matchNC.id, cmOwnerA.id);
+  const verifiedNC = await verifyMatchDirectly(matchNC.id, {
+    actorMemberId: cmOwnerA.id,
+    result: "NO_CONTEST",
+  });
+  assert(verifiedNC.result === CompetitiveMatchResult.NO_CONTEST && verifiedNC.winnerTeamId === null, "Test 33: NO_CONTEST outcome has winnerTeamId null");
+
+  // 34: Dispute filing workflow (disputeMatch)
+  const matchToDispute = await createCompetitiveMatch({
+    teamAId: cmTeamA.id,
+    teamBId: cmTeamB.id,
+    gameId: cmGame.id,
+    scheduledAt: cmScheduleTime,
+    bestOf: 1,
+    actorMemberId: cmOwnerA.id,
+  });
+  await scheduleCompetitiveMatch(matchToDispute.id, cmOwnerB.id);
+  await startCompetitiveMatch(matchToDispute.id, cmOwnerA.id);
+  const filedDispute = await disputeMatch(matchToDispute.id, {
+    actorMemberId: cmOwnerB.id,
+    reason: "Player disconnected during round 3",
+  });
+  assert(filedDispute.status === CompetitiveMatchStatus.DISPUTED, "Test 34: Explicit dispute filing sets status to DISPUTED");
+
+  // Duplicate active match blocked while an unresolved DISPUTED match exists
+  let dupActiveBlocked = false;
+  try {
+    await createCompetitiveMatch({
+      teamAId: cmTeamA.id,
+      teamBId: cmTeamB.id,
+      gameId: cmGame.id,
+      scheduledAt: cmScheduleTime,
+      actorMemberId: cmOwnerA.id,
+    });
+  } catch (err: unknown) {
+    dupActiveBlocked = err instanceof Error && err.message.includes("Sudah ada pertandingan");
+  }
+  assert(dupActiveBlocked === true, "Test 34b: Duplicate active match blocked while unresolved match exists");
+
+  // Selesaikan dispute match ini agar match berikutnya dapat dibuat
+  await verifyMatchDirectly(matchToDispute.id, {
+    actorMemberId: cmOwnerA.id,
+    result: "DRAW",
+    note: "Dispute settled as draw",
+  });
+
+  // 35: Cancel match workflow
+  const matchToCancel = await createCompetitiveMatch({
+    teamAId: cmTeamA.id,
+    teamBId: cmTeamB.id,
+    gameId: cmGame.id,
+    scheduledAt: cmScheduleTime,
+    bestOf: 1,
+    actorMemberId: cmOwnerA.id,
+  });
+  const cancelledMatch = await cancelCompetitiveMatch(matchToCancel.id, cmOwnerA.id);
+  assert(cancelledMatch.status === CompetitiveMatchStatus.CANCELLED, "Test 35: Cancel match sets status to CANCELLED");
+
+  // 36: Cannot start verified match
+  let startVerifiedBlocked = false;
+  try {
+    await startCompetitiveMatch(match1.id, cmOwnerA.id);
+  } catch (err: unknown) {
+    startVerifiedBlocked = true;
+  }
+  assert(startVerifiedBlocked === true, "Test 36: Cannot start verified match");
+
+  // 37: Cannot start cancelled match
+  let startCancelledBlocked = false;
+  try {
+    await startCompetitiveMatch(matchToCancel.id, cmOwnerA.id);
+  } catch (err: unknown) {
+    startCancelledBlocked = true;
+  }
+  assert(startCancelledBlocked === true, "Test 37: Cannot start cancelled match");
+
+  // 38: Cannot cancel verified match
+  let cancelVerifiedBlocked = false;
+  try {
+    await cancelCompetitiveMatch(match1.id, cmOwnerA.id);
+  } catch (err: unknown) {
+    cancelVerifiedBlocked = true;
+  }
+  assert(cancelVerifiedBlocked === true, "Test 38: Cannot cancel verified match");
+
+  // 39: Source scrim linkage (sourceScrimId)
+  const linkScrim = await createScrim({
+    challengerTeamId: cmTeamA.id,
+    opponentTeamId: cmTeamB.id,
+    gameId: cmGame.id,
+    scheduledAt: cmScheduleTime,
+    actorMemberId: cmOwnerA.id,
+  });
+  const linkedMatch = await createCompetitiveMatch({
+    teamAId: cmTeamA.id,
+    teamBId: cmTeamB.id,
+    gameId: cmGame.id,
+    scheduledAt: cmScheduleTime,
+    sourceScrimId: linkScrim.id,
+    actorMemberId: cmOwnerA.id,
+  });
+  assert(linkedMatch.sourceScrimId === linkScrim.id, "Test 39: Source scrim linkage (sourceScrimId) persists");
+
+  // 40: Team competitive match history query works
+  const teamAMatches = await getTeamCompetitiveMatches(cmTeamA.id);
+  assert(Array.isArray(teamAMatches) && teamAMatches.length >= 2, "Test 40: Team competitive match history query works");
+
+  // 41: Match list filters work
+  const verifiedList = await listCompetitiveMatches({ status: "VERIFIED" });
+  assert(verifiedList.every((m) => m.status === "VERIFIED"), "Test 41: Match list filters work");
+
+  // 42: Scrim and Competitive Match distinction verified
+  const scrimsForA = await getTeamScrims(cmTeamA.id);
+  assert(scrimsForA.some((s) => s.id === linkScrim.id), "Test 42: Scrim and Competitive Match separate query spaces");
+
+  // 43: DREAMRANK remains unchanged after competitive match verification
+  const checkOwnerA = await getMemberById(cmOwnerA.id);
+  const checkOwnerB = await getMemberById(cmOwnerB.id);
+  assert(checkOwnerA?.dreamRating === 0, "Test 43: DREAMRANK remains unchanged after competitive match verification (Owner A)");
+  assert(checkOwnerB?.dreamRating === 0, "Test 44: DREAMRANK remains unchanged after competitive match verification (Owner B)");
+
+  // 45: No DreamRankHistory created by competitive match verification
+  const histA = await prisma.dreamRankHistory.findMany({ where: { memberId: cmOwnerA.id } });
+  const histB = await prisma.dreamRankHistory.findMany({ where: { memberId: cmOwnerB.id } });
+  assert(histA.length === 0 && histB.length === 0, "Test 45: No DreamRankHistory created by competitive match verification");
+
+  // 46: Existing Team Profile still works
+  const profA = await getTeamProfile(cmTeamA.id);
+  assert(profA !== null && profA.team.name === cmTeamA.name, "Test 46: Existing Team Profile still works");
+
+  // 47: Existing Team Invitations still work
+  const invsA = await listTeamInvitations(cmTeamA.id);
+  assert(Array.isArray(invsA), "Test 47: Existing Team Invitations still work");
+
+  // Cleanup Test Group 15 fixtures safely
+  await prisma.competitiveMatchResultSubmission.deleteMany({
+    where: {
+      match: {
+        OR: [{ teamAId: cmTeamA.id }, { teamBId: cmTeamA.id }],
+      },
+    },
+  });
+  await prisma.competitiveMatchParticipant.deleteMany({
+    where: {
+      teamId: { in: [cmTeamA.id, cmTeamB.id] },
+    },
+  });
+  await prisma.competitiveMatch.deleteMany({
+    where: {
+      OR: [
+        { teamAId: { in: [cmTeamA.id, cmTeamB.id] } },
+        { teamBId: { in: [cmTeamA.id, cmTeamB.id] } },
+      ],
+    },
+  });
+  await prisma.scrim.deleteMany({
+    where: {
+      OR: [
+        { challengerTeamId: { in: [cmTeamA.id, cmTeamB.id] } },
+        { opponentTeamId: { in: [cmTeamA.id, cmTeamB.id] } },
+      ],
+    },
+  });
+  await deleteTeam(cmTeamA.id);
+  await deleteTeam(cmTeamB.id);
+  await deleteGame(cmGame.id);
+  await deleteMember(cmOwnerA.id);
+  await deleteMember(cmOwnerB.id);
+  await deleteMember(cmMemberA1.id);
+  await deleteMember(cmMemberB1.id);
+  await deleteMember(cmStranger.id);
+  console.log("  ✓ Test 48: Isolated COMPETITIVE MATCH test fixtures cleaned up cleanly.\n");
 
   console.log("==================================================");
   console.log(`SUMMARY: ${passedCount} PASSED, ${failedCount} FAILED`);

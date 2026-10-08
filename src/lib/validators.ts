@@ -301,4 +301,62 @@ export const scrimQuerySchema = z.object({
   q: z.string().trim().optional(),
 });
 
+// ==========================================
+// COMPETITIVE MATCH VALIDATION SCHEMAS
+// ==========================================
+
+export const createCompetitiveMatchSchema = z.object({
+  teamAId: z.string().trim().min(1, "Team A ID wajib diisi"),
+  teamBId: z.string().trim().min(1, "Team B ID wajib diisi"),
+  gameId: z.string().trim().min(1, "Game ID wajib diisi"),
+  scheduledAt: z.string().trim().min(1, "Jadwal match wajib diisi"),
+  bestOf: z.coerce.number().int().refine((val) => [1, 3, 5].includes(val), {
+    message: "Format Best of hanya boleh 1, 3, atau 5",
+  }).default(1),
+  sourceScrimId: z.string().trim().optional().nullable(),
+  note: z.string().trim().max(500, "Catatan maksimal 500 karakter").optional().nullable(),
+  actorMemberId: z.string().trim().min(1, "Actor member ID wajib diisi"),
+  teamAParticipantMemberIds: z.array(z.string().trim()).optional(),
+  teamBParticipantMemberIds: z.array(z.string().trim()).optional(),
+});
+
+export const competitiveMatchActionSchema = z.object({
+  actorMemberId: z.string().trim().min(1, "Actor member ID wajib diisi"),
+});
+
+export const submitMatchResultSchema = z.object({
+  actorMemberId: z.string().trim().min(1, "Actor member ID wajib diisi"),
+  result: z.enum(["TEAM_A_WIN", "TEAM_B_WIN", "DRAW", "NO_CONTEST"], {
+    errorMap: () => ({ message: "Hasil match harus TEAM_A_WIN, TEAM_B_WIN, DRAW, atau NO_CONTEST" }),
+  }),
+  note: z.string().trim().max(500, "Catatan submission maksimal 500 karakter").optional().nullable(),
+});
+
+export const verifyMatchSchema = z.object({
+  actorMemberId: z.string().trim().min(1, "Actor member ID wajib diisi"),
+  result: z.enum(["TEAM_A_WIN", "TEAM_B_WIN", "DRAW", "NO_CONTEST"]).optional(),
+  note: z.string().trim().max(500, "Catatan verifikasi maksimal 500 karakter").optional().nullable(),
+});
+
+export const disputeMatchSchema = z.object({
+  actorMemberId: z.string().trim().min(1, "Actor member ID wajib diisi"),
+  reason: z.string().trim().min(3, "Alasan dispute minimal 3 karakter").max(500, "Alasan dispute maksimal 500 karakter"),
+});
+
+export const registerParticipantsSchema = z.object({
+  actorMemberId: z.string().trim().min(1, "Actor member ID wajib diisi"),
+  teamId: z.string().trim().min(1, "Team ID wajib diisi"),
+  memberIds: z.array(z.string().trim().min(1)).min(1, "Minimal 1 peserta wajib dipilih"),
+});
+
+export const competitiveMatchQuerySchema = z.object({
+  status: z
+    .enum(["ALL", "PENDING", "SCHEDULED", "LIVE", "RESULT_PENDING", "VERIFIED", "DISPUTED", "CANCELLED"])
+    .optional()
+    .default("ALL"),
+  gameId: z.string().trim().optional(),
+  teamId: z.string().trim().optional(),
+  q: z.string().trim().optional(),
+});
+
 

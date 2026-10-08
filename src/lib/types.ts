@@ -665,3 +665,78 @@ export interface ScrimItem {
   completedAt?: string | null;
 }
 
+// ==========================================
+// COMPETITIVE MATCH TYPES (PHASE 1)
+// ==========================================
+
+export type { CompetitiveMatchStatus, CompetitiveMatchResult } from "@prisma/client";
+
+export interface CompetitiveMatchParticipantDTO {
+  id: string;
+  matchId: string;
+  teamId: string;
+  teamTag: string;
+  teamName: string;
+  memberId: string;
+  memberName: string;
+  memberUsername: string;
+  memberCode: string;
+  dreamRating: number;
+  dreamRank: string;
+  createdAt: string;
+}
+
+export interface CompetitiveMatchSubmissionDTO {
+  id: string;
+  matchId: string;
+  submittedByTeamId: string;
+  submittedByTeamTag: string;
+  submittedByTeamName: string;
+  submittedById: string;
+  submittedByName: string;
+  result: import("@prisma/client").CompetitiveMatchResult;
+  note?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CompetitiveMatchItem {
+  id: string;
+  teamAId: string;
+  teamA: ScrimTeamSummary;
+  teamBId: string;
+  teamB: ScrimTeamSummary;
+  gameId: string;
+  game: {
+    id: string;
+    title: string;
+    genre: string;
+    iconUrl?: string | null;
+  };
+  scheduledAt: string;
+  bestOf: number;
+  status: import("@prisma/client").CompetitiveMatchStatus;
+  result?: import("@prisma/client").CompetitiveMatchResult | null;
+  winnerTeamId?: string | null;
+  winnerTeam?: ScrimTeamSummary | null;
+  sourceScrimId?: string | null;
+  note?: string | null;
+  createdById: string;
+  createdBy: {
+    id: string;
+    fullName: string;
+    username: string;
+  };
+  participantsCount: number;
+  submissionsCount: number;
+  isDisputed: boolean;
+  createdAt: string;
+  updatedAt: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+}
+
+export interface CompetitiveMatchDetailDTO extends CompetitiveMatchItem {
+  participants: CompetitiveMatchParticipantDTO[];
+  submissions: CompetitiveMatchSubmissionDTO[];
+}
