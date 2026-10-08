@@ -782,3 +782,67 @@ export interface CompetitiveMatchDetailDTO extends CompetitiveMatchItem {
   submissions: CompetitiveMatchSubmissionDTO[];
   ratingApplications: CompetitiveRatingApplicationItem[];
 }
+
+// ==========================================
+// MATCHMAKING DTO & TYPES
+// ==========================================
+
+export type { MatchmakingQueueStatus, MatchmakingOfferStatus } from "@prisma/client";
+
+export interface MatchmakingTeamSummary {
+  id: string;
+  name: string;
+  tag: string;
+  logoUrl?: string | null;
+  ownerId: string;
+  ownerName: string;
+  teamRating: number;
+  memberCount: number;
+}
+
+export interface MatchmakingOfferDTO {
+  id: string;
+  queueEntryAId: string;
+  queueEntryBId: string;
+  teamAId: string;
+  teamBId: string;
+  teamA: MatchmakingTeamSummary;
+  teamB: MatchmakingTeamSummary;
+  gameId: string;
+  gameTitle: string;
+  gameGenre: string;
+  status: import("@prisma/client").MatchmakingOfferStatus;
+  acceptedByA: boolean;
+  acceptedByB: boolean;
+  createdAt: string;
+  expiresAt: string;
+  competitiveMatchId?: string | null;
+}
+
+export interface MatchmakingQueueDTO {
+  id: string;
+  teamId: string;
+  team: MatchmakingTeamSummary;
+  gameId: string;
+  gameTitle: string;
+  gameGenre: string;
+  teamRating: number;
+  minRating: number;
+  maxRating: number;
+  status: import("@prisma/client").MatchmakingQueueStatus;
+  createdById: string;
+  createdByName: string;
+  createdAt: string;
+  updatedAt: string;
+  matchedAt?: string | null;
+  expiresAt?: string | null;
+  currentOffer?: MatchmakingOfferDTO | null;
+}
+
+export interface TeamMatchmakingStateDTO {
+  teamId: string;
+  teamRating: number;
+  memberCount: number;
+  activeQueue?: MatchmakingQueueDTO | null;
+  activeOffer?: MatchmakingOfferDTO | null;
+}

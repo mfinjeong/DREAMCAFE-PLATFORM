@@ -157,6 +157,23 @@ enum CompetitiveRatingChangeType {
   NO_CONTEST
 }
 
+enum MatchmakingQueueStatus {
+  QUEUED
+  MATCH_FOUND
+  ACCEPTING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  CANCELLED
+}
+
+enum MatchmakingOfferStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
 model User {
   id           String   @id @default(cuid())
   username     String   @unique
@@ -201,6 +218,7 @@ model Member {
   competitiveParticipations CompetitiveMatchParticipant[]
   submittedMatchResults     CompetitiveMatchResultSubmission[]
   competitiveRatingApplications CompetitiveRatingApplication[]
+  createdMatchmakingQueues      MatchmakingQueue[]             @relation("MemberCreatedMatchmakingQueues")
   gameStats           MemberGameStat[]
   rankHistory         DreamRankHistory[]
 
@@ -436,6 +454,8 @@ model Game {
   memberStats        MemberGameStat[]
   scrims             Scrim[]
   competitiveMatches CompetitiveMatch[]
+  matchmakingQueues  MatchmakingQueue[]
+  matchmakingOffers  MatchmakingOffer[]
 
   @@index([genre])
   @@index([isActive])
@@ -520,6 +540,9 @@ model Team {
   competitiveWonMatches     CompetitiveMatch[] @relation("CompetitiveWinner")
   competitiveParticipations CompetitiveMatchParticipant[]
   submittedMatchResults     CompetitiveMatchResultSubmission[] @relation("ResultSubmittedByTeam")
+  matchmakingQueues         MatchmakingQueue[]                 @relation("TeamMatchmakingQueues")
+  matchmakingOffersAsA      MatchmakingOffer[]                 @relation("OfferTeamA")
+  matchmakingOffersAsB      MatchmakingOffer[]                 @relation("OfferTeamB")
 
   @@index([ownerId])
   @@index([tag])
@@ -643,6 +666,7 @@ model CompetitiveMatch {
   participants     CompetitiveMatchParticipant[]
   submissions      CompetitiveMatchResultSubmission[]
   ratingApplications CompetitiveRatingApplication[]
+  matchmakingOffers  MatchmakingOffer[]
 
   @@index([teamAId])
   @@index([teamBId])
@@ -713,6 +737,64 @@ model CompetitiveRatingApplication {
   @@index([createdAt])
 }
 
+model MatchmakingQueue {
+  id          String                 @id @default(cuid())
+  teamId      String
+  gameId      String
+  teamRating  Int
+  minRating   Int
+  maxRating   Int
+  status      MatchmakingQueueStatus @default(QUEUED)
+  createdById String
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  matchedAt   DateTime?
+  expiresAt   DateTime?
+
+  team        Team                   @relation("TeamMatchmakingQueues", fields: [teamId], references: [id], onDelete: Cascade)
+  game        Game                   @relation(fields: [gameId], references: [id], onDelete: Restrict)
+  createdBy   Member                 @relation("MemberCreatedMatchmakingQueues", fields: [createdById], references: [id], onDelete: Cascade)
+
+  offersAsA   MatchmakingOffer[]     @relation("QueueOfferA")
+  offersAsB   MatchmakingOffer[]     @relation("QueueOfferB")
+
+  @@index([teamId])
+  @@index([gameId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([teamRating])
+}
+
+model MatchmakingOffer {
+  id                 String                 @id @default(cuid())
+  queueEntryAId      String
+  queueEntryBId      String
+  teamAId            String
+  teamBId            String
+  gameId             String
+  status             MatchmakingOfferStatus @default(PENDING)
+  acceptedByA        Boolean                @default(false)
+  acceptedByB        Boolean                @default(false)
+  createdAt          DateTime               @default(now())
+  expiresAt          DateTime
+  competitiveMatchId String?
+
+  queueEntryA        MatchmakingQueue       @relation("QueueOfferA", fields: [queueEntryAId], references: [id], onDelete: Cascade)
+  queueEntryB        MatchmakingQueue       @relation("QueueOfferB", fields: [queueEntryBId], references: [id], onDelete: Cascade)
+  teamA              Team                   @relation("OfferTeamA", fields: [teamAId], references: [id], onDelete: Cascade)
+  teamB              Team                   @relation("OfferTeamB", fields: [teamBId], references: [id], onDelete: Cascade)
+  game               Game                   @relation(fields: [gameId], references: [id], onDelete: Restrict)
+  competitiveMatch   CompetitiveMatch?      @relation(fields: [competitiveMatchId], references: [id], onDelete: SetNull)
+
+  @@index([queueEntryAId])
+  @@index([queueEntryBId])
+  @@index([teamAId])
+  @@index([teamBId])
+  @@index([gameId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([competitiveMatchId])
+}
 
 model Maintenance {
   id          String            @id @default(cuid())

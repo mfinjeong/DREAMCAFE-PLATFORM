@@ -3,7 +3,7 @@
 import React, { useState, useEffect, use, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { TeamSummaryDTO, TeamMemberDTO, MemberItem, TeamInvitationDTO, ScrimItem, CompetitiveMatchItem } from "@/lib/types";
+import { TeamSummaryDTO, TeamMemberDTO, MemberItem, TeamInvitationDTO, ScrimItem, CompetitiveMatchItem, TeamMatchmakingStateDTO } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
@@ -31,6 +31,7 @@ import {
   Clock,
   Swords,
   Crosshair,
+  Radio,
 } from "lucide-react";
 import { formatDateTime } from "@/lib/formatters";
 
@@ -61,6 +62,7 @@ export default function TeamDetailPage({
   const [invitations, setInvitations] = useState<TeamInvitationDTO[]>([]);
   const [teamScrims, setTeamScrims] = useState<ScrimItem[]>([]);
   const [teamMatches, setTeamMatches] = useState<CompetitiveMatchItem[]>([]);
+  const [matchmakingState, setMatchmakingState] = useState<TeamMatchmakingStateDTO | null>(null);
   const [selectedMember, setSelectedMember] = useState<TeamMemberDTO | null>(null);
   const [newMemberId, setNewMemberId] = useState("");
   const [inviteMemberId, setInviteMemberId] = useState("");
@@ -80,11 +82,12 @@ export default function TeamDetailPage({
   const fetchTeamSummary = useCallback(async () => {
     try {
       setErrorMessage(null);
-      const [sumRes, invRes, scrimsRes, matchesRes] = await Promise.all([
+      const [sumRes, invRes, scrimsRes, matchesRes, mmRes] = await Promise.all([
         fetch(`/api/teams/${teamId}/summary`),
         fetch(`/api/teams/${teamId}/invitations`),
         fetch(`/api/teams/${teamId}/scrims?limit=5`),
         fetch(`/api/teams/${teamId}/competitive-matches?limit=5`),
+        fetch(`/api/teams/${teamId}/matchmaking`),
       ]);
       const json = await sumRes.json();
       if (!sumRes.ok || !json.success) {
@@ -115,6 +118,13 @@ export default function TeamDetailPage({
         const matchesJson = await matchesRes.json();
         if (matchesJson.success) {
           setTeamMatches(matchesJson.data);
+        }
+      }
+
+      if (mmRes.ok) {
+        const mmJson = await mmRes.json();
+        if (mmJson.success) {
+          setMatchmakingState(mmJson.data);
         }
       }
     } catch (err: unknown) {
@@ -1116,6 +1126,131 @@ export default function TeamDetailPage({
             </div>
           </div>
         )}
+      </div>
+
+      {/* Team Matchmaking Status Section */}
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-3.5 bg-amber-500 persona-slash rounded-[1px]"></div>
+            <div>
+              <h2 className="text-xs font-mono font-bold tracking-wider text-text-primary uppercase flex items-center gap-2">
+                <Radio className="w-3.5 h-3.5 text-amber-400" />
+                <span>Status Matchmaking Antrian</span>
+                {matchmakingState?.activeQueue ? (
+                  <span className="text-[10px] px-1.5 py-0.2 bg-amber-950/40 border border-amber-800/40 text-amber-400 font-mono rounded animate-pulse">
+                    {matchmakingState.activeQueue.status}
+                  </span>
+                ) : (
+                  <span className="text-[10px] px-1.5 py-0.2 bg-surface-dark border border-surface-border text-text-muted font-mono rounded">
+                    STANDBY
+                  </span>
+                )}
+              </h2>
+              <p className="text-[11px] text-text-secondary mt-0.5">
+                Antrian matchmaking kompetitif berbasis rating DREAMRANK resmi tim.
+              </p>
+            </div>
+          </div>
+
+          <Link href="/matchmaking">
+            <Button variant="outline" size="sm" className="h-7 text-xs flex items-center gap-1.5 text-amber-400 border-amber-900/40 hover:bg-amber-950/20">
+              <Radio className="w-3.5 h-3.5" />
+              <span>Buka Matchmaking</span>
+            </Button>
+          </Link>
+        </div>
+
+        <div className="bg-surface-card border border-surface-border rounded-[4px] p-4">
+          {matchmakingState?.activeQueue ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="p-3 bg-surface-dark border border-surface-border rounded-[4px]">
+                  <span className="text-[10px] font-mono text-text-muted uppercase block">Game</span>
+                  <span className="text-xs font-bold text-text-primary font-mono mt-0.5 block truncate">
+                    {matchmakingState.activeQueue.gameTitle}
+                  </span>
+                  <span className="text-[10px] text-text-muted font-mono">{matchmakingState.activeQueue.gameGenre}</span>
+                </div>
+
+                <div className="p-3 bg-surface-dark border border-surface-border rounded-[4px]">
+                  <span className="text-[10px] font-mono text-text-muted uppercase block">Team Rating</span>
+                  <span className="text-xs font-bold text-amber-400 font-mono mt-0.5 block">
+                    {matchmakingState.activeQueue.teamRating} RR
+                  </span>
+                  <span className="text-[10px] text-text-muted font-mono">
+                    Range: {matchmakingState.activeQueue.minRating} - {matchmakingState.activeQueue.maxRating} RR
+                  </span>
+                </div>
+
+                <div className="p-3 bg-surface-dark border border-surface-border rounded-[4px]">
+                  <span className="text-[10px] font-mono text-text-muted uppercase block">Queue Status</span>
+                  <span className="text-xs font-bold font-mono mt-0.5 block text-amber-400">
+                    {matchmakingState.activeQueue.status}
+                  </span>
+                  <span className="text-[10px] text-text-muted font-mono">
+                    {formatDateTime(matchmakingState.activeQueue.createdAt)}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-surface-dark border border-surface-border rounded-[4px]">
+                  <span className="text-[10px] font-mono text-text-muted uppercase block">Current Opponent</span>
+                  {matchmakingState.activeOffer ? (
+                    (() => {
+                      const opp = matchmakingState.activeOffer.teamAId === teamId
+                        ? matchmakingState.activeOffer.teamB
+                        : matchmakingState.activeOffer.teamA;
+                      return (
+                        <div>
+                          <span className="text-xs font-bold text-persona-blue font-mono mt-0.5 block truncate">
+                            #{opp.tag} {opp.name}
+                          </span>
+                          <span className="text-[10px] text-text-muted font-mono">{opp.teamRating} RR</span>
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    <span className="text-xs text-text-muted font-mono mt-0.5 block">
+                      Mencari lawan...
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-surface-border text-xs">
+                <span className="text-[11px] text-text-secondary font-mono">
+                  {matchmakingState.activeOffer
+                    ? `Offer Matchmaking Aktif (${matchmakingState.activeOffer.status})`
+                    : "Tim sedang dalam pencarian lawan kompatibel."}
+                </span>
+                <Link href="/matchmaking">
+                  <Button variant="primary" size="sm" className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white">
+                    Masuk Ruang Matchmaking
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-text-primary">Tim Siap Berkompetisi</span>
+                  <span className="text-[10px] font-mono text-amber-400 font-bold">
+                    [Rating: {matchmakingState?.teamRating ?? summary.averageRating} RR]
+                  </span>
+                </div>
+                <p className="text-[11px] text-text-secondary mt-0.5">
+                  Tim saat ini tidak sedang mengantri. Cari lawan seimbang dengan memilih game dan range rating di matchmaking queue.
+                </p>
+              </div>
+              <Link href="/matchmaking">
+                <Button variant="outline" size="sm" className="text-xs text-amber-400 border-amber-900/40 hover:bg-amber-950/20 shrink-0">
+                  Mulai Matchmaking
+                </Button>
+              </Link>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Recent Competitive Matches Section (Official) */}

@@ -359,4 +359,34 @@ export const competitiveMatchQuerySchema = z.object({
   q: z.string().trim().optional(),
 });
 
+// ==========================================
+// MATCHMAKING VALIDATION SCHEMAS
+// ==========================================
+
+export const joinMatchmakingQueueSchema = z
+  .object({
+    teamId: z.string().trim().min(1, "Team ID wajib diisi"),
+    gameId: z.string().trim().min(1, "Game ID wajib diisi"),
+    minRating: z.coerce.number().int("minRating harus berupa bilangan bulat").min(0, "minRating tidak boleh negatif"),
+    maxRating: z.coerce.number().int("maxRating harus berupa bilangan bulat").min(0, "maxRating tidak boleh negatif"),
+    actorMemberId: z.string().trim().min(1, "Actor member ID wajib diisi"),
+  })
+  .refine((data) => data.minRating <= data.maxRating, {
+    message: "minRating tidak boleh lebih besar dari maxRating",
+    path: ["minRating"],
+  });
+
+export const matchmakingActionSchema = z.object({
+  actorMemberId: z.string().trim().min(1, "Actor member ID wajib diisi"),
+});
+
+export const matchmakingQuerySchema = z.object({
+  status: z
+    .enum(["ALL", "QUEUED", "MATCH_FOUND", "ACCEPTING", "ACCEPTED", "DECLINED", "EXPIRED", "CANCELLED"])
+    .optional()
+    .default("ALL"),
+  gameId: z.string().trim().optional(),
+  teamId: z.string().trim().optional(),
+});
+
 

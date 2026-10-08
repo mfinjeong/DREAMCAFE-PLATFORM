@@ -20,6 +20,7 @@ import {
   Shield,
   Flame,
   Crosshair,
+  Radio,
 } from "lucide-react";
 
 interface NavItem {
@@ -39,6 +40,7 @@ const mainNavItems: NavItem[] = [
   { label: "Teams", href: "/teams", icon: Shield },
   { label: "Scrims", href: "/scrims", icon: Swords },
   { label: "Matches", href: "/competitive-matches", icon: Crosshair },
+  { label: "Matchmaking", href: "/matchmaking", icon: Radio },
   { label: "Store", href: "/store", icon: ShoppingBag },
   { label: "Inventory", href: "/inventory", icon: Package },
   { label: "Maintenance", href: "/maintenance", icon: Wrench },

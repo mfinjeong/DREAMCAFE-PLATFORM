@@ -110,6 +110,19 @@ import {
   getMatchRatingChanges,
   getMemberCompetitiveRating,
 } from "../src/services/competitive-dreamrank.service";
+import {
+  calculateTeamRating,
+  joinMatchmakingQueue,
+  findCompatibleOpponent,
+  runMatchmaking,
+  acceptMatchOffer,
+  declineMatchOffer,
+  leaveMatchmakingQueue,
+  expireMatchOffers,
+  getMatchmakingEntry,
+  listMatchmakingQueue,
+  getTeamMatchmakingState,
+} from "../src/services/matchmaking.service";
 import { POST as applyRatingRoute } from "../src/app/api/competitive-matches/[id]/apply-rating/route";
 import { GET as memberRatingRoute } from "../src/app/api/members/[id]/competitive-dreamrank/route";
 
@@ -3988,6 +4001,681 @@ async function runTests() {
   await deleteMember(cdrMemberB2.id);
   await deleteMember(cdrStranger.id);
   console.log("  ✓ Test 46: Isolated COMPETITIVE DREAMRANK test fixtures cleaned up cleanly.\n");
+
+  // -------------------------------------------------------------------
+  // TEST GROUP 17: TEAM MATCHMAKING SYSTEM (PHASE 1)
+  // -------------------------------------------------------------------
+  console.log("▶ TEST GROUP 17: Team Matchmaking System (Phase 1)");
+
+  // Setup test games
+  const mmGame1 = await createGame({
+    title: "TEST_MM_GAME_VALORANT",
+    genre: "Tactical FPS",
+    publisher: "Riot Games",
+    isActive: true,
+  });
+
+  const mmGame2 = await createGame({
+    title: "TEST_MM_GAME_DOTA",
+    genre: "MOBA",
+    publisher: "Valve",
+    isActive: true,
+  });
+
+  const mmGameInactive = await createGame({
+    title: "TEST_MM_GAME_INACTIVE",
+    genre: "Battle Royale",
+    publisher: "Epic Games",
+    isActive: false,
+  });
+
+  // Setup test members with deterministic DREAMRANK ratings
+  const mmMemberA1 = await createMember({
+    fullName: "MM Player A1",
+    email: "mm_a1@test.com",
+    username: "mm_player_a1",
+    phoneNumber: "081299990001",
+  });
+  await prisma.member.update({
+    where: { id: mmMemberA1.id },
+    data: { dreamRating: 1500, dreamRank: "GOLD" },
+  });
+
+  const mmMemberA2 = await createMember({
+    fullName: "MM Player A2",
+    email: "mm_a2@test.com",
+    username: "mm_player_a2",
+    phoneNumber: "081299990002",
+  });
+  await prisma.member.update({
+    where: { id: mmMemberA2.id },
+    data: { dreamRating: 1600, dreamRank: "GOLD" },
+  });
+
+  const mmMemberB1 = await createMember({
+    fullName: "MM Player B1",
+    email: "mm_b1@test.com",
+    username: "mm_player_b1",
+    phoneNumber: "081299990003",
+  });
+  await prisma.member.update({
+    where: { id: mmMemberB1.id },
+    data: { dreamRating: 1500, dreamRank: "GOLD" },
+  });
+
+  const mmMemberB2 = await createMember({
+    fullName: "MM Player B2",
+    email: "mm_b2@test.com",
+    username: "mm_player_b2",
+    phoneNumber: "081299990004",
+  });
+  await prisma.member.update({
+    where: { id: mmMemberB2.id },
+    data: { dreamRating: 1520, dreamRank: "GOLD" },
+  });
+
+  const mmMemberC1 = await createMember({
+    fullName: "MM Player C1",
+    email: "mm_c1@test.com",
+    username: "mm_player_c1",
+    phoneNumber: "081299990005",
+  });
+  await prisma.member.update({
+    where: { id: mmMemberC1.id },
+    data: { dreamRating: 2200, dreamRank: "PLATINUM" },
+  });
+
+  const mmMemberSolo = await createMember({
+    fullName: "MM Player Solo",
+    email: "mm_solo@test.com",
+    username: "mm_player_solo",
+    phoneNumber: "081299990006",
+  });
+  await prisma.member.update({
+    where: { id: mmMemberSolo.id },
+    data: { dreamRating: 1200, dreamRank: "SILVER" },
+  });
+
+  // Setup test teams
+  // Team A: Owner A1 (1500), Member A2 (1600) -> Average rating: Math.round((1500+1600)/2) = 1550
+  const mmTeamA = await createTeam({
+    name: "MM Test Team Alpha",
+    tag: "MMA",
+    ownerId: mmMemberA1.id,
+  });
+  await addTeamMember(mmTeamA.id, { memberId: mmMemberA2.id, role: "MEMBER" });
+
+  // Team B: Owner B1 (1500), Member B2 (1520) -> Average rating: Math.round((1500+1520)/2) = 1510
+  const mmTeamB = await createTeam({
+    name: "MM Test Team Beta",
+    tag: "MMB",
+    ownerId: mmMemberB1.id,
+  });
+  await addTeamMember(mmTeamB.id, { memberId: mmMemberB2.id, role: "MEMBER" });
+
+  // Team C: Owner C1 (2200) -> Rating: 2200
+  const mmTeamC = await createTeam({
+    name: "MM Test Team Gamma",
+    tag: "MMC",
+    ownerId: mmMemberC1.id,
+  });
+
+  // Team Solo: Owner Solo (1200) -> Rating: 1200
+  const mmTeamSolo = await createTeam({
+    name: "MM Test Team Solo",
+    tag: "MMS",
+    ownerId: mmMemberSolo.id,
+  });
+
+  // Test 1: Calculate real team rating (Requirement 5)
+  const calculatedRatingA = await calculateTeamRating(mmTeamA.id);
+  assert(
+    calculatedRatingA.teamRating === 1550 && calculatedRatingA.memberCount === 2,
+    "Test 1: calculateTeamRating computes deterministic average DREAMRANK (1550 RR for 2 members)"
+  );
+
+  // Test 2: Create valid queue entry (Requirement 1)
+  const queueA = await joinMatchmakingQueue({
+    teamId: mmTeamA.id,
+    gameId: mmGame1.id,
+    minRating: 1400,
+    maxRating: 1700,
+    actorMemberId: mmMemberA1.id,
+  });
+  assert(
+    queueA.status === "QUEUED" && queueA.teamRating === 1550 && queueA.gameId === mmGame1.id,
+    "Test 2: create valid matchmaking queue entry with server-authoritative team rating"
+  );
+
+  // Test 3: Reject invalid team (Requirement 2)
+  let rejectedInvalidTeam = false;
+  try {
+    await joinMatchmakingQueue({
+      teamId: "invalid-team-uuid-nonexistent",
+      gameId: mmGame1.id,
+      minRating: 1400,
+      maxRating: 1700,
+      actorMemberId: mmMemberA1.id,
+    });
+  } catch {
+    rejectedInvalidTeam = true;
+  }
+  assert(rejectedInvalidTeam, "Test 3: reject non-existent team from matchmaking");
+
+  // Test 4: Reject invalid game (Requirement 3)
+  let rejectedInvalidGame = false;
+  try {
+    await joinMatchmakingQueue({
+      teamId: mmTeamB.id,
+      gameId: "invalid-game-uuid-nonexistent",
+      minRating: 1400,
+      maxRating: 1700,
+      actorMemberId: mmMemberB1.id,
+    });
+  } catch {
+    rejectedInvalidGame = true;
+  }
+  assert(rejectedInvalidGame, "Test 4: reject non-existent game from matchmaking");
+
+  // Test 5: Reject inactive game (Requirement 4)
+  let rejectedInactiveGame = false;
+  try {
+    await joinMatchmakingQueue({
+      teamId: mmTeamB.id,
+      gameId: mmGameInactive.id,
+      minRating: 1400,
+      maxRating: 1700,
+      actorMemberId: mmMemberB1.id,
+    });
+  } catch (err: unknown) {
+    rejectedInactiveGame = err instanceof Error && err.message.includes("tidak aktif");
+  }
+  assert(rejectedInactiveGame, "Test 5: reject inactive game from matchmaking queue");
+
+  // Test 6: Reject invalid rating range (negative value) (Requirement 6)
+  let rejectedNegativeRating = false;
+  try {
+    await joinMatchmakingQueue({
+      teamId: mmTeamB.id,
+      gameId: mmGame1.id,
+      minRating: -50,
+      maxRating: 1700,
+      actorMemberId: mmMemberB1.id,
+    });
+  } catch {
+    rejectedNegativeRating = true;
+  }
+  assert(rejectedNegativeRating, "Test 6: reject negative rating value in matchmaking range");
+
+  // Test 7: Reject min > max (Requirement 7)
+  let rejectedMinGreaterMax = false;
+  try {
+    await joinMatchmakingQueue({
+      teamId: mmTeamB.id,
+      gameId: mmGame1.id,
+      minRating: 1800,
+      maxRating: 1500,
+      actorMemberId: mmMemberB1.id,
+    });
+  } catch {
+    rejectedMinGreaterMax = true;
+  }
+  assert(rejectedMinGreaterMax, "Test 7: reject minRating > maxRating in queue parameters");
+
+  // Test 8: Prevent duplicate queue (Requirement 8)
+  let rejectedDuplicateQueue = false;
+  try {
+    await joinMatchmakingQueue({
+      teamId: mmTeamA.id,
+      gameId: mmGame1.id,
+      minRating: 1400,
+      maxRating: 1700,
+      actorMemberId: mmMemberA1.id,
+    });
+  } catch (err: unknown) {
+    rejectedDuplicateQueue = err instanceof Error && err.message.includes("sudah memiliki antrean");
+  }
+  assert(rejectedDuplicateQueue, "Test 8: prevent duplicate queue for the same team");
+
+  // Test 9: Leave queue (Requirement 10)
+  const leftQueue = await leaveMatchmakingQueue(queueA.id, mmMemberA1.id);
+  assert(leftQueue.status === "CANCELLED", "Test 9: leave queue updates status to CANCELLED");
+
+  // Test 10: Team can queue again after cancellation (Requirement 36)
+  const queueA2 = await joinMatchmakingQueue({
+    teamId: mmTeamA.id,
+    gameId: mmGame1.id,
+    minRating: 1400,
+    maxRating: 1700,
+    actorMemberId: mmMemberA1.id,
+  });
+  assert(queueA2.status === "QUEUED", "Test 10: team can queue again after cancellation");
+
+  // Test 11: Prevent queue while team is in LIVE competitive match (Requirement 9)
+  const liveMatchForCheck = await createCompetitiveMatch({
+    teamAId: mmTeamSolo.id,
+    teamBId: mmTeamC.id,
+    gameId: mmGame1.id,
+    scheduledAt: new Date().toISOString(),
+    bestOf: 1,
+    actorMemberId: mmMemberSolo.id,
+  });
+  await startCompetitiveMatch(liveMatchForCheck.id, mmMemberSolo.id);
+  let rejectedLiveMatchQueue = false;
+  try {
+    await joinMatchmakingQueue({
+      teamId: mmTeamSolo.id,
+      gameId: mmGame1.id,
+      minRating: 1000,
+      maxRating: 1500,
+      actorMemberId: mmMemberSolo.id,
+    });
+  } catch (err: unknown) {
+    rejectedLiveMatchQueue = err instanceof Error && (
+      err.message.includes("pertandingan kompetitif LIVE") ||
+      err.message.includes("LIVE")
+    );
+  }
+  assert(rejectedLiveMatchQueue, "Test 11: prevent queue while team is in LIVE competitive match");
+  await cancelCompetitiveMatch(liveMatchForCheck.id, mmMemberSolo.id);
+
+  // Test 12: Prevent self-match (Requirement 15)
+  const selfMatchCheck = await findCompatibleOpponent(queueA2.id);
+  assert(selfMatchCheck === null, "Test 12: prevent self-match when no other team is in queue");
+
+  // Test 13: Reject different-game opponent (Requirement 12)
+  const queueBDiffGame = await joinMatchmakingQueue({
+    teamId: mmTeamB.id,
+    gameId: mmGame2.id,
+    minRating: 1400,
+    maxRating: 1700,
+    actorMemberId: mmMemberB1.id,
+  });
+  const diffGameMatch = await findCompatibleOpponent(queueA2.id);
+  assert(diffGameMatch === null, "Test 13: reject opponent queued for a different game title");
+  await leaveMatchmakingQueue(queueBDiffGame.id, mmMemberB1.id);
+
+  // Test 14: Reject incompatible rating (Requirement 13)
+  const queueCIncompatible = await joinMatchmakingQueue({
+    teamId: mmTeamC.id,
+    gameId: mmGame1.id,
+    minRating: 2000,
+    maxRating: 2400,
+    actorMemberId: mmMemberC1.id,
+  });
+  const incompatibleMatch = await findCompatibleOpponent(queueA2.id);
+  assert(incompatibleMatch === null, "Test 14: reject opponent with non-overlapping rating (2200 outside [1400, 1700])");
+  await leaveMatchmakingQueue(queueCIncompatible.id, mmMemberC1.id);
+
+  // Test 15: Require mutual rating compatibility (Requirement 14)
+  // Team Solo: 1200 RR, selects [1000, 1600] which includes Team A (1550 RR).
+  // BUT Team A's range is [1400, 1700] which does NOT include Team Solo (1200 RR).
+  const queueSoloNonMutual = await joinMatchmakingQueue({
+    teamId: mmTeamSolo.id,
+    gameId: mmGame1.id,
+    minRating: 1000,
+    maxRating: 1600,
+    actorMemberId: mmMemberSolo.id,
+  });
+  const nonMutualMatch = await findCompatibleOpponent(queueA2.id);
+  assert(nonMutualMatch === null, "Test 15: require mutual rating compatibility (one-way match correctly rejected)");
+  await leaveMatchmakingQueue(queueSoloNonMutual.id, mmMemberSolo.id);
+
+  // Test 16: Find compatible same-game opponent & create match offer (Requirements 11 & 16)
+  // Team B joins: Team B rating = 1510 RR, range [1450, 1650].
+  // Team A rating = 1550 RR, range [1400, 1700].
+  // Both ratings mutually satisfy each other!
+  const queueBMatched = await joinMatchmakingQueue({
+    teamId: mmTeamB.id,
+    gameId: mmGame1.id,
+    minRating: 1450,
+    maxRating: 1650,
+    actorMemberId: mmMemberB1.id,
+  });
+  assert(queueBMatched.currentOffer !== null && queueBMatched.currentOffer !== undefined, "Test 16: find compatible opponent and create match offer");
+  const firstOffer = queueBMatched.currentOffer!;
+  assert(
+    firstOffer.status === "PENDING" && firstOffer.acceptedByA === false && firstOffer.acceptedByB === false,
+    "Test 16b: created match offer initializes in PENDING status with acceptedByA=false and acceptedByB=false"
+  );
+
+  // Test 17: Prevent duplicate match offer (Requirement 17)
+  const dupeOfferRun = await findCompatibleOpponent(queueA2.id);
+  assert(dupeOfferRun !== null && dupeOfferRun.id === firstOffer.id, "Test 17: prevent duplicate match offer on subsequent matcher runs");
+
+  // Test 18: Team A acceptance (Requirement 18)
+  const acceptResultA = await acceptMatchOffer(queueA2.id, mmMemberA1.id);
+  assert(
+    acceptResultA.status === "PENDING" && acceptResultA.acceptedByA === true && acceptResultA.acceptedByB === false,
+    "Test 18: Team A acceptance marks acceptedByA=true, offer remains PENDING pending Team B"
+  );
+  assert(acceptResultA.competitiveMatchId === null, "Test 18b: no CompetitiveMatch created before mutual acceptance");
+
+  // Test 19: Retry acceptance is idempotent (Requirement 33)
+  const retryAcceptA = await acceptMatchOffer(queueA2.id, mmMemberA1.id);
+  assert(
+    retryAcceptA.acceptedByA === true && retryAcceptA.status === "PENDING",
+    "Test 19: retry acceptance is idempotent and does not corrupt offer state"
+  );
+
+  // Test 20: Team B acceptance & create CompetitiveMatch (Requirements 19 & 20)
+  const acceptResultB = await acceptMatchOffer(queueBMatched.id, mmMemberB1.id);
+  assert(
+    acceptResultB.status === "ACCEPTED" && acceptResultB.acceptedByB === true,
+    "Test 20: Team B acceptance completes mutual acceptance (status ACCEPTED)"
+  );
+  assert(!!acceptResultB.competitiveMatchId, "Test 20b: CompetitiveMatch created atomically upon mutual acceptance");
+  const matchedCompMatch = (await getCompetitiveMatchById(acceptResultB.competitiveMatchId!))!;
+
+  // Test 21: Correct Team A in created CompetitiveMatch (Requirement 21)
+  assert(
+    matchedCompMatch.teamAId === mmTeamA.id || matchedCompMatch.teamAId === mmTeamB.id,
+    "Test 21: correct Team A recorded in CompetitiveMatch"
+  );
+
+  // Test 22: Correct Team B in created CompetitiveMatch (Requirement 22)
+  assert(
+    matchedCompMatch.teamBId === mmTeamA.id || matchedCompMatch.teamBId === mmTeamB.id,
+    "Test 22: correct Team B recorded in CompetitiveMatch"
+  );
+  assert(matchedCompMatch.teamAId !== matchedCompMatch.teamBId, "Test 22b: Team A and Team B are strictly distinct teams");
+
+  // Test 23: Correct Game in created CompetitiveMatch (Requirement 23)
+  assert(matchedCompMatch.gameId === mmGame1.id, "Test 23: correct Game recorded in CompetitiveMatch");
+
+  // Test 24: Correct source/state (status PENDING) (Requirement 24)
+  assert(matchedCompMatch.status === "PENDING", "Test 24: CompetitiveMatch created with status PENDING");
+
+  // Test 25: Queue state cleanup (Requirement 29)
+  const finalQA = await getMatchmakingEntry(queueA2.id);
+  const finalQB = await getMatchmakingEntry(queueBMatched.id);
+  assert(
+    !!finalQA && finalQA.status === "ACCEPTED" && !!finalQB && finalQB.status === "ACCEPTED",
+    "Test 25: both queue entries marked ACCEPTED upon match creation"
+  );
+
+  // Test 26: Team can queue again after completed matchmaking (Requirement 37)
+  const stateTeamAAfter = await getTeamMatchmakingState(mmTeamA.id);
+  assert(stateTeamAAfter.activeQueue === null, "Test 26: team can queue again after completed matchmaking (no active queue remains)");
+
+  // Test 27: No duplicate CompetitiveMatch (Requirement 28)
+  const compMatchOfferCount = await prisma.competitiveMatch.count({
+    where: {
+      matchmakingOffers: {
+        some: { id: firstOffer.id },
+      },
+    },
+  });
+  assert(compMatchOfferCount === 1, "Test 27: exactly one CompetitiveMatch created for the matchmaking offer");
+
+  // Test 28: No DREAMRANK change (Requirement 30)
+  const memberA1Ref = await prisma.member.findUniqueOrThrow({ where: { id: mmMemberA1.id } });
+  const memberB1Ref = await prisma.member.findUniqueOrThrow({ where: { id: mmMemberB1.id } });
+  assert(
+    memberA1Ref.dreamRating === 1500 && memberB1Ref.dreamRating === 1500,
+    "Test 28: member DREAMRANK ratings completely unchanged by matchmaking workflow"
+  );
+
+  // Test 29: No DreamRankHistory change (Requirement 31)
+  const drhCount = await prisma.dreamRankHistory.count({
+    where: { memberId: { in: [mmMemberA1.id, mmMemberB1.id] } },
+  });
+  assert(drhCount === 0, "Test 29: no DreamRankHistory records created by matchmaking");
+
+  // Test 30: No CompetitiveRatingApplication change (Requirement 32)
+  const craCount = await prisma.competitiveRatingApplication.count({
+    where: { matchId: matchedCompMatch.id },
+  });
+  assert(craCount === 0, "Test 30: no CompetitiveRatingApplication records created by matchmaking");
+
+  // Test 31: Decline flow (Requirement 25)
+  const declineQA = await joinMatchmakingQueue({
+    teamId: mmTeamA.id,
+    gameId: mmGame1.id,
+    minRating: 1400,
+    maxRating: 1700,
+    actorMemberId: mmMemberA1.id,
+  });
+  const declineQB = await joinMatchmakingQueue({
+    teamId: mmTeamB.id,
+    gameId: mmGame1.id,
+    minRating: 1450,
+    maxRating: 1650,
+    actorMemberId: mmMemberB1.id,
+  });
+  assert(declineQB.currentOffer !== null, "Test 31a: second match offer created for decline testing");
+  const declinedOffer = await declineMatchOffer(declineQA.id, mmMemberA1.id);
+  assert(declinedOffer.status === "DECLINED", "Test 31b: offer marked DECLINED when a team declines");
+  const refDeclineQA = await getMatchmakingEntry(declineQA.id);
+  const refDeclineQB = await getMatchmakingEntry(declineQB.id);
+  assert(
+    !!refDeclineQA && refDeclineQA.status === "DECLINED" && !!refDeclineQB && refDeclineQB.status === "DECLINED",
+    "Test 31c: participating queue entries marked DECLINED"
+  );
+
+  // Test 32: Expired offer flow (Requirement 26)
+  const expireQA = await joinMatchmakingQueue({
+    teamId: mmTeamA.id,
+    gameId: mmGame1.id,
+    minRating: 1400,
+    maxRating: 1700,
+    actorMemberId: mmMemberA1.id,
+  });
+  const expireQB = await joinMatchmakingQueue({
+    teamId: mmTeamB.id,
+    gameId: mmGame1.id,
+    minRating: 1450,
+    maxRating: 1650,
+    actorMemberId: mmMemberB1.id,
+  });
+  const offerToExpire = expireQB.currentOffer!;
+  await prisma.matchmakingOffer.update({
+    where: { id: offerToExpire.id },
+    data: { expiresAt: new Date(Date.now() - 10000) },
+  });
+  const expiredCount = await expireMatchOffers();
+  assert(expiredCount >= 1, "Test 32a: expireMatchOffers processed expired offers");
+  const refExpiredOffer = await prisma.matchmakingOffer.findUniqueOrThrow({ where: { id: offerToExpire.id } });
+  assert(refExpiredOffer.status === "EXPIRED", "Test 32b: offer status updated to EXPIRED");
+  const refExpireQA = await getMatchmakingEntry(expireQA.id);
+  assert(!!refExpireQA && refExpireQA.status === "EXPIRED", "Test 32c: queue status updated to EXPIRED upon expiration");
+
+  // Test 33: Cancellation flow while offer is pending (Requirement 27)
+  const cancelQA = await joinMatchmakingQueue({
+    teamId: mmTeamA.id,
+    gameId: mmGame1.id,
+    minRating: 1400,
+    maxRating: 1700,
+    actorMemberId: mmMemberA1.id,
+  });
+  const cancelQB = await joinMatchmakingQueue({
+    teamId: mmTeamB.id,
+    gameId: mmGame1.id,
+    minRating: 1450,
+    maxRating: 1650,
+    actorMemberId: mmMemberB1.id,
+  });
+  const mmCancelResult = await leaveMatchmakingQueue(cancelQA.id, mmMemberA1.id);
+  assert(mmCancelResult.status === "CANCELLED", "Test 33a: leaving active offer marks initiating queue CANCELLED");
+  const refCancelQB = await getMatchmakingEntry(cancelQB.id);
+  assert(
+    !!refCancelQB && (refCancelQB.status === "CANCELLED" || refCancelQB.status === "DECLINED"),
+    "Test 33b: opponent queue cleanly closed on unaccepted departure"
+  );
+
+  // Test 34: Concurrent matching cannot duplicate (Requirement 34)
+  const concurrentCheck = await findCompatibleOpponent(cancelQA.id);
+  assert(concurrentCheck === null, "Test 34: non-queued entry rejected by matcher (concurrency protection)");
+
+  // Test 35: Inactive/deleted team blocked (Requirement 38)
+  const dummyDeleteTeam = await createTeam({
+    name: "MM Dummy Delete Team",
+    tag: "MMDEL",
+    ownerId: mmMemberSolo.id,
+  });
+  await deleteTeam(dummyDeleteTeam.id);
+  let rejectedDeletedTeam = false;
+  try {
+    await joinMatchmakingQueue({
+      teamId: dummyDeleteTeam.id,
+      gameId: mmGame1.id,
+      minRating: 1000,
+      maxRating: 1500,
+      actorMemberId: mmMemberSolo.id,
+    });
+  } catch {
+    rejectedDeletedTeam = true;
+  }
+  assert(rejectedDeletedTeam, "Test 35: deleted team blocked from matchmaking");
+
+  // Test 36: Empty roster handled (Requirement 39)
+  const dummyEmptyTeam = await createTeam({
+    name: "MM Dummy Empty Team",
+    tag: "MMEMP",
+    ownerId: mmMemberSolo.id,
+  });
+  await prisma.teamMember.deleteMany({ where: { teamId: dummyEmptyTeam.id } });
+  let rejectedEmptyRoster = false;
+  try {
+    await joinMatchmakingQueue({
+      teamId: dummyEmptyTeam.id,
+      gameId: mmGame1.id,
+      minRating: 1000,
+      maxRating: 1500,
+      actorMemberId: mmMemberSolo.id,
+    });
+  } catch (err: unknown) {
+    rejectedEmptyRoster = err instanceof Error && err.message.includes("minimal 1 anggota");
+  }
+  assert(rejectedEmptyRoster, "Test 36: team with empty roster blocked from matchmaking");
+  await prisma.team.delete({ where: { id: dummyEmptyTeam.id } });
+
+  // Test 37: Team cannot join twice (Requirement 35)
+  const qTestOnce = await joinMatchmakingQueue({
+    teamId: mmTeamA.id,
+    gameId: mmGame1.id,
+    minRating: 1400,
+    maxRating: 1700,
+    actorMemberId: mmMemberA1.id,
+  });
+  let rejectedSecondJoin = false;
+  try {
+    await joinMatchmakingQueue({
+      teamId: mmTeamA.id,
+      gameId: mmGame1.id,
+      minRating: 1400,
+      maxRating: 1700,
+      actorMemberId: mmMemberA1.id,
+    });
+  } catch (err: unknown) {
+    rejectedSecondJoin = err instanceof Error && err.message.includes("sudah memiliki antrean");
+  }
+  assert(rejectedSecondJoin, "Test 37: team cannot join queue twice simultaneously");
+  await leaveMatchmakingQueue(qTestOnce.id, mmMemberA1.id);
+
+  // Test 38: Unauthorized actor cannot join queue or accept offer
+  let rejectedUnauthorizedActor = false;
+  try {
+    await joinMatchmakingQueue({
+      teamId: mmTeamA.id,
+      gameId: mmGame1.id,
+      minRating: 1400,
+      maxRating: 1700,
+      actorMemberId: mmMemberSolo.id, // stranger
+    });
+  } catch (err: unknown) {
+    rejectedUnauthorizedActor = err instanceof Error && err.message.includes("Hanya anggota atau owner tim");
+  }
+  assert(rejectedUnauthorizedActor, "Test 38: stranger actor blocked from managing team queue");
+
+  // Test 39: Team matchmaking state returns accurate DTO
+  const teamStateSummary = await getTeamMatchmakingState(mmTeamA.id);
+  assert(
+    teamStateSummary.teamRating === 1550 && teamStateSummary.memberCount === 2,
+    "Test 39: getTeamMatchmakingState returns real calculated team rating and member count"
+  );
+
+  // Test 40: Existing CompetitiveMatch lifecycle still works (Requirement 40)
+  // Continue lifecycle of matchedCompMatch created via matchmaking in Test 20
+  const regParticipants = await registerMatchParticipants(matchedCompMatch.id, {
+    actorMemberId: mmMemberA1.id,
+    teamId: mmTeamA.id,
+    memberIds: [mmMemberA1.id],
+  });
+  assert(regParticipants.participants.length >= 1, "Test 40a: participants registered on match created via matchmaking");
+
+  const startedMatch = await startCompetitiveMatch(matchedCompMatch.id, mmMemberA1.id);
+  assert(startedMatch.status === "LIVE", "Test 40b: match transitions to LIVE status");
+
+  const submittedMatch = await submitMatchResult(matchedCompMatch.id, {
+    actorMemberId: mmMemberA1.id,
+    result: "TEAM_A_WIN",
+    note: "Matchmaking Phase 1 test submission",
+  });
+  assert(submittedMatch.status === "RESULT_PENDING", "Test 40c: match result submission transitions to RESULT_PENDING");
+
+  const mmVerifiedMatch = await verifyMatchDirectly(matchedCompMatch.id, {
+    actorMemberId: mmMemberA1.id,
+    result: "TEAM_A_WIN",
+    note: "Matchmaking Phase 1 verified directly",
+  });
+  assert(mmVerifiedMatch.status === "VERIFIED", "Test 40d: match created via matchmaking completes lifecycle to VERIFIED");
+
+  // Cleanup Test Group 17 fixtures safely
+  await prisma.competitiveRatingApplication.deleteMany({
+    where: {
+      match: {
+        OR: [{ teamAId: mmTeamA.id }, { teamBId: mmTeamA.id }, { teamAId: mmTeamB.id }, { teamBId: mmTeamB.id }],
+      },
+    },
+  });
+  await prisma.competitiveMatchResultSubmission.deleteMany({
+    where: {
+      match: {
+        OR: [{ teamAId: mmTeamA.id }, { teamBId: mmTeamA.id }, { teamAId: mmTeamB.id }, { teamBId: mmTeamB.id }],
+      },
+    },
+  });
+  await prisma.competitiveMatchParticipant.deleteMany({
+    where: {
+      teamId: { in: [mmTeamA.id, mmTeamB.id, mmTeamC.id, mmTeamSolo.id] },
+    },
+  });
+  await prisma.matchmakingOffer.deleteMany({
+    where: {
+      OR: [
+        { teamAId: { in: [mmTeamA.id, mmTeamB.id, mmTeamC.id, mmTeamSolo.id] } },
+        { teamBId: { in: [mmTeamA.id, mmTeamB.id, mmTeamC.id, mmTeamSolo.id] } },
+      ],
+    },
+  });
+  await prisma.matchmakingQueue.deleteMany({
+    where: {
+      teamId: { in: [mmTeamA.id, mmTeamB.id, mmTeamC.id, mmTeamSolo.id] },
+    },
+  });
+  await prisma.competitiveMatch.deleteMany({
+    where: {
+      OR: [
+        { teamAId: { in: [mmTeamA.id, mmTeamB.id, mmTeamC.id, mmTeamSolo.id] } },
+        { teamBId: { in: [mmTeamA.id, mmTeamB.id, mmTeamC.id, mmTeamSolo.id] } },
+      ],
+    },
+  });
+  await deleteTeam(mmTeamA.id);
+  await deleteTeam(mmTeamB.id);
+  await deleteTeam(mmTeamC.id);
+  await deleteTeam(mmTeamSolo.id);
+  await deleteGame(mmGame1.id);
+  await deleteGame(mmGame2.id);
+  await deleteGame(mmGameInactive.id);
+  await deleteMember(mmMemberA1.id);
+  await deleteMember(mmMemberA2.id);
+  await deleteMember(mmMemberB1.id);
+  await deleteMember(mmMemberB2.id);
+  await deleteMember(mmMemberC1.id);
+  await deleteMember(mmMemberSolo.id);
+  console.log("  ✓ Test 41: Isolated Matchmaking Phase 1 test fixtures cleaned up cleanly.\n");
 
   console.log("==================================================");
   console.log(`SUMMARY: ${passedCount} PASSED, ${failedCount} FAILED`);
