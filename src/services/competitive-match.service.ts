@@ -9,8 +9,10 @@ import {
   CompetitiveMatchDetailDTO,
   CompetitiveMatchParticipantDTO,
   CompetitiveMatchSubmissionDTO,
+  CompetitiveRatingApplicationItem,
   ScrimTeamSummary,
 } from "@/lib/types";
+import { applyCompetitiveMatchRating } from "@/services/competitive-dreamrank.service";
 import {
   createCompetitiveMatchSchema,
   submitMatchResultSchema,
@@ -93,6 +95,19 @@ const matchInclude = {
     include: {
       submittedByTeam: { select: { id: true, name: true, tag: true } },
       submittedBy: { select: { id: true, fullName: true, username: true } },
+    },
+    orderBy: { createdAt: "asc" as const },
+  },
+  ratingApplications: {
+    include: {
+      member: {
+        select: {
+          id: true,
+          fullName: true,
+          username: true,
+          memberCode: true,
+        },
+      },
     },
     orderBy: { createdAt: "asc" as const },
   },
@@ -186,12 +201,40 @@ function mapMatchItem(match: MatchWithRelations): CompetitiveMatchItem {
   };
 }
 
+function mapRatingApplicationDTO(
+  app: MatchWithRelations["ratingApplications"][number],
+  participants: MatchWithRelations["participants"]
+): CompetitiveRatingApplicationItem {
+  const p = participants.find((pt) => pt.memberId === app.memberId);
+  return {
+    id: app.id,
+    matchId: app.matchId,
+    memberId: app.memberId,
+    memberName: app.member.fullName,
+    memberUsername: app.member.username,
+    memberCode: app.member.memberCode,
+    teamId: p?.teamId,
+    teamTag: p?.team?.tag,
+    teamName: p?.team?.name,
+    previousRating: app.previousRating,
+    newRating: app.newRating,
+    ratingChange: app.ratingChange,
+    changeType: app.changeType,
+    previousRank: app.previousRank,
+    newRank: app.newRank,
+    createdAt: app.createdAt.toISOString(),
+  };
+}
+
 function mapMatchDetail(match: MatchWithRelations): CompetitiveMatchDetailDTO {
   const item = mapMatchItem(match);
   return {
     ...item,
     participants: match.participants.map(mapParticipantDTO),
     submissions: match.submissions.map(mapSubmissionDTO),
+    ratingApplications: match.ratingApplications.map((app) =>
+      mapRatingApplicationDTO(app, match.participants)
+    ),
   };
 }
 
@@ -537,6 +580,8 @@ export async function submitMatchResult(
 
   const resultEnum = validated.result as CompetitiveMatchResult;
 
+  let becameVerified = false;
+
   await prisma.$transaction(
     async (tx) => {
       // Upsert submission tim
@@ -595,6 +640,7 @@ export async function submitMatchResult(
               completedAt: new Date(),
             },
           });
+          becameVerified = true;
         } else {
           // HASIL BERBEDA -> STATUS DISPUTED!
           await tx.competitiveMatch.update({
@@ -610,6 +656,14 @@ export async function submitMatchResult(
     },
     { maxWait: 15000, timeout: 30000 }
   );
+
+  if (becameVerified) {
+    try {
+      await applyCompetitiveMatchRating(matchId);
+    } catch {
+      // Ignore if match has no participants or failed safely
+    }
+  }
 
   return (await getCompetitiveMatchById(matchId))!;
 }
@@ -674,6 +728,12 @@ export async function verifyMatchDirectly(
       note: validated.note !== undefined ? validated.note : match.note,
     },
   });
+
+  try {
+    await applyCompetitiveMatchRating(matchId);
+  } catch {
+    // Ignore if match has no participants or failed safely
+  }
 
   return (await getCompetitiveMatchById(matchId))!;
 }

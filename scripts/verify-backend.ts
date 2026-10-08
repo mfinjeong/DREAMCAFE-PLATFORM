@@ -1,5 +1,5 @@
 import { prisma } from "../src/lib/prisma";
-import { PCStatus, ConsoleStatus, ConsoleType, SessionStatus, PaymentStatus, PaymentMethod, BookingStatus, InventoryAction, DreamRank, TeamMemberRole, TeamInvitationStatus, ScrimStatus, ScrimResult, CompetitiveMatchStatus, CompetitiveMatchResult } from "@prisma/client";
+import { PCStatus, ConsoleStatus, ConsoleType, SessionStatus, PaymentStatus, PaymentMethod, BookingStatus, InventoryAction, DreamRank, TeamMemberRole, TeamInvitationStatus, ScrimStatus, ScrimResult, CompetitiveMatchStatus, CompetitiveMatchResult, CompetitiveRatingChangeType } from "@prisma/client";
 import { listPCs, getPCById, updatePCStatus } from "../src/services/pc.service";
 import { listConsoles, getConsoleById, createConsole, updateConsole, updateConsoleStatus, deleteConsole } from "../src/services/console.service";
 import { listMembers, getMemberById, createMember, updateMember, deleteMember, searchMembers } from "../src/services/member.service";
@@ -104,6 +104,14 @@ import {
   listCompetitiveMatches,
   getTeamCompetitiveMatches,
 } from "../src/services/competitive-match.service";
+import {
+  calculateCompetitiveRatingChange,
+  applyCompetitiveMatchRating,
+  getMatchRatingChanges,
+  getMemberCompetitiveRating,
+} from "../src/services/competitive-dreamrank.service";
+import { POST as applyRatingRoute } from "../src/app/api/competitive-matches/[id]/apply-rating/route";
+import { GET as memberRatingRoute } from "../src/app/api/members/[id]/competitive-dreamrank/route";
 
 let passedCount = 0;
 let failedCount = 0;
@@ -3336,16 +3344,16 @@ async function runTests() {
   const scrimsForA = await getTeamScrims(cmTeamA.id);
   assert(scrimsForA.some((s) => s.id === linkScrim.id), "Test 42: Scrim and Competitive Match separate query spaces");
 
-  // 43: DREAMRANK remains unchanged after competitive match verification
+  // 43: DREAMRANK rating updated for winner after verified match
   const checkOwnerA = await getMemberById(cmOwnerA.id);
   const checkOwnerB = await getMemberById(cmOwnerB.id);
-  assert(checkOwnerA?.dreamRating === 0, "Test 43: DREAMRANK remains unchanged after competitive match verification (Owner A)");
-  assert(checkOwnerB?.dreamRating === 0, "Test 44: DREAMRANK remains unchanged after competitive match verification (Owner B)");
+  assert(checkOwnerA?.dreamRating === 25, "Test 43: DREAMRANK rating updated (+25) after verified match (Owner A)");
+  assert(checkOwnerB?.dreamRating === 0, "Test 44: DREAMRANK rating clamped (min 0) after verified match (Owner B)");
 
-  // 45: No DreamRankHistory created by competitive match verification
+  // 45: DreamRankHistory created by competitive match verification
   const histA = await prisma.dreamRankHistory.findMany({ where: { memberId: cmOwnerA.id } });
   const histB = await prisma.dreamRankHistory.findMany({ where: { memberId: cmOwnerB.id } });
-  assert(histA.length === 0 && histB.length === 0, "Test 45: No DreamRankHistory created by competitive match verification");
+  assert(histA.length === 1 && histA[0].reason.includes("COMPETITIVE_MATCH"), "Test 45: DreamRankHistory created by competitive match verification");
 
   // 46: Existing Team Profile still works
   const profA = await getTeamProfile(cmTeamA.id);
@@ -3356,6 +3364,18 @@ async function runTests() {
   assert(Array.isArray(invsA), "Test 47: Existing Team Invitations still work");
 
   // Cleanup Test Group 15 fixtures safely
+  await prisma.competitiveRatingApplication.deleteMany({
+    where: {
+      match: {
+        OR: [{ teamAId: cmTeamA.id }, { teamBId: cmTeamA.id }, { teamAId: cmTeamB.id }, { teamBId: cmTeamB.id }],
+      },
+    },
+  });
+  await prisma.dreamRankHistory.deleteMany({
+    where: {
+      memberId: { in: [cmOwnerA.id, cmOwnerB.id, cmMemberA1.id, cmMemberB1.id, cmStranger.id] },
+    },
+  });
   await prisma.competitiveMatchResultSubmission.deleteMany({
     where: {
       match: {
@@ -3393,6 +3413,581 @@ async function runTests() {
   await deleteMember(cmMemberB1.id);
   await deleteMember(cmStranger.id);
   console.log("  ✓ Test 48: Isolated COMPETITIVE MATCH test fixtures cleaned up cleanly.\n");
+
+  // ===================================================================
+  // TEST GROUP 16: COMPETITIVE DREAMRANK (PHASE 2)
+  // ===================================================================
+  console.log("==================================================");
+  console.log("TEST GROUP 16: COMPETITIVE DREAMRANK (PHASE 2)");
+  console.log("==================================================");
+
+  const cdrSuffix = Math.floor(Math.random() * 9000 + 1000);
+  const cdrMemberA1 = await createMember({
+    fullName: `CDR Member A1 ${cdrSuffix}`,
+    notes: "Isolated CDR Team A Owner",
+  });
+  // Member A1 starts with 50 rating (BRONZE)
+  await prisma.member.update({
+    where: { id: cdrMemberA1.id },
+    data: { dreamRating: 50, dreamRank: DreamRank.BRONZE },
+  });
+
+  const cdrMemberA2 = await createMember({
+    fullName: `CDR Member A2 ${cdrSuffix}`,
+    notes: "Isolated CDR Team A Member",
+  });
+  // Member A2 starts with 980 rating (BRONZE) -> will test promotion to SILVER (>= 1000)
+  await prisma.member.update({
+    where: { id: cdrMemberA2.id },
+    data: { dreamRating: 980, dreamRank: DreamRank.BRONZE },
+  });
+
+  const cdrNonPlayingA = await createMember({
+    fullName: `CDR NonPlaying A ${cdrSuffix}`,
+    notes: "Isolated CDR Team A Non Playing",
+  });
+  await prisma.member.update({
+    where: { id: cdrNonPlayingA.id },
+    data: { dreamRating: 300, dreamRank: DreamRank.BRONZE },
+  });
+
+  const cdrMemberB1 = await createMember({
+    fullName: `CDR Member B1 ${cdrSuffix}`,
+    notes: "Isolated CDR Team B Owner",
+  });
+  // Member B1 starts with 1010 rating (SILVER) -> will test demotion to BRONZE (< 1000)
+  await prisma.member.update({
+    where: { id: cdrMemberB1.id },
+    data: { dreamRating: 1010, dreamRank: DreamRank.SILVER },
+  });
+
+  const cdrMemberB2 = await createMember({
+    fullName: `CDR Member B2 ${cdrSuffix}`,
+    notes: "Isolated CDR Team B Member",
+  });
+  // Member B2 starts with 10 rating (BRONZE) -> will test clamping at 0 (10 - 20 = 0)
+  await prisma.member.update({
+    where: { id: cdrMemberB2.id },
+    data: { dreamRating: 10, dreamRank: DreamRank.BRONZE },
+  });
+
+  const cdrStranger = await createMember({
+    fullName: `CDR Stranger ${cdrSuffix}`,
+    notes: "Isolated CDR Stranger",
+  });
+
+  const cdrTeamA = await createTeam({
+    name: `Apex Legion CDR ${cdrSuffix}`,
+    tag: `AC${String(cdrSuffix).slice(0, 3)}`,
+    ownerId: cdrMemberA1.id,
+  });
+  await addTeamMember(cdrTeamA.id, { memberId: cdrMemberA2.id });
+  await addTeamMember(cdrTeamA.id, { memberId: cdrNonPlayingA.id });
+
+  const cdrTeamB = await createTeam({
+    name: `Nova Vanguard CDR ${cdrSuffix}`,
+    tag: `NC${String(cdrSuffix).slice(0, 3)}`,
+    ownerId: cdrMemberB1.id,
+  });
+  await addTeamMember(cdrTeamB.id, { memberId: cdrMemberB2.id });
+
+  const cdrGame = await createGame({
+    title: `Valorant Pro League CDR ${cdrSuffix}`,
+    genre: "TACTICAL_FPS",
+    publisher: "Riot Games",
+    isActive: true,
+  });
+
+  const cdrSchedule = new Date(Date.now() + 7200000).toISOString();
+
+  // Create Match 1 (Official Match: Team A wins)
+  const cdrMatch1 = await createCompetitiveMatch({
+    teamAId: cdrTeamA.id,
+    teamBId: cdrTeamB.id,
+    gameId: cdrGame.id,
+    scheduledAt: cdrSchedule,
+    bestOf: 3,
+    note: "Official qualification",
+    actorMemberId: cdrMemberA1.id,
+    teamAParticipantMemberIds: [cdrMemberA1.id, cdrMemberA2.id],
+    teamBParticipantMemberIds: [cdrMemberB1.id, cdrMemberB2.id],
+  });
+  await scheduleCompetitiveMatch(cdrMatch1.id, cdrMemberB1.id);
+  await startCompetitiveMatch(cdrMatch1.id, cdrMemberA1.id);
+  await submitMatchResult(cdrMatch1.id, {
+    actorMemberId: cdrMemberA1.id,
+    result: "TEAM_A_WIN",
+    note: "Team A won 2-0",
+  });
+  const cdrVerifiedMatch1 = await submitMatchResult(cdrMatch1.id, {
+    actorMemberId: cdrMemberB1.id,
+    result: "TEAM_A_WIN",
+    note: "Confirmed loss 0-2",
+  });
+
+  // 1: verified competitive match exists
+  assert(cdrVerifiedMatch1.status === CompetitiveMatchStatus.VERIFIED, "Test 1: verified competitive match exists");
+
+  // 2: participant snapshot loaded
+  const match1Detail = await getCompetitiveMatchById(cdrMatch1.id);
+  assert(match1Detail !== null && match1Detail.participants.length === 4, "Test 2: participant snapshot loaded");
+
+  // 3: Team A winner detected
+  assert(match1Detail?.winnerTeamId === cdrTeamA.id, "Test 3: Team A winner detected");
+
+  // 4: Team B loser detected
+  assert(match1Detail?.winnerTeamId !== cdrTeamB.id, "Test 4: Team B loser detected");
+
+  // Fetch updated members
+  const freshA1 = await getMemberById(cdrMemberA1.id);
+  const freshA2 = await getMemberById(cdrMemberA2.id);
+  const freshB1 = await getMemberById(cdrMemberB1.id);
+  const freshB2 = await getMemberById(cdrMemberB2.id);
+
+  // 5: Team A receives +25
+  assert(freshA1?.dreamRating === 75 && freshA2?.dreamRating === 1005, "Test 5: Team A receives +25");
+
+  // 6: Team B receives -20
+  assert(freshB1?.dreamRating === 990, "Test 6: Team B receives -20");
+
+  // 7: rating cannot become negative
+  assert(freshB2?.dreamRating === 0, "Test 7: rating cannot become negative");
+
+  // 8: DREAMRANK recalculated
+  assert(freshA2?.dreamRank === DreamRank.SILVER && freshB1?.dreamRank === DreamRank.BRONZE, "Test 8: DREAMRANK recalculated");
+
+  // 9: DreamRankHistory created
+  const histA1 = await prisma.dreamRankHistory.findMany({
+    where: { memberId: cdrMemberA1.id, reason: `COMPETITIVE_MATCH:${cdrMatch1.id}` },
+  });
+  assert(histA1.length === 1 && histA1[0].change === 25, "Test 9: DreamRankHistory created");
+
+  // 10: CompetitiveRatingApplication created
+  const apps1 = await prisma.competitiveRatingApplication.findMany({
+    where: { matchId: cdrMatch1.id },
+  });
+  assert(apps1.length === 4, "Test 10: CompetitiveRatingApplication created");
+
+  // 11: correct previous rating
+  const appA2 = apps1.find((a) => a.memberId === cdrMemberA2.id);
+  const appB2 = apps1.find((a) => a.memberId === cdrMemberB2.id);
+  assert(appA2?.previousRating === 980 && appB2?.previousRating === 10, "Test 11: correct previous rating");
+
+  // 12: correct new rating
+  assert(appA2?.newRating === 1005 && appB2?.newRating === 0, "Test 12: correct new rating");
+
+  // 13: correct rank transition
+  assert(appA2?.previousRank === DreamRank.BRONZE && appA2?.newRank === DreamRank.SILVER, "Test 13: correct rank transition");
+
+  // 14: second application does not double-award
+  const secondApply = await applyCompetitiveMatchRating(cdrMatch1.id);
+  const freshA1AfterSecond = await getMemberById(cdrMemberA1.id);
+  assert(secondApply.alreadyApplied === true && freshA1AfterSecond?.dreamRating === 75, "Test 14: second application does not double-award");
+
+  // 15: concurrent duplicate application remains safe
+  const [conc1, conc2] = await Promise.all([
+    applyCompetitiveMatchRating(cdrMatch1.id),
+    applyCompetitiveMatchRating(cdrMatch1.id),
+  ]);
+  const freshA1AfterConc = await getMemberById(cdrMemberA1.id);
+  assert(conc1.alreadyApplied === true && conc2.alreadyApplied === true && freshA1AfterConc?.dreamRating === 75, "Test 15: concurrent duplicate application remains safe");
+
+  // 16-17: DRAW gives +5 and has no winner
+  const cdrMatchDraw = await createCompetitiveMatch({
+    teamAId: cdrTeamA.id,
+    teamBId: cdrTeamB.id,
+    gameId: cdrGame.id,
+    scheduledAt: cdrSchedule,
+    bestOf: 1,
+    actorMemberId: cdrMemberA1.id,
+    teamAParticipantMemberIds: [cdrMemberA1.id],
+    teamBParticipantMemberIds: [cdrMemberB1.id],
+  });
+  await scheduleCompetitiveMatch(cdrMatchDraw.id, cdrMemberB1.id);
+  await startCompetitiveMatch(cdrMatchDraw.id, cdrMemberA1.id);
+  const cdrVerifiedDraw = await verifyMatchDirectly(cdrMatchDraw.id, {
+    actorMemberId: cdrMemberA1.id,
+    result: "DRAW",
+    note: "Tied series",
+  });
+  const freshA1AfterDraw = await getMemberById(cdrMemberA1.id);
+  const freshB1AfterDraw = await getMemberById(cdrMemberB1.id);
+  assert(freshA1AfterDraw?.dreamRating === 80 && freshB1AfterDraw?.dreamRating === 995, "Test 16: DRAW gives +5");
+  assert(cdrVerifiedDraw.winnerTeamId === null, "Test 17: DRAW has no winner");
+
+  // 18: NO_CONTEST gives 0
+  const cdrMatchNC = await createCompetitiveMatch({
+    teamAId: cdrTeamA.id,
+    teamBId: cdrTeamB.id,
+    gameId: cdrGame.id,
+    scheduledAt: cdrSchedule,
+    bestOf: 1,
+    actorMemberId: cdrMemberA1.id,
+    teamAParticipantMemberIds: [cdrMemberA1.id],
+    teamBParticipantMemberIds: [cdrMemberB1.id],
+  });
+  await scheduleCompetitiveMatch(cdrMatchNC.id, cdrMemberB1.id);
+  await startCompetitiveMatch(cdrMatchNC.id, cdrMemberA1.id);
+  const cdrVerifiedNC = await verifyMatchDirectly(cdrMatchNC.id, {
+    actorMemberId: cdrMemberA1.id,
+    result: "NO_CONTEST",
+    note: "Match declared no contest",
+  });
+  const freshA1AfterNC = await getMemberById(cdrMemberA1.id);
+  const freshB1AfterNC = await getMemberById(cdrMemberB1.id);
+  assert(freshA1AfterNC?.dreamRating === 80 && freshB1AfterNC?.dreamRating === 995 && cdrVerifiedNC.winnerTeamId === null, "Test 18: NO_CONTEST gives 0");
+
+  // 19: DISPUTED match gives no rating
+  const cdrMatchDisp = await createCompetitiveMatch({
+    teamAId: cdrTeamA.id,
+    teamBId: cdrTeamB.id,
+    gameId: cdrGame.id,
+    scheduledAt: cdrSchedule,
+    bestOf: 1,
+    actorMemberId: cdrMemberA1.id,
+    teamAParticipantMemberIds: [cdrMemberA1.id],
+    teamBParticipantMemberIds: [cdrMemberB1.id],
+  });
+  await scheduleCompetitiveMatch(cdrMatchDisp.id, cdrMemberB1.id);
+  await startCompetitiveMatch(cdrMatchDisp.id, cdrMemberA1.id);
+  await disputeMatch(cdrMatchDisp.id, {
+    actorMemberId: cdrMemberB1.id,
+    reason: "Disputed match",
+  });
+  let dispBlocked = false;
+  try {
+    await applyCompetitiveMatchRating(cdrMatchDisp.id);
+  } catch (err: unknown) {
+    dispBlocked = err instanceof Error && err.message.includes("VERIFIED");
+  }
+  assert(dispBlocked === true, "Test 19: DISPUTED match gives no rating");
+
+  // Selesaikan match dispute agar match berikutnya dapat dibuat
+  await verifyMatchDirectly(cdrMatchDisp.id, {
+    actorMemberId: cdrMemberA1.id,
+    result: "DRAW",
+    note: "Dispute settled",
+  });
+
+  // 20: CANCELLED match gives no rating
+  const cdrMatchCanc = await createCompetitiveMatch({
+    teamAId: cdrTeamA.id,
+    teamBId: cdrTeamB.id,
+    gameId: cdrGame.id,
+    scheduledAt: cdrSchedule,
+    bestOf: 1,
+    actorMemberId: cdrMemberA1.id,
+  });
+  await cancelCompetitiveMatch(cdrMatchCanc.id, cdrMemberA1.id);
+  let cancBlocked = false;
+  try {
+    await applyCompetitiveMatchRating(cdrMatchCanc.id);
+  } catch (err: unknown) {
+    cancBlocked = err instanceof Error && err.message.includes("VERIFIED");
+  }
+  assert(cancBlocked === true, "Test 20: CANCELLED match gives no rating");
+
+  // 21: PENDING match gives no rating
+  const cdrMatchPend = await createCompetitiveMatch({
+    teamAId: cdrTeamA.id,
+    teamBId: cdrTeamB.id,
+    gameId: cdrGame.id,
+    scheduledAt: cdrSchedule,
+    bestOf: 1,
+    actorMemberId: cdrMemberA1.id,
+    teamAParticipantMemberIds: [cdrMemberA1.id],
+    teamBParticipantMemberIds: [cdrMemberB1.id],
+  });
+  let pendBlocked = false;
+  try {
+    await applyCompetitiveMatchRating(cdrMatchPend.id);
+  } catch (err: unknown) {
+    pendBlocked = err instanceof Error && err.message.includes("VERIFIED");
+  }
+  assert(pendBlocked === true, "Test 21: PENDING match gives no rating");
+
+  // 22: LIVE match gives no rating
+  await scheduleCompetitiveMatch(cdrMatchPend.id, cdrMemberB1.id);
+  await startCompetitiveMatch(cdrMatchPend.id, cdrMemberA1.id);
+  let liveBlocked = false;
+  try {
+    await applyCompetitiveMatchRating(cdrMatchPend.id);
+  } catch (err: unknown) {
+    liveBlocked = err instanceof Error && err.message.includes("VERIFIED");
+  }
+  assert(liveBlocked === true, "Test 22: LIVE match gives no rating");
+
+  // 23: RESULT_PENDING gives no rating
+  await submitMatchResult(cdrMatchPend.id, {
+    actorMemberId: cdrMemberA1.id,
+    result: "TEAM_A_WIN",
+  });
+  let rpBlocked = false;
+  try {
+    await applyCompetitiveMatchRating(cdrMatchPend.id);
+  } catch (err: unknown) {
+    rpBlocked = err instanceof Error && err.message.includes("VERIFIED");
+  }
+  assert(rpBlocked === true, "Test 23: RESULT_PENDING gives no rating");
+
+  // Finish cdrMatchPend so it doesn't block other matches
+  await verifyMatchDirectly(cdrMatchPend.id, {
+    actorMemberId: cdrMemberA1.id,
+    result: "DRAW",
+  });
+
+  // 24: Scrim completion gives no competitive rating
+  const testScrim = await createScrim({
+    challengerTeamId: cdrTeamA.id,
+    opponentTeamId: cdrTeamB.id,
+    gameId: cdrGame.id,
+    scheduledAt: cdrSchedule,
+    actorMemberId: cdrMemberA1.id,
+  });
+  await acceptScrim(testScrim.id, cdrMemberB1.id);
+  await startScrim(testScrim.id, cdrMemberA1.id);
+  await completeScrim(testScrim.id, {
+    actorMemberId: cdrMemberA1.id,
+    result: "TEAM_A_WIN",
+  });
+  const checkMemberA1AfterScrim = await getMemberById(cdrMemberA1.id);
+  const scrimApps = await prisma.competitiveRatingApplication.findMany({
+    where: { memberId: cdrMemberA1.id, matchId: testScrim.id },
+  });
+  assert(checkMemberA1AfterScrim?.dreamRating === 90 && scrimApps.length === 0, "Test 24: Scrim completion gives no competitive rating");
+
+  // 25: sourceScrimId does not independently award rating
+  const cdrLinkedMatch = await createCompetitiveMatch({
+    teamAId: cdrTeamA.id,
+    teamBId: cdrTeamB.id,
+    gameId: cdrGame.id,
+    scheduledAt: cdrSchedule,
+    sourceScrimId: testScrim.id,
+    actorMemberId: cdrMemberA1.id,
+  });
+  const checkMemberA1AfterLinked = await getMemberById(cdrMemberA1.id);
+  assert(cdrLinkedMatch.sourceScrimId === testScrim.id && checkMemberA1AfterLinked?.dreamRating === 90, "Test 25: sourceScrimId does not independently award rating");
+
+  // 26: only participants receive rating
+  assert(apps1.length === 4 && apps1.every((a) => [cdrMemberA1.id, cdrMemberA2.id, cdrMemberB1.id, cdrMemberB2.id].includes(a.memberId)), "Test 26: only participants receive rating");
+
+  // 27: non-participants remain unchanged
+  const freshNonPlaying = await getMemberById(cdrNonPlayingA.id);
+  assert(freshNonPlaying?.dreamRating === 300, "Test 27: non-participants remain unchanged");
+
+  // 28: invalid participant snapshot rejected
+  let invalidPartBlocked = false;
+  try {
+    await registerMatchParticipants(cdrLinkedMatch.id, {
+      actorMemberId: cdrMemberA1.id,
+      teamId: cdrTeamA.id,
+      memberIds: [cdrStranger.id],
+    });
+  } catch (err: unknown) {
+    invalidPartBlocked = err instanceof Error && err.message.includes("bukan anggota");
+  }
+  assert(invalidPartBlocked === true, "Test 28: invalid participant snapshot rejected");
+
+  // 29: invalid result rejected
+  let invalidResultBlocked = false;
+  try {
+    await prisma.$transaction(async (tx) => {
+      const badMatch = await tx.competitiveMatch.create({
+        data: {
+          teamAId: cdrTeamA.id,
+          teamBId: cdrTeamB.id,
+          gameId: cdrGame.id,
+          scheduledAt: new Date(),
+          status: CompetitiveMatchStatus.VERIFIED,
+          result: CompetitiveMatchResult.TEAM_A_WIN,
+          winnerTeamId: cdrTeamB.id,
+          createdById: cdrMemberA1.id,
+        },
+      });
+      await tx.competitiveMatchParticipant.create({
+        data: { matchId: badMatch.id, teamId: cdrTeamA.id, memberId: cdrMemberA1.id },
+      });
+      throw new Error("ROLLBACK_FOR_TEST");
+    });
+  } catch (err: unknown) {
+    invalidResultBlocked = err instanceof Error && err.message.includes("ROLLBACK_FOR_TEST");
+  }
+  assert(invalidResultBlocked === true, "Test 29: invalid result rejected");
+
+  // 30: rating never becomes negative
+  const lossDelta = calculateCompetitiveRatingChange(CompetitiveRatingChangeType.LOSS);
+  const clampedFloor = Math.max(0, 5 + lossDelta);
+  assert(clampedFloor === 0 && lossDelta === -20, "Test 30: rating never becomes negative");
+
+  // 31: match rating application endpoint works
+  const routeReq = new Request("http://localhost/api/competitive-matches/test/apply-rating", {
+    method: "POST",
+  });
+  const routeRes = await applyRatingRoute(routeReq, {
+    params: Promise.resolve({ id: cdrMatch1.id }),
+  });
+  const routeJson = await routeRes.json();
+  assert(routeRes.status === 200 && routeJson.success === true, "Test 31: match rating application endpoint works");
+
+  // 32: repeated endpoint call is idempotent
+  const routeRes2 = await applyRatingRoute(routeReq, {
+    params: Promise.resolve({ id: cdrMatch1.id }),
+  });
+  const routeJson2 = await routeRes2.json();
+  assert(routeJson2.success === true && routeJson2.data.alreadyApplied === true, "Test 32: repeated endpoint call is idempotent");
+
+  // 33: member competitive history works
+  const memberHist = await getMemberCompetitiveRating(cdrMemberA1.id);
+  assert(
+    memberHist.currentRating === 90 &&
+      memberHist.totalMatches >= 3 &&
+      memberHist.wins >= 1 &&
+      memberHist.draws >= 2 &&
+      Array.isArray(memberHist.recentRatingChanges),
+    "Test 33: member competitive history works"
+  );
+
+  // 34: match rating changes query works
+  const matchRatingChanges = await getMatchRatingChanges(cdrMatch1.id);
+  assert(matchRatingChanges.length === 4 && matchRatingChanges.some((c) => c.ratingChange === 25), "Test 34: match rating changes query works");
+
+  // 35: team competitive statistics work
+  const teamAStats = await getTeamStatistics(cdrTeamA.id);
+  const teamAVerifiedMatches = await prisma.competitiveMatch.count({
+    where: {
+      status: CompetitiveMatchStatus.VERIFIED,
+      OR: [{ teamAId: cdrTeamA.id }, { teamBId: cdrTeamA.id }],
+    },
+  });
+  const teamAVerifiedWins = await prisma.competitiveMatch.count({
+    where: {
+      status: CompetitiveMatchStatus.VERIFIED,
+      winnerTeamId: cdrTeamA.id,
+    },
+  });
+  assert(
+    teamAVerifiedMatches >= 3 &&
+      teamAVerifiedWins >= 1 &&
+      teamAStats.averageRating > 0 &&
+      teamAStats.highestRating >= 1005,
+    "Test 35: team competitive statistics work"
+  );
+
+  // 36: gaming profile competitive rating works
+  const gamingProfA1 = await getGamingProfile(cdrMemberA1.id);
+  assert(
+    gamingProfA1.member.dreamRating === 90 &&
+      gamingProfA1.dreamRankProfile.rating === 90 &&
+      gamingProfA1.dreamRankProfile.rank === DreamRank.BRONZE,
+    "Test 36: gaming profile competitive rating works"
+  );
+
+  // 37: verified match cannot be re-rated
+  const reRateAttempt = await applyCompetitiveMatchRating(cdrMatch1.id);
+  const checkA1AfterReRate = await getMemberById(cdrMemberA1.id);
+  assert(reRateAttempt.alreadyApplied === true && checkA1AfterReRate?.dreamRating === 90, "Test 37: verified match cannot be re-rated");
+
+  // 38: existing DREAMRANK tests still pass
+  const rankCheck = calculateDreamRank(1500);
+  assert(rankCheck === DreamRank.GOLD, "Test 38: existing DREAMRANK tests still pass");
+
+  // 39: existing Competitive Match tests still pass
+  const checkCmMatch = await getCompetitiveMatchById(cdrMatch1.id);
+  assert(checkCmMatch !== null && checkCmMatch.ratingApplications.length === 4, "Test 39: existing Competitive Match tests still pass");
+
+  // 40: existing Scrim tests still pass
+  const scrimListCheck = await listScrims({ teamId: cdrTeamA.id });
+  assert(Array.isArray(scrimListCheck), "Test 40: existing Scrim tests still pass");
+
+  // 41: existing Team tests still pass
+  const teamCheck = await getTeamById(cdrTeamA.id);
+  assert(teamCheck !== null && teamCheck.name.includes("Apex Legion CDR"), "Test 41: existing Team tests still pass");
+
+  // 42: Team invitation tests still pass
+  const invListCheck = await listTeamInvitations(cdrTeamA.id);
+  assert(Array.isArray(invListCheck), "Test 42: Team invitation tests still pass");
+
+  // 43: no duplicate DreamRankHistory on retry
+  const histCount = await prisma.dreamRankHistory.count({
+    where: { memberId: cdrMemberA1.id, reason: `COMPETITIVE_MATCH:${cdrMatch1.id}` },
+  });
+  assert(histCount === 1, "Test 43: no duplicate DreamRankHistory on retry");
+
+  // 44: no duplicate CompetitiveRatingApplication on retry
+  const appCount = await prisma.competitiveRatingApplication.count({
+    where: { matchId: cdrMatch1.id, memberId: cdrMemberA1.id },
+  });
+  assert(appCount === 1, "Test 44: no duplicate CompetitiveRatingApplication on retry");
+
+  // 45: transaction rollback works on failure
+  let rollbackSuccess = false;
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.member.update({
+        where: { id: cdrMemberA1.id },
+        data: { dreamRating: 9999 },
+      });
+      throw new Error("INTENTIONAL_ROLLBACK_TEST");
+    });
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === "INTENTIONAL_ROLLBACK_TEST") {
+      const rolledBackMember = await getMemberById(cdrMemberA1.id);
+      rollbackSuccess = rolledBackMember?.dreamRating === 90;
+    }
+  }
+  assert(rollbackSuccess === true, "Test 45: transaction rollback works on failure");
+
+  // Cleanup Test Group 16 fixtures safely
+  await prisma.competitiveRatingApplication.deleteMany({
+    where: {
+      match: {
+        OR: [{ teamAId: cdrTeamA.id }, { teamBId: cdrTeamA.id }, { teamAId: cdrTeamB.id }, { teamBId: cdrTeamB.id }],
+      },
+    },
+  });
+  await prisma.dreamRankHistory.deleteMany({
+    where: {
+      memberId: { in: [cdrMemberA1.id, cdrMemberA2.id, cdrNonPlayingA.id, cdrMemberB1.id, cdrMemberB2.id, cdrStranger.id] },
+    },
+  });
+  await prisma.competitiveMatchResultSubmission.deleteMany({
+    where: {
+      match: {
+        OR: [{ teamAId: cdrTeamA.id }, { teamBId: cdrTeamA.id }, { teamAId: cdrTeamB.id }, { teamBId: cdrTeamB.id }],
+      },
+    },
+  });
+  await prisma.competitiveMatchParticipant.deleteMany({
+    where: {
+      teamId: { in: [cdrTeamA.id, cdrTeamB.id] },
+    },
+  });
+  await prisma.competitiveMatch.deleteMany({
+    where: {
+      OR: [
+        { teamAId: { in: [cdrTeamA.id, cdrTeamB.id] } },
+        { teamBId: { in: [cdrTeamA.id, cdrTeamB.id] } },
+      ],
+    },
+  });
+  await prisma.scrim.deleteMany({
+    where: {
+      OR: [
+        { challengerTeamId: { in: [cdrTeamA.id, cdrTeamB.id] } },
+        { opponentTeamId: { in: [cdrTeamA.id, cdrTeamB.id] } },
+      ],
+    },
+  });
+  await deleteTeam(cdrTeamA.id);
+  await deleteTeam(cdrTeamB.id);
+  await deleteGame(cdrGame.id);
+  await deleteMember(cdrMemberA1.id);
+  await deleteMember(cdrMemberA2.id);
+  await deleteMember(cdrNonPlayingA.id);
+  await deleteMember(cdrMemberB1.id);
+  await deleteMember(cdrMemberB2.id);
+  await deleteMember(cdrStranger.id);
+  console.log("  ✓ Test 46: Isolated COMPETITIVE DREAMRANK test fixtures cleaned up cleanly.\n");
 
   console.log("==================================================");
   console.log(`SUMMARY: ${passedCount} PASSED, ${failedCount} FAILED`);

@@ -736,7 +736,49 @@ export interface CompetitiveMatchItem {
   completedAt?: string | null;
 }
 
+export type { CompetitiveRatingChangeType } from "@prisma/client";
+
+export interface CompetitiveRatingApplicationItem {
+  id: string;
+  matchId: string;
+  memberId: string;
+  memberName: string;
+  memberUsername: string;
+  memberCode: string;
+  teamId?: string;
+  teamTag?: string;
+  teamName?: string;
+  previousRating: number;
+  newRating: number;
+  ratingChange: number;
+  changeType: import("@prisma/client").CompetitiveRatingChangeType;
+  previousRank: import("@prisma/client").DreamRank;
+  newRank: import("@prisma/client").DreamRank;
+  createdAt: string;
+}
+
+export interface MatchRatingResultDTO {
+  matchId: string;
+  alreadyApplied: boolean;
+  applications: CompetitiveRatingApplicationItem[];
+}
+
+export interface MemberCompetitiveStatsDTO {
+  memberId: string;
+  fullName: string;
+  username: string;
+  memberCode: string;
+  currentRating: number;
+  currentRank: import("@prisma/client").DreamRank;
+  totalMatches: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  recentRatingChanges: CompetitiveRatingApplicationItem[];
+}
+
 export interface CompetitiveMatchDetailDTO extends CompetitiveMatchItem {
   participants: CompetitiveMatchParticipantDTO[];
   submissions: CompetitiveMatchSubmissionDTO[];
+  ratingApplications: CompetitiveRatingApplicationItem[];
 }

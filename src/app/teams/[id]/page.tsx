@@ -1144,6 +1144,44 @@ export default function TeamDetailPage({
           </Link>
         </div>
 
+        {/* Real Competitive Match Statistics */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+          {(() => {
+            const verifiedMatches = teamMatches.filter((m) => m.status === "VERIFIED");
+            const compWins = verifiedMatches.filter((m) => m.winnerTeamId === teamId).length;
+            const compLosses = verifiedMatches.filter((m) => m.winnerTeamId && m.winnerTeamId !== teamId).length;
+            const compDraws = verifiedMatches.filter((m) => m.result === "DRAW").length;
+            return (
+              <>
+                <div className="p-2.5 bg-surface-card border border-surface-border rounded-[4px]">
+                  <div className="text-[9px] font-mono text-text-muted uppercase">Official Matches</div>
+                  <div className="text-sm font-bold font-mono text-text-primary mt-0.5">{verifiedMatches.length}</div>
+                </div>
+                <div className="p-2.5 bg-surface-card border border-surface-border rounded-[4px]">
+                  <div className="text-[9px] font-mono text-emerald-400 uppercase">Menang (Win)</div>
+                  <div className="text-sm font-bold font-mono text-emerald-400 mt-0.5">{compWins}</div>
+                </div>
+                <div className="p-2.5 bg-surface-card border border-surface-border rounded-[4px]">
+                  <div className="text-[9px] font-mono text-rose-400 uppercase">Kalah (Loss)</div>
+                  <div className="text-sm font-bold font-mono text-rose-400 mt-0.5">{compLosses}</div>
+                </div>
+                <div className="p-2.5 bg-surface-card border border-surface-border rounded-[4px]">
+                  <div className="text-[9px] font-mono text-amber-400 uppercase">Seri (Draw)</div>
+                  <div className="text-sm font-bold font-mono text-amber-400 mt-0.5">{compDraws}</div>
+                </div>
+                <div className="p-2.5 bg-surface-card border border-surface-border rounded-[4px]">
+                  <div className="text-[9px] font-mono text-persona-blue uppercase">Avg Member RR</div>
+                  <div className="text-sm font-bold font-mono text-persona-blue mt-0.5">{summary.averageRating}</div>
+                </div>
+                <div className="p-2.5 bg-surface-card border border-surface-border rounded-[4px]">
+                  <div className="text-[9px] font-mono text-text-secondary uppercase">Rating Range</div>
+                  <div className="text-xs font-bold font-mono text-text-primary mt-0.5">{summary.lowestRating} - {summary.highestRating}</div>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+
         {teamMatches.length === 0 ? (
           <div className="p-6 text-center bg-surface-card border border-surface-border rounded-[4px]">
             <p className="text-xs text-text-muted font-mono">Belum ada riwayat pertandingan resmi.</p>

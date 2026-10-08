@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
-import { GamingProfileDTO, TeamInvitationDTO } from "@/lib/types";
+import { GamingProfileDTO, TeamInvitationDTO, MemberCompetitiveStatsDTO } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import {
   Trophy,
@@ -24,6 +24,7 @@ import {
   Mail,
   Check,
   X,
+  Crosshair,
 } from "lucide-react";
 import { formatDateTime } from "@/lib/formatters";
 
@@ -36,6 +37,7 @@ export default function MemberGamingProfilePage({
   const memberId = resolvedParams.id;
 
   const [profile, setProfile] = useState<GamingProfileDTO | null>(null);
+  const [compStats, setCompStats] = useState<MemberCompetitiveStatsDTO | null>(null);
   const [incomingInvitations, setIncomingInvitations] = useState<TeamInvitationDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -45,9 +47,10 @@ export default function MemberGamingProfilePage({
   const fetchProfile = async () => {
     try {
       setErrorMessage(null);
-      const [resProfile, resInvs] = await Promise.all([
+      const [resProfile, resInvs, resComp] = await Promise.all([
         fetch(`/api/members/${memberId}/gaming`),
         fetch(`/api/members/${memberId}/team-invitations?status=PENDING`),
+        fetch(`/api/members/${memberId}/competitive-dreamrank`),
       ]);
 
       const json = await resProfile.json();
@@ -60,6 +63,13 @@ export default function MemberGamingProfilePage({
         const invsJson = await resInvs.json();
         if (invsJson.success) {
           setIncomingInvitations(invsJson.data);
+        }
+      }
+
+      if (resComp.ok) {
+        const compJson = await resComp.json();
+        if (compJson.success) {
+          setCompStats(compJson.data);
         }
       }
     } catch (err: unknown) {
@@ -431,6 +441,121 @@ export default function MemberGamingProfilePage({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Competitive DREAMRANK (Official Matches) Section */}
+      <div className="bg-surface-card border border-surface-border p-5 rounded-[4px] space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-surface-border">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-3.5 bg-persona-blue persona-slash rounded-[1px]"></div>
+            <div>
+              <h2 className="text-xs font-mono font-bold tracking-wider text-text-primary uppercase flex items-center gap-2">
+                <Crosshair className="w-3.5 h-3.5 text-persona-blue" />
+                <span>Competitive DREAMRANK</span>
+                <span className="text-[10px] px-1.5 py-0.2 bg-surface-dark border border-surface-border text-text-muted rounded">
+                  Official Matches Only
+                </span>
+              </h2>
+              <p className="text-[11px] text-text-secondary mt-0.5">
+                Statistik rekor resmi pertandingan kompetitif tim terverifikasi.
+              </p>
+            </div>
+          </div>
+
+          <Link href="/competitive-matches">
+            <Button variant="outline" size="sm" className="h-7 text-xs flex items-center gap-1.5">
+              <span>Ke Official Matches</span>
+            </Button>
+          </Link>
+        </div>
+
+        {/* Mini Stats KPI */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="p-3 bg-surface-dark border border-surface-border rounded-[4px]">
+            <div className="text-[10px] font-mono text-text-muted uppercase">Official Matches</div>
+            <div className="text-base font-bold font-mono text-text-primary mt-0.5">
+              {compStats?.totalMatches ?? 0}
+            </div>
+          </div>
+
+          <div className="p-3 bg-surface-dark border border-surface-border rounded-[4px]">
+            <div className="text-[10px] font-mono text-emerald-400 uppercase">Menang (Wins)</div>
+            <div className="text-base font-bold font-mono text-emerald-400 mt-0.5">
+              {compStats?.wins ?? 0}
+            </div>
+          </div>
+
+          <div className="p-3 bg-surface-dark border border-surface-border rounded-[4px]">
+            <div className="text-[10px] font-mono text-rose-400 uppercase">Kalah (Losses)</div>
+            <div className="text-base font-bold font-mono text-rose-400 mt-0.5">
+              {compStats?.losses ?? 0}
+            </div>
+          </div>
+
+          <div className="p-3 bg-surface-dark border border-surface-border rounded-[4px]">
+            <div className="text-[10px] font-mono text-amber-400 uppercase">Seri (Draws)</div>
+            <div className="text-base font-bold font-mono text-amber-400 mt-0.5">
+              {compStats?.draws ?? 0}
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Competitive Rating Changes */}
+        {(!compStats || compStats.recentRatingChanges.length === 0) ? (
+          <div className="p-4 text-center bg-surface-dark/40 border border-surface-border rounded-[4px]">
+            <p className="text-xs text-text-muted font-mono">
+              Belum ada riwayat pertandingan resmi kompetitif yang terverifikasi untuk member ini.
+            </p>
+          </div>
+        ) : (
+          <div className="bg-surface-dark/40 border border-surface-border rounded-[4px] overflow-hidden">
+            <div className="p-2.5 bg-surface-dark border-b border-surface-border text-[10px] font-mono font-bold text-text-secondary uppercase">
+              Riwayat Perubahan Rating Pertandingan Resmi
+            </div>
+            <table className="w-full text-xs text-left">
+              <thead className="bg-surface-dark border-b border-surface-border text-text-muted uppercase font-mono text-[10px]">
+                <tr>
+                  <th className="px-3.5 py-2">Hasil Match</th>
+                  <th className="px-3.5 py-2">Delta (RR)</th>
+                  <th className="px-3.5 py-2">Rating Sebelum &rarr; Sesudah</th>
+                  <th className="px-3.5 py-2">Rank</th>
+                  <th className="px-3.5 py-2 text-right">Waktu</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-border font-mono">
+                {compStats.recentRatingChanges.map((app) => (
+                  <tr key={app.id} className="hover:bg-surface-hover/50 transition-colors">
+                    <td className="px-3.5 py-2">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded border ${
+                        app.changeType === "WIN"
+                          ? "text-emerald-400 bg-emerald-950/40 border-emerald-800/40"
+                          : app.changeType === "LOSS"
+                          ? "text-rose-400 bg-rose-950/40 border-rose-800/40"
+                          : "text-amber-400 bg-amber-950/40 border-amber-800/40"
+                      }`}>
+                        {app.changeType}
+                      </span>
+                    </td>
+                    <td className="px-3.5 py-2 font-bold">
+                      <span className={app.ratingChange > 0 ? "text-emerald-400" : app.ratingChange < 0 ? "text-rose-400" : "text-text-muted"}>
+                        {app.ratingChange > 0 ? `+${app.ratingChange}` : app.ratingChange} RR
+                      </span>
+                    </td>
+                    <td className="px-3.5 py-2 text-text-secondary">
+                      {app.previousRating} &rarr; {app.newRating}
+                    </td>
+                    <td className="px-3.5 py-2 text-text-primary">
+                      {app.newRank}
+                    </td>
+                    <td className="px-3.5 py-2 text-right text-text-muted text-[11px]">
+                      {formatDateTime(app.createdAt)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Undangan Masuk Tim Section (Phase 2) */}

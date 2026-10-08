@@ -218,6 +218,26 @@ export default function CompetitiveMatchDetailPage({
     }
   };
 
+  const handleApplyRating = async () => {
+    if (!match) return;
+    setIsActionSubmitting(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/competitive-matches/${match.id}/apply-rating`, {
+        method: "POST",
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Gagal menerapkan rating");
+      }
+      await fetchMatch();
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : "Terjadi kesalahan");
+    } finally {
+      setIsActionSubmitting(false);
+    }
+  };
+
   const handleCancelSubmit = async () => {
     if (!match) return;
     setIsActionSubmitting(true);
@@ -440,6 +460,115 @@ export default function CompetitiveMatchDetailPage({
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Competitive DREAMRANK Application Breakdown */}
+        {match.status === "VERIFIED" && match.ratingApplications && match.ratingApplications.length > 0 && (
+          <div className="p-4 bg-surface-dark border border-surface-border rounded-[4px] space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-persona-blue" />
+                <span className="text-xs font-mono font-bold uppercase tracking-wider text-text-primary">
+                  Perubahan Competitive DREAMRANK
+                </span>
+                <span className="text-[10px] font-mono px-1.5 py-0.2 bg-surface-card border border-surface-border text-emerald-400 rounded">
+                  Diproses ({match.ratingApplications.length} Peserta)
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Team A Ratings */}
+              <div className="space-y-1.5">
+                <div className="text-[11px] font-mono font-bold text-persona-blue uppercase">
+                  #{match.teamA.tag}
+                </div>
+                {match.ratingApplications
+                  .filter((app) => app.teamId === match.teamAId)
+                  .map((app) => (
+                    <div
+                      key={app.id}
+                      className="p-2 bg-surface-card border border-surface-border rounded text-xs flex items-center justify-between"
+                    >
+                      <div>
+                        <div className="font-bold text-text-primary">{app.memberName}</div>
+                        <div className="text-[10px] text-text-muted font-mono">{app.memberCode}</div>
+                      </div>
+                      <div className="text-right">
+                        <span
+                          className={`font-mono font-bold text-xs ${
+                            app.ratingChange > 0
+                              ? "text-emerald-400"
+                              : app.ratingChange < 0
+                              ? "text-rose-400"
+                              : "text-text-muted"
+                          }`}
+                        >
+                          {app.ratingChange > 0 ? `+${app.ratingChange}` : app.ratingChange} RR
+                        </span>
+                        <div className="text-[10px] text-text-muted font-mono">
+                          {app.previousRating} &rarr; {app.newRating} ({app.newRank})
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+
+              {/* Team B Ratings */}
+              <div className="space-y-1.5">
+                <div className="text-[11px] font-mono font-bold text-persona-red uppercase">
+                  #{match.teamB.tag}
+                </div>
+                {match.ratingApplications
+                  .filter((app) => app.teamId === match.teamBId)
+                  .map((app) => (
+                    <div
+                      key={app.id}
+                      className="p-2 bg-surface-card border border-surface-border rounded text-xs flex items-center justify-between"
+                    >
+                      <div>
+                        <div className="font-bold text-text-primary">{app.memberName}</div>
+                        <div className="text-[10px] text-text-muted font-mono">{app.memberCode}</div>
+                      </div>
+                      <div className="text-right">
+                        <span
+                          className={`font-mono font-bold text-xs ${
+                            app.ratingChange > 0
+                              ? "text-emerald-400"
+                              : app.ratingChange < 0
+                              ? "text-rose-400"
+                              : "text-text-muted"
+                          }`}
+                        >
+                          {app.ratingChange > 0 ? `+${app.ratingChange}` : app.ratingChange} RR
+                        </span>
+                        <div className="text-[10px] text-text-muted font-mono">
+                          {app.previousRating} &rarr; {app.newRating} ({app.newRank})
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Retry/Apply Rating Button if verified but no rating applications processed */}
+        {match.status === "VERIFIED" && (!match.ratingApplications || match.ratingApplications.length === 0) && match.participants.length > 0 && (
+          <div className="p-3 bg-surface-dark border border-surface-border rounded flex items-center justify-between">
+            <span className="text-xs text-text-secondary font-mono">
+              Rating DREAMRANK belum diproses untuk pertandingan ini.
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleApplyRating}
+              disabled={isActionSubmitting}
+              className="text-xs border-persona-blue text-persona-blue"
+            >
+              Terapkan Rating DREAMRANK
+            </Button>
           </div>
         )}
 

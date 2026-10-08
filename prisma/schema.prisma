@@ -150,6 +150,13 @@ enum CompetitiveMatchResult {
   NO_CONTEST
 }
 
+enum CompetitiveRatingChangeType {
+  WIN
+  LOSS
+  DRAW
+  NO_CONTEST
+}
+
 model User {
   id           String   @id @default(cuid())
   username     String   @unique
@@ -193,6 +200,7 @@ model Member {
   createdCompetitiveMatches CompetitiveMatch[] @relation("CreatedCompetitiveMatches")
   competitiveParticipations CompetitiveMatchParticipant[]
   submittedMatchResults     CompetitiveMatchResultSubmission[]
+  competitiveRatingApplications CompetitiveRatingApplication[]
   gameStats           MemberGameStat[]
   rankHistory         DreamRankHistory[]
 
@@ -634,6 +642,7 @@ model CompetitiveMatch {
 
   participants     CompetitiveMatchParticipant[]
   submissions      CompetitiveMatchResultSubmission[]
+  ratingApplications CompetitiveRatingApplication[]
 
   @@index([teamAId])
   @@index([teamBId])
@@ -682,6 +691,28 @@ model CompetitiveMatchResultSubmission {
   @@index([submittedByTeamId])
   @@index([submittedById])
 }
+
+model CompetitiveRatingApplication {
+  id             String                      @id @default(cuid())
+  matchId        String
+  memberId       String
+  previousRating Int
+  newRating      Int
+  ratingChange   Int
+  changeType     CompetitiveRatingChangeType
+  previousRank   DreamRank
+  newRank        DreamRank
+  createdAt      DateTime                    @default(now())
+
+  match          CompetitiveMatch            @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  member         Member                      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, memberId])
+  @@index([matchId])
+  @@index([memberId])
+  @@index([createdAt])
+}
+
 
 model Maintenance {
   id          String            @id @default(cuid())
