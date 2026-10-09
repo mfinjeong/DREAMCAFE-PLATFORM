@@ -611,7 +611,7 @@ export default function GameLibraryPage() {
               Tags (Pisahkan dengan koma)
             </label>
             <Input
-              placeholder="e.g. Esports, 5v5, Controller, Competitive"
+              placeholder="e.g. Shooter, Controller, Multiplayer"
               value={gameForm.tagsString}
               onChange={(e) => setGameForm({ ...gameForm, tagsString: e.target.value })}
             />

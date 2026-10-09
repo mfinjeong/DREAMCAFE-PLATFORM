@@ -1,4 +1,4 @@
-import { PrismaClient, StationZone, PCStatus, ConsoleType, ConsoleStatus, MemberTier, DreamRank, SessionStatus, PaymentStatus, BookingStatus } from "@prisma/client";
+import { PrismaClient, StationZone, PCStatus, ConsoleType, ConsoleStatus, MemberTier, SessionStatus, PaymentStatus, BookingStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -48,7 +48,6 @@ export const SEED_DATA = {
       dreamCoins: 1250,
       xp: 8400,
       level: 18,
-      dreamRank: DreamRank.DIAMOND,
     },
     {
       memberCode: "DC-00102",
@@ -61,7 +60,6 @@ export const SEED_DATA = {
       dreamCoins: 3100,
       xp: 15200,
       level: 32,
-      dreamRank: DreamRank.MASTER,
     },
     {
       memberCode: "DC-00103",
@@ -74,7 +72,6 @@ export const SEED_DATA = {
       dreamCoins: 350,
       xp: 2300,
       level: 5,
-      dreamRank: DreamRank.GOLD,
     },
     {
       memberCode: "DC-00104",
@@ -87,7 +84,6 @@ export const SEED_DATA = {
       dreamCoins: 890,
       xp: 6100,
       level: 14,
-      dreamRank: DreamRank.PLATINUM,
     },
     {
       memberCode: "DC-00105",
@@ -100,7 +96,6 @@ export const SEED_DATA = {
       dreamCoins: 120,
       xp: 1100,
       level: 3,
-      dreamRank: DreamRank.SILVER,
     },
   ],
   pcs: [
@@ -403,60 +398,6 @@ export const SEED_DATA = {
       tags: ["Sandbox", "Survival", "Multiplayer", "Creative"],
     },
   ],
-  teams: [
-    {
-      name: "DREAM Spectres",
-      tag: "DRM",
-      ownerUsername: "Vandal_God",
-      description: "Tim elit esports DREAMCAFÉ divisi taktis FPS.",
-    },
-    {
-      name: "Garuda Cyber Squad",
-      tag: "GCS",
-      ownerUsername: "ShadowSniper",
-      description: "Squad jawara turnamen komunitas regional.",
-    },
-    {
-      name: "Nusantara Wolves",
-      tag: "NWLF",
-      ownerUsername: "RizkyClutch",
-      description: "Tim kompetitif MOBA dan battle royale.",
-    },
-  ],
-  tournaments: [
-    {
-      name: "DREAMCAFE Valorant Championship S1",
-      slug: "dreamcafe-valorant-championship-s1",
-      gameTitle: "Valorant",
-      format: "DOUBLE_ELIMINATION",
-      maxTeams: 16,
-      minTeams: 2,
-      bestOf: 3,
-      prizePool: 5000000,
-      entryFee: 150000,
-      registrationStart: new Date("2026-10-01T00:00:00Z"),
-      registrationEnd: new Date("2026-10-15T23:59:59Z"),
-      startAt: new Date("2026-10-18T10:00:00Z"),
-      rules: "5v5 Tournament Mode, Standard Riot Rules, All maps in current competitive pool.",
-      status: "DRAFT" as const,
-    },
-    {
-      name: "EA Sports FC 24 Console Derby Night",
-      slug: "ea-sports-fc-24-console-derby-night",
-      gameTitle: "EA Sports FC 24",
-      format: "SINGLE_ELIMINATION",
-      maxTeams: 32,
-      minTeams: 2,
-      bestOf: 1,
-      prizePool: 2500000,
-      entryFee: 50000,
-      registrationStart: new Date("2026-10-05T00:00:00Z"),
-      registrationEnd: new Date("2026-10-20T23:59:59Z"),
-      startAt: new Date("2026-10-25T14:00:00Z"),
-      rules: "1v1 PS5 Tournament, 6 Minutes Half, Tactical Defending, Club Teams Only.",
-      status: "DRAFT" as const,
-    },
-  ],
 };
 
 async function main() {
@@ -541,58 +482,6 @@ async function main() {
       where: { title: g.title },
       update: {},
       create: g,
-    });
-  }
-
-  // Seed Teams
-  for (const t of SEED_DATA.teams) {
-    const ownerId = memberMap.get(t.ownerUsername) || Array.from(memberMap.values())[0];
-    const team = await prisma.team.upsert({
-      where: { tag: t.tag },
-      update: {
-        name: t.name,
-        description: t.description,
-      },
-      create: {
-        name: t.name,
-        tag: t.tag,
-        description: t.description,
-        ownerId,
-      },
-    });
-
-    await prisma.teamMember.upsert({
-      where: { teamId_memberId: { teamId: team.id, memberId: ownerId } },
-      update: { role: "OWNER" },
-      create: { teamId: team.id, memberId: ownerId, role: "OWNER" },
-    });
-  }
-
-  // Seed Tournaments
-  const defaultCreatorId = Array.from(memberMap.values())[0];
-  for (const tour of SEED_DATA.tournaments) {
-    const game = await prisma.game.findFirst({ where: { title: tour.gameTitle } });
-    if (!game) continue;
-    await prisma.tournament.upsert({
-      where: { slug: tour.slug },
-      update: {},
-      create: {
-        name: tour.name,
-        slug: tour.slug,
-        gameId: game.id,
-        createdById: defaultCreatorId,
-        format: tour.format,
-        maxTeams: tour.maxTeams,
-        minTeams: tour.minTeams,
-        bestOf: tour.bestOf,
-        prizePool: tour.prizePool,
-        entryFee: tour.entryFee,
-        registrationStart: tour.registrationStart,
-        registrationEnd: tour.registrationEnd,
-        startAt: tour.startAt,
-        rules: tour.rules,
-        status: tour.status,
-      },
     });
   }
 

@@ -1,8 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { MemberTier, DreamRank, SessionStatus } from "@prisma/client";
+import { MemberTier, SessionStatus } from "@prisma/client";
 import { GamingProfileDTO, MemberGameStatItem, GamingActivityItem } from "@/lib/types";
-import { getDreamRankProfile } from "@/services/dreamrank.service";
-import { getMemberTeams } from "@/services/team.service";
 
 /**
  * Calculates member level from total XP based on progressive threshold formula:
@@ -231,9 +229,6 @@ export async function getGamingProfile(memberId: string): Promise<GamingProfileD
     };
   });
 
-  const dreamRankProfile = await getDreamRankProfile(memberId);
-  const teams = await getMemberTeams(memberId);
-
   return {
     member: {
       id: member.id,
@@ -241,8 +236,6 @@ export async function getGamingProfile(memberId: string): Promise<GamingProfileD
       fullName: member.fullName,
       username: member.username,
       tier: member.tier as MemberTier,
-      dreamRank: member.dreamRank as DreamRank,
-      dreamRating: member.dreamRating,
       avatarUrl: member.avatarUrl,
       dreamCoins: member.dreamCoins,
       xp: member.xp,
@@ -258,8 +251,6 @@ export async function getGamingProfile(memberId: string): Promise<GamingProfileD
       progressPercent,
       xpRemaining,
     },
-    dreamRankProfile,
-    teams,
     favoriteGames,
     gamesPlayed,
     recentActivity,

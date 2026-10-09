@@ -44,7 +44,6 @@ export async function listPCs(filters: PCFilterOptions = {}) {
               username: true,
               fullName: true,
               tier: true,
-              dreamRank: true,
             },
           },
         },

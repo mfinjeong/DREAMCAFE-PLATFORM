@@ -1,11 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { MemberTier, DreamRank, Prisma } from "@prisma/client";
+import { MemberTier, Prisma } from "@prisma/client";
 import { memberSchema, updateMemberSchema } from "@/lib/validators";
 
 export interface MemberFilterOptions {
   search?: string | null;
   tier?: string | null;
-  dreamRank?: string | null;
 }
 
 export interface MemberCreateInput {
@@ -34,9 +33,6 @@ export async function listMembers(filters: MemberFilterOptions = {}) {
 
   if (filters.tier && filters.tier !== "ALL") {
     where.tier = filters.tier as MemberTier;
-  }
-  if (filters.dreamRank && filters.dreamRank !== "ALL") {
-    where.dreamRank = filters.dreamRank as DreamRank;
   }
   if (filters.search) {
     const q = filters.search.trim();
@@ -73,8 +69,6 @@ export async function listMembers(filters: MemberFilterOptions = {}) {
     dreamCoins: m.dreamCoins,
     xp: m.xp,
     level: m.level,
-    dreamRank: m.dreamRank,
-    dreamRating: m.dreamRating,
     notes: m.notes,
     createdAt: m.createdAt.toISOString(),
     updatedAt: m.updatedAt.toISOString(),
@@ -204,8 +198,12 @@ export async function createMember(data: MemberCreateInput) {
   }
 
   // Generate unique member code (e.g. DC-XXXXX)
-  const count = await prisma.member.count();
-  const memberCode = `DC-${String(count + 101).padStart(5, "0")}`;
+  let codeNum = (await prisma.member.count()) + 101;
+  let memberCode = `DC-${String(codeNum).padStart(5, "0")}`;
+  while (await prisma.member.findUnique({ where: { memberCode }, select: { id: true } })) {
+    codeNum++;
+    memberCode = `DC-${String(codeNum).padStart(5, "0")}`;
+  }
 
   return await prisma.member.create({
     data: {
@@ -219,8 +217,6 @@ export async function createMember(data: MemberCreateInput) {
       dreamCoins: 100, // Sign-up bonus
       xp: 0,
       level: 1,
-      dreamRating: 0,
-      dreamRank: DreamRank.BRONZE,
       notes: validated.notes || null,
     },
   });

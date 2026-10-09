@@ -9,8 +9,6 @@ import {
   TransactionRecord,
   BookingItem,
   GameItem,
-  TournamentItem,
-  TeamItem,
   StationZone,
   PCStatus,
   ConsoleStatus,
@@ -27,8 +25,6 @@ interface DreamCafeStore {
   bookings: BookingItem[];
   inventoryLogs: InventoryLogItem[];
   games: GameItem[];
-  tournaments: TournamentItem[];
-  teams: TeamItem[];
 }
 
 // Initializing realistic seed state
@@ -65,8 +61,6 @@ function getInitialStore(): DreamCafeStore {
       dreamCoins: 1250,
       xp: 8400,
       level: 18,
-      dreamRank: "DIAMOND",
-      dreamRating: 2650,
       createdAt: "2026-08-10T10:00:00Z",
     },
     {
@@ -81,8 +75,6 @@ function getInitialStore(): DreamCafeStore {
       dreamCoins: 3100,
       xp: 15200,
       level: 32,
-      dreamRank: "MASTER",
-      dreamRating: 3120,
       createdAt: "2026-07-04T12:30:00Z",
     },
     {
@@ -97,8 +89,6 @@ function getInitialStore(): DreamCafeStore {
       dreamCoins: 350,
       xp: 2300,
       level: 5,
-      dreamRank: "GOLD",
-      dreamRating: 1720,
       createdAt: "2026-09-12T14:15:00Z",
     },
     {
@@ -113,8 +103,6 @@ function getInitialStore(): DreamCafeStore {
       dreamCoins: 890,
       xp: 6100,
       level: 14,
-      dreamRank: "PLATINUM",
-      dreamRating: 2150,
       createdAt: "2026-09-01T16:00:00Z",
     },
     {
@@ -129,8 +117,6 @@ function getInitialStore(): DreamCafeStore {
       dreamCoins: 120,
       xp: 1100,
       level: 3,
-      dreamRank: "SILVER",
-      dreamRating: 1100,
       createdAt: "2026-09-20T11:45:00Z",
     },
   ];
@@ -501,7 +487,7 @@ function getInitialStore(): DreamCafeStore {
       durationHours: 3,
       totalPrice: 60000,
       status: "CONFIRMED",
-      notes: "Scrimp CS2 Tournament match",
+      notes: "CS2 Gaming session",
     },
     {
       id: "book-2",
@@ -621,81 +607,6 @@ function getInitialStore(): DreamCafeStore {
     },
   ];
 
-  const tournaments: TournamentItem[] = [
-    {
-      id: "tour-1",
-      title: "DREAMCAFE Valorant Championship S1",
-      gameTitle: "Valorant",
-      format: "DOUBLE_ELIMINATION",
-      maxTeams: 16,
-      prizePool: 5000000,
-      entryFee: 150000,
-      startDate: "2026-10-18T10:00:00Z",
-      status: "DRAFT",
-      rules: "5v5 Tournament Mode, Standard Riot Rules, All maps in current competitive pool.",
-    },
-    {
-      id: "tour-2",
-      title: "EA Sports FC 24 Console Derby Night",
-      gameTitle: "EA Sports FC 24",
-      format: "SINGLE_ELIMINATION",
-      maxTeams: 32,
-      prizePool: 2500000,
-      entryFee: 50000,
-      startDate: "2026-10-25T14:00:00Z",
-      status: "DRAFT",
-      rules: "1v1 PS5 Tournament, 6 Minutes Half, Tactical Defending, Club Teams Only.",
-    },
-  ];
-
-  const teams: TeamItem[] = [
-    {
-      id: "team-1",
-      name: "DREAM Spectres",
-      tag: "DRM",
-      ownerId: "mem-1",
-      ownerName: "Muhammad Fadhil",
-      ownerUsername: "Vandal_God",
-      memberCount: 5,
-      createdAt: "2026-08-15T10:00:00Z",
-      updatedAt: "2026-08-15T10:00:00Z",
-      leaderName: "Muhammad Fadhil",
-      wins: 14,
-      losses: 3,
-      eloRating: 1650,
-    },
-    {
-      id: "team-2",
-      name: "Garuda Cyber Squad",
-      tag: "GCS",
-      ownerId: "mem-2",
-      ownerName: "Dimas Arya Putra",
-      ownerUsername: "ShadowSniper",
-      memberCount: 5,
-      createdAt: "2026-08-20T11:00:00Z",
-      updatedAt: "2026-08-20T11:00:00Z",
-      leaderName: "Dimas Arya Putra",
-      wins: 22,
-      losses: 6,
-      eloRating: 1820,
-    },
-    {
-      id: "team-3",
-      name: "Nusantara Wolves",
-      tag: "NWLF",
-      ownerId: "mem-4",
-      ownerName: "Ananda Rizky",
-      ownerUsername: "RizkyClutch",
-      memberCount: 5,
-      createdAt: "2026-09-01T12:00:00Z",
-      updatedAt: "2026-09-01T12:00:00Z",
-      leaderName: "Ananda Rizky",
-      wins: 8,
-      losses: 7,
-      eloRating: 1350,
-    },
-  ];
-
   return {
     pcs,
     consoles,
@@ -707,8 +618,6 @@ function getInitialStore(): DreamCafeStore {
     bookings,
     inventoryLogs,
     games,
-    tournaments,
-    teams,
   };
 }
 

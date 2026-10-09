@@ -43,7 +43,6 @@ export async function listConsoles(filters: ConsoleFilterOptions = {}) {
               username: true,
               fullName: true,
               tier: true,
-              dreamRank: true,
             },
           },
         },

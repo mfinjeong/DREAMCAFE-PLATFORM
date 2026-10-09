@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { MemberItem, MemberTier, DreamRank } from "@/lib/types";
+import { MemberItem, MemberTier } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -345,7 +345,6 @@ export default function MembersPage() {
             <TableHead>Member Profile</TableHead>
             <TableHead>Phone</TableHead>
             <TableHead>Tier</TableHead>
-            <TableHead>DREAMRANK</TableHead>
             <TableHead>Level / XP</TableHead>
             <TableHead>Coins</TableHead>
             <TableHead>Balance</TableHead>
@@ -393,11 +392,6 @@ export default function MembersPage() {
                   >
                     {m.tier}
                   </span>
-                </TableCell>
-                <TableCell className="font-sans text-xs font-bold flex items-center gap-1">
-                  <Trophy className="w-3 h-3 text-amber-400" />
-                  <span className="text-text-primary">{m.dreamRank}</span>
-                  <span className="text-[10px] text-text-muted font-mono">({m.dreamRating || 0} RR)</span>
                 </TableCell>
                 <TableCell className="font-mono text-xs text-text-secondary font-medium">
                   Lv. {m.level} ({m.xp} XP)
@@ -514,7 +508,7 @@ export default function MembersPage() {
 
           <Input
             label="Notes (Optional)"
-            placeholder="e.g. VIP Tournament Player"
+            placeholder="e.g. VIP Member"
             value={newMember.notes}
             onChange={(e) => setNewMember({ ...newMember, notes: e.target.value })}
           />
@@ -623,10 +617,10 @@ export default function MembersPage() {
             {/* Profile Overview Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div className="p-2.5 bg-surface-muted border border-surface-border rounded-[6px]">
-                <span className="text-[10px] text-text-muted uppercase block font-mono">Tier & Rank</span>
+                <span className="text-[10px] text-text-muted uppercase block font-mono">Member Tier</span>
                 <span className="font-bold text-[#F2F3F5] text-xs flex items-center gap-1 mt-0.5">
                   <Trophy className="w-3 h-3 text-persona-red" />
-                  {selectedMember.tier} • {selectedMember.dreamRank}
+                  {selectedMember.tier}
                 </span>
               </div>
               <div className="p-2.5 bg-surface-muted border border-surface-border rounded-[6px]">

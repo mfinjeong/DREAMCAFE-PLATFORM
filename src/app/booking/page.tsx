@@ -593,7 +593,7 @@ export default function BookingPage() {
 
           <Input
             label="Notes (Optional)"
-            placeholder="e.g. Tournament match, birthday party, preferred mousepad"
+            placeholder="e.g. Birthday party, preferred mousepad"
             value={formData.notes}
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
           />

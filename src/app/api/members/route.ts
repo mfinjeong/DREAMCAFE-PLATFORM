@@ -7,9 +7,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("q");
     const tier = searchParams.get("tier");
-    const dreamRank = searchParams.get("dreamRank");
 
-    const members = await listMembers({ search, tier, dreamRank });
+    const members = await listMembers({ search, tier });
     return NextResponse.json({ success: true, data: members });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Terjadi kesalahan server saat memuat member";

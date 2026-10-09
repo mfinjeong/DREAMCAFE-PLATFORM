@@ -13,7 +13,8 @@ const pageTitles: Record<string, string> = {
   "/store": "Store & POS",
   "/inventory": "Inventory & Stock",
   "/members": "Members Directory",
-  "/tournaments": "Tournaments & Clans",
+  "/games": "Game Library",
+  "/maintenance": "Maintenance & Support",
   "/reports": "Financial Reports",
   "/settings": "System Settings",
 };

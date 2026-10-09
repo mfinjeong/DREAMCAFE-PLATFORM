@@ -11,16 +11,11 @@ import {
   CalendarDays,
   ShoppingBag,
   Package,
-  Trophy,
   BarChart3,
   Settings,
   Wrench,
   Users,
-  Swords,
-  Shield,
   Flame,
-  Crosshair,
-  Radio,
 } from "lucide-react";
 
 interface NavItem {
@@ -37,14 +32,9 @@ const mainNavItems: NavItem[] = [
   { label: "Sessions", href: "/sessions", icon: Clock },
   { label: "Booking", href: "/booking", icon: CalendarDays },
   { label: "Members", href: "/members", icon: Users },
-  { label: "Teams", href: "/teams", icon: Shield },
-  { label: "Scrims", href: "/scrims", icon: Swords },
-  { label: "Matches", href: "/competitive-matches", icon: Crosshair },
-  { label: "Matchmaking", href: "/matchmaking", icon: Radio },
   { label: "Store", href: "/store", icon: ShoppingBag },
   { label: "Inventory", href: "/inventory", icon: Package },
   { label: "Maintenance", href: "/maintenance", icon: Wrench },
-  { label: "Tournament", href: "/tournaments", icon: Trophy },
   { label: "Reports", href: "/reports", icon: BarChart3 },
 ];
 
