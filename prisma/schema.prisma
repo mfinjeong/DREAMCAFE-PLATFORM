@@ -92,10 +92,19 @@ enum InventoryAction {
 }
 
 enum TournamentStatus {
-  UPCOMING
-  ONGOING
+  DRAFT
+  REGISTRATION_OPEN
+  REGISTRATION_CLOSED
+  IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+enum TournamentRegistrationStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+  WITHDRAWN
 }
 
 enum MaintenanceStatus {
@@ -219,6 +228,8 @@ model Member {
   submittedMatchResults     CompetitiveMatchResultSubmission[]
   competitiveRatingApplications CompetitiveRatingApplication[]
   createdMatchmakingQueues      MatchmakingQueue[]             @relation("MemberCreatedMatchmakingQueues")
+  createdTournaments            Tournament[]                   @relation("CreatedTournaments")
+  tournamentRegistrations       TournamentRegistration[]       @relation("MemberTournamentRegistrations")
   gameStats           MemberGameStat[]
   rankHistory         DreamRankHistory[]
 
@@ -456,6 +467,7 @@ model Game {
   competitiveMatches CompetitiveMatch[]
   matchmakingQueues  MatchmakingQueue[]
   matchmakingOffers  MatchmakingOffer[]
+  tournaments        Tournament[]
 
   @@index([genre])
   @@index([isActive])
@@ -500,22 +512,58 @@ model DreamRankHistory {
 }
 
 model Tournament {
-  id          String           @id @default(cuid())
-  title       String
-  gameTitle   String
-  format      String           @default("SINGLE_ELIMINATION")
-  maxTeams    Int              @default(16)
-  prizePool   Float            @default(5000000) // Rp 5.000.000
-  entryFee    Float            @default(100000)  // Rp 100.000
-  startDate   DateTime
-  endDate     DateTime?
-  status      TournamentStatus @default(UPCOMING)
-  rules       String?
-  bracketData String?          // JSON string for brackets
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id                String           @id @default(cuid())
+  name              String
+  slug              String           @unique
+  description       String?
+  gameId            String
+  createdById       String
+  status            TournamentStatus @default(DRAFT)
+  maxTeams          Int              @default(16)
+  minTeams          Int              @default(2)
+  registrationStart DateTime
+  registrationEnd   DateTime
+  startAt           DateTime
+  endAt             DateTime?
+  bestOf            Int              @default(1)
+  rules             String?
+  prizePool         Float?
+  entryFee          Float?
+  format            String?          @default("SINGLE_ELIMINATION")
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
-  teams       TournamentTeam[]
+  game          Game                     @relation(fields: [gameId], references: [id], onDelete: Restrict)
+  createdBy     Member                   @relation("CreatedTournaments", fields: [createdById], references: [id], onDelete: Cascade)
+  registrations TournamentRegistration[]
+  legacyTeams   TournamentTeam[]
+  matches       CompetitiveMatch[]
+
+  @@index([gameId])
+  @@index([createdById])
+  @@index([status])
+  @@index([registrationStart, registrationEnd])
+  @@index([startAt])
+}
+
+model TournamentRegistration {
+  id             String                       @id @default(cuid())
+  tournamentId   String
+  teamId         String
+  registeredById String
+  status         TournamentRegistrationStatus @default(CONFIRMED)
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  team         Team       @relation("TeamTournamentRegistrations", fields: [teamId], references: [id], onDelete: Cascade)
+  registeredBy Member     @relation("MemberTournamentRegistrations", fields: [registeredById], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, teamId])
+  @@index([tournamentId])
+  @@index([teamId])
+  @@index([registeredById])
+  @@index([status])
 }
 
 model Team {
@@ -531,6 +579,7 @@ model Team {
   owner       Member           @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members     TeamMember[]
   tournaments      TournamentTeam[]
+  tournamentRegistrations TournamentRegistration[] @relation("TeamTournamentRegistrations")
   invitations      TeamInvitation[]
   challengerScrims Scrim[]          @relation("ChallengerScrims")
   opponentScrims   Scrim[]          @relation("OpponentScrims")
@@ -645,6 +694,9 @@ model CompetitiveMatch {
   createdById      String
 
   sourceScrimId    String?
+  tournamentId     String?
+  tournamentRound  Int?
+  tournamentMatchNumber Int?
 
   note             String?
 
@@ -662,6 +714,7 @@ model CompetitiveMatch {
   createdBy        Member                  @relation("CreatedCompetitiveMatches", fields: [createdById], references: [id], onDelete: Cascade)
 
   sourceScrim      Scrim?                  @relation(fields: [sourceScrimId], references: [id], onDelete: SetNull)
+  tournament       Tournament?             @relation(fields: [tournamentId], references: [id], onDelete: SetNull)
 
   participants     CompetitiveMatchParticipant[]
   submissions      CompetitiveMatchResultSubmission[]
@@ -674,6 +727,7 @@ model CompetitiveMatch {
   @@index([status])
   @@index([scheduledAt])
   @@index([sourceScrimId])
+  @@index([tournamentId])
   @@index([winnerTeamId])
   @@index([createdById])
 }

@@ -389,4 +389,155 @@ export const matchmakingQuerySchema = z.object({
   teamId: z.string().trim().optional(),
 });
 
+// ==========================================
+// TOURNAMENT SYSTEM PHASE 1 VALIDATORS
+// ==========================================
+
+export const createTournamentSchema = z
+  .object({
+    name: z.string().trim().min(2, "Nama turnamen minimal 2 karakter").max(100, "Nama turnamen maksimal 100 karakter"),
+    slug: z
+      .string()
+      .trim()
+      .min(2, "Slug minimal 2 karakter")
+      .max(100, "Slug maksimal 100 karakter")
+      .regex(/^[a-z0-9-]+$/, "Slug hanya boleh huruf kecil, angka, dan tanda hubung (-)")
+      .optional(),
+    description: z.string().trim().max(2000, "Deskripsi maksimal 2000 karakter").optional().nullable(),
+    gameId: z.string().trim().min(1, "Game ID wajib dipilih"),
+    createdById: z.string().trim().min(1, "Created by Member ID wajib diisi"),
+    minTeams: z.coerce.number().int("minTeams harus bilangan bulat").min(2, "minTeams minimal 2 tim").default(2),
+    maxTeams: z.coerce.number().int("maxTeams harus bilangan bulat").min(2, "maxTeams minimal 2 tim").default(16),
+    bestOf: z.coerce.number().refine((val) => [1, 3, 5].includes(val), {
+      message: "bestOf harus bernilai 1, 3, atau 5",
+    }).default(1),
+    registrationStart: z.coerce.date({ invalid_type_error: "registrationStart harus format tanggal valid" }),
+    registrationEnd: z.coerce.date({ invalid_type_error: "registrationEnd harus format tanggal valid" }),
+    startAt: z.coerce.date({ invalid_type_error: "startAt harus format tanggal valid" }),
+    endAt: z.coerce.date({ invalid_type_error: "endAt harus format tanggal valid" }).optional().nullable(),
+    rules: z.string().trim().optional().nullable(),
+    prizePool: z.coerce.number().min(0, "Prize pool tidak boleh negatif").optional().nullable(),
+    entryFee: z.coerce.number().min(0, "Entry fee tidak boleh negatif").optional().nullable(),
+    format: z.string().trim().default("SINGLE_ELIMINATION").optional(),
+  })
+  .refine((data) => data.maxTeams >= data.minTeams, {
+    message: "maxTeams harus lebih besar atau sama dengan minTeams",
+    path: ["maxTeams"],
+  })
+  .refine((data) => data.registrationStart.getTime() < data.registrationEnd.getTime(), {
+    message: "registrationStart harus lebih awal daripada registrationEnd",
+    path: ["registrationStart"],
+  })
+  .refine((data) => data.registrationEnd.getTime() <= data.startAt.getTime(), {
+    message: "registrationEnd harus sebelum atau sama dengan startAt",
+    path: ["registrationEnd"],
+  })
+  .refine(
+    (data) => !data.endAt || data.endAt.getTime() > data.startAt.getTime(),
+    {
+      message: "endAt harus setelah startAt bila disertakan",
+      path: ["endAt"],
+    }
+  );
+
+export const updateTournamentSchema = z
+  .object({
+    name: z.string().trim().min(2, "Nama turnamen minimal 2 karakter").max(100, "Nama turnamen maksimal 100 karakter").optional(),
+    slug: z
+      .string()
+      .trim()
+      .min(2, "Slug minimal 2 karakter")
+      .max(100, "Slug maksimal 100 karakter")
+      .regex(/^[a-z0-9-]+$/, "Slug hanya boleh huruf kecil, angka, dan tanda hubung (-)")
+      .optional(),
+    description: z.string().trim().max(2000, "Deskripsi maksimal 2000 karakter").optional().nullable(),
+    gameId: z.string().trim().min(1, "Game ID wajib dipilih").optional(),
+    minTeams: z.coerce.number().int("minTeams harus bilangan bulat").min(2, "minTeams minimal 2 tim").optional(),
+    maxTeams: z.coerce.number().int("maxTeams harus bilangan bulat").min(2, "maxTeams minimal 2 tim").optional(),
+    bestOf: z.coerce.number().refine((val) => [1, 3, 5].includes(val), {
+      message: "bestOf harus bernilai 1, 3, atau 5",
+    }).optional(),
+    registrationStart: z.coerce.date({ invalid_type_error: "registrationStart harus format tanggal valid" }).optional(),
+    registrationEnd: z.coerce.date({ invalid_type_error: "registrationEnd harus format tanggal valid" }).optional(),
+    startAt: z.coerce.date({ invalid_type_error: "startAt harus format tanggal valid" }).optional(),
+    endAt: z.coerce.date({ invalid_type_error: "endAt harus format tanggal valid" }).optional().nullable(),
+    rules: z.string().trim().optional().nullable(),
+    prizePool: z.coerce.number().min(0, "Prize pool tidak boleh negatif").optional().nullable(),
+    entryFee: z.coerce.number().min(0, "Entry fee tidak boleh negatif").optional().nullable(),
+    actorMemberId: z.string().trim().min(1, "Actor member ID wajib diisi"),
+  })
+  .refine(
+    (data) => {
+      if (data.minTeams !== undefined && data.maxTeams !== undefined) {
+        return data.maxTeams >= data.minTeams;
+      }
+      return true;
+    },
+    {
+      message: "maxTeams harus lebih besar atau sama dengan minTeams",
+      path: ["maxTeams"],
+    }
+  )
+  .refine(
+    (data) => {
+      if (data.registrationStart && data.registrationEnd) {
+        return data.registrationStart.getTime() < data.registrationEnd.getTime();
+      }
+      return true;
+    },
+    {
+      message: "registrationStart harus lebih awal daripada registrationEnd",
+      path: ["registrationStart"],
+    }
+  )
+  .refine(
+    (data) => {
+      if (data.registrationEnd && data.startAt) {
+        return data.registrationEnd.getTime() <= data.startAt.getTime();
+      }
+      return true;
+    },
+    {
+      message: "registrationEnd harus sebelum atau sama dengan startAt",
+      path: ["registrationEnd"],
+    }
+  )
+  .refine(
+    (data) => {
+      if (data.startAt && data.endAt) {
+        return data.endAt.getTime() > data.startAt.getTime();
+      }
+      return true;
+    },
+    {
+      message: "endAt harus setelah startAt bila disertakan",
+      path: ["endAt"],
+    }
+  );
+
+export const registerTournamentTeamSchema = z.object({
+  teamId: z.string().trim().min(1, "Team ID wajib diisi"),
+  actorMemberId: z.string().trim().min(1, "Actor member ID wajib diisi"),
+});
+
+export const withdrawTournamentTeamSchema = z.object({
+  teamId: z.string().trim().min(1, "Team ID wajib diisi"),
+  actorMemberId: z.string().trim().min(1, "Actor member ID wajib diisi"),
+});
+
+export const tournamentActionSchema = z.object({
+  actorMemberId: z.string().trim().min(1, "Actor member ID wajib diisi"),
+  reason: z.string().trim().max(500, "Alasan maksimal 500 karakter").optional(),
+});
+
+export const tournamentQuerySchema = z.object({
+  status: z
+    .enum(["ALL", "DRAFT", "REGISTRATION_OPEN", "REGISTRATION_CLOSED", "IN_PROGRESS", "COMPLETED", "CANCELLED"])
+    .optional()
+    .default("ALL"),
+  gameId: z.string().trim().optional(),
+  q: z.string().trim().optional(),
+});
+
+
 

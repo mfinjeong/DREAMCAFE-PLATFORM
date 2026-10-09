@@ -425,26 +425,36 @@ export const SEED_DATA = {
   ],
   tournaments: [
     {
-      title: "DREAMCAFE Valorant Championship S1",
+      name: "DREAMCAFE Valorant Championship S1",
+      slug: "dreamcafe-valorant-championship-s1",
       gameTitle: "Valorant",
       format: "DOUBLE_ELIMINATION",
       maxTeams: 16,
+      minTeams: 2,
+      bestOf: 3,
       prizePool: 5000000,
       entryFee: 150000,
-      startDate: new Date("2026-10-18T10:00:00Z"),
+      registrationStart: new Date("2026-10-01T00:00:00Z"),
+      registrationEnd: new Date("2026-10-15T23:59:59Z"),
+      startAt: new Date("2026-10-18T10:00:00Z"),
       rules: "5v5 Tournament Mode, Standard Riot Rules, All maps in current competitive pool.",
-      status: "UPCOMING" as const,
+      status: "DRAFT" as const,
     },
     {
-      title: "EA Sports FC 24 Console Derby Night",
+      name: "EA Sports FC 24 Console Derby Night",
+      slug: "ea-sports-fc-24-console-derby-night",
       gameTitle: "EA Sports FC 24",
       format: "SINGLE_ELIMINATION",
       maxTeams: 32,
+      minTeams: 2,
+      bestOf: 1,
       prizePool: 2500000,
       entryFee: 50000,
-      startDate: new Date("2026-10-25T14:00:00Z"),
+      registrationStart: new Date("2026-10-05T00:00:00Z"),
+      registrationEnd: new Date("2026-10-20T23:59:59Z"),
+      startAt: new Date("2026-10-25T14:00:00Z"),
       rules: "1v1 PS5 Tournament, 6 Minutes Half, Tactical Defending, Club Teams Only.",
-      status: "UPCOMING" as const,
+      status: "DRAFT" as const,
     },
   ],
 };
@@ -559,9 +569,30 @@ async function main() {
   }
 
   // Seed Tournaments
+  const defaultCreatorId = Array.from(memberMap.values())[0];
   for (const tour of SEED_DATA.tournaments) {
-    await prisma.tournament.create({
-      data: tour,
+    const game = await prisma.game.findFirst({ where: { title: tour.gameTitle } });
+    if (!game) continue;
+    await prisma.tournament.upsert({
+      where: { slug: tour.slug },
+      update: {},
+      create: {
+        name: tour.name,
+        slug: tour.slug,
+        gameId: game.id,
+        createdById: defaultCreatorId,
+        format: tour.format,
+        maxTeams: tour.maxTeams,
+        minTeams: tour.minTeams,
+        bestOf: tour.bestOf,
+        prizePool: tour.prizePool,
+        entryFee: tour.entryFee,
+        registrationStart: tour.registrationStart,
+        registrationEnd: tour.registrationEnd,
+        startAt: tour.startAt,
+        rules: tour.rules,
+        status: tour.status,
+      },
     });
   }
 

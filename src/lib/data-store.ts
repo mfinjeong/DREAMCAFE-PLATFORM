@@ -631,7 +631,7 @@ function getInitialStore(): DreamCafeStore {
       prizePool: 5000000,
       entryFee: 150000,
       startDate: "2026-10-18T10:00:00Z",
-      status: "UPCOMING",
+      status: "DRAFT",
       rules: "5v5 Tournament Mode, Standard Riot Rules, All maps in current competitive pool.",
     },
     {
@@ -643,7 +643,7 @@ function getInitialStore(): DreamCafeStore {
       prizePool: 2500000,
       entryFee: 50000,
       startDate: "2026-10-25T14:00:00Z",
-      status: "UPCOMING",
+      status: "DRAFT",
       rules: "1v1 PS5 Tournament, 6 Minutes Half, Tactical Defending, Club Teams Only.",
     },
   ];

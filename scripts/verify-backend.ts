@@ -1,5 +1,5 @@
 import { prisma } from "../src/lib/prisma";
-import { PCStatus, ConsoleStatus, ConsoleType, SessionStatus, PaymentStatus, PaymentMethod, BookingStatus, InventoryAction, DreamRank, TeamMemberRole, TeamInvitationStatus, ScrimStatus, ScrimResult, CompetitiveMatchStatus, CompetitiveMatchResult, CompetitiveRatingChangeType } from "@prisma/client";
+import { PCStatus, ConsoleStatus, ConsoleType, SessionStatus, PaymentStatus, PaymentMethod, BookingStatus, InventoryAction, DreamRank, TeamMemberRole, TeamInvitationStatus, ScrimStatus, ScrimResult, CompetitiveMatchStatus, CompetitiveMatchResult, CompetitiveRatingChangeType, TournamentStatus, TournamentRegistrationStatus } from "@prisma/client";
 import { listPCs, getPCById, updatePCStatus } from "../src/services/pc.service";
 import { listConsoles, getConsoleById, createConsole, updateConsole, updateConsoleStatus, deleteConsole } from "../src/services/console.service";
 import { listMembers, getMemberById, createMember, updateMember, deleteMember, searchMembers } from "../src/services/member.service";
@@ -125,6 +125,22 @@ import {
 } from "../src/services/matchmaking.service";
 import { POST as applyRatingRoute } from "../src/app/api/competitive-matches/[id]/apply-rating/route";
 import { GET as memberRatingRoute } from "../src/app/api/members/[id]/competitive-dreamrank/route";
+import {
+  listTournaments,
+  getTournamentById,
+  getTournamentBySlug,
+  createTournament,
+  updateTournament,
+  deleteTournament,
+  openRegistration,
+  closeRegistration,
+  startTournament,
+  completeTournament,
+  cancelTournament,
+  registerTeam,
+  withdrawTeam,
+  listRegistrations,
+} from "../src/services/tournament.service";
 
 let passedCount = 0;
 let failedCount = 0;
@@ -145,6 +161,8 @@ async function runTests() {
   console.log("DREAMCAFE BACKEND END-TO-END VERIFICATION SUITE");
   console.log("==================================================\n");
 
+  const only18 = process.argv.includes("--group18");
+  if (!only18) {
   // -------------------------------------------------------------------
   // TEST GROUP 1: PC MANAGEMENT
   // -------------------------------------------------------------------
@@ -4007,6 +4025,38 @@ async function runTests() {
   // -------------------------------------------------------------------
   console.log("▶ TEST GROUP 17: Team Matchmaking System (Phase 1)");
 
+  // Pre-cleanup in case previous run was aborted mid-test
+  await prisma.competitiveRatingApplication.deleteMany({
+    where: { match: { OR: [{ teamA: { tag: { in: ["MMA", "MMB", "MMC", "MMS"] } } }, { teamB: { tag: { in: ["MMA", "MMB", "MMC", "MMS"] } } }] } },
+  });
+  await prisma.competitiveMatchResultSubmission.deleteMany({
+    where: { match: { OR: [{ teamA: { tag: { in: ["MMA", "MMB", "MMC", "MMS"] } } }, { teamB: { tag: { in: ["MMA", "MMB", "MMC", "MMS"] } } }] } },
+  });
+  await prisma.competitiveMatchParticipant.deleteMany({
+    where: { team: { tag: { in: ["MMA", "MMB", "MMC", "MMS"] } } },
+  });
+  await prisma.matchmakingOffer.deleteMany({
+    where: { OR: [{ teamA: { tag: { in: ["MMA", "MMB", "MMC", "MMS"] } } }, { teamB: { tag: { in: ["MMA", "MMB", "MMC", "MMS"] } } }] },
+  });
+  await prisma.matchmakingQueue.deleteMany({
+    where: { team: { tag: { in: ["MMA", "MMB", "MMC", "MMS"] } } },
+  });
+  await prisma.competitiveMatch.deleteMany({
+    where: { OR: [{ teamA: { tag: { in: ["MMA", "MMB", "MMC", "MMS"] } } }, { teamB: { tag: { in: ["MMA", "MMB", "MMC", "MMS"] } } }] },
+  });
+  await prisma.teamMember.deleteMany({
+    where: { team: { tag: { in: ["MMA", "MMB", "MMC", "MMS"] } } },
+  });
+  await prisma.team.deleteMany({
+    where: { tag: { in: ["MMA", "MMB", "MMC", "MMS"] } },
+  });
+  await prisma.game.deleteMany({
+    where: { title: { in: ["TEST_MM_GAME_VALORANT", "TEST_MM_GAME_DOTA", "TEST_MM_GAME_INACTIVE"] } },
+  });
+  await prisma.member.deleteMany({
+    where: { username: { in: ["mm_player_a1", "mm_player_a2", "mm_player_b1", "mm_player_b2", "mm_player_c1", "mm_player_solo"] } },
+  });
+
   // Setup test games
   const mmGame1 = await createGame({
     title: "TEST_MM_GAME_VALORANT",
@@ -4676,8 +4726,827 @@ async function runTests() {
   await deleteMember(mmMemberC1.id);
   await deleteMember(mmMemberSolo.id);
   console.log("  ✓ Test 41: Isolated Matchmaking Phase 1 test fixtures cleaned up cleanly.\n");
+  }
 
-  console.log("==================================================");
+  // =================================================================
+  // TEST GROUP 18: TOURNAMENT SYSTEM PHASE 1
+  // =================================================================
+  console.log("\n--- TEST GROUP 18: TOURNAMENT SYSTEM PHASE 1 ---");
+
+  // Pre-cleanup in case previous run was aborted mid-test
+  await prisma.competitiveMatch.deleteMany({
+    where: {
+      OR: [
+        { teamA: { tag: { in: ["TPH1", "TVG2", "TGL3", "TCB4", "TGST"] } } },
+        { teamB: { tag: { in: ["TPH1", "TVG2", "TGL3", "TCB4", "TGST"] } } },
+      ],
+    },
+  });
+  await prisma.tournamentRegistration.deleteMany({
+    where: { team: { tag: { in: ["TPH1", "TVG2", "TGL3", "TCB4", "TGST"] } } },
+  });
+  await prisma.tournament.deleteMany({
+    where: {
+      OR: [
+        { name: { contains: "18" } },
+        { slug: { contains: "18" } },
+        { game: { title: { in: ["Tournament Valorant Arena 18", "Tournament Inactive Title 18"] } } },
+      ],
+    },
+  });
+  await prisma.teamMember.deleteMany({
+    where: { team: { tag: { in: ["TPH1", "TVG2", "TGL3", "TCB4", "TGST"] } } },
+  });
+  await prisma.team.deleteMany({
+    where: { tag: { in: ["TPH1", "TVG2", "TGL3", "TCB4", "TGST"] } },
+  });
+  await prisma.game.deleteMany({
+    where: { title: { in: ["Tournament Valorant Arena 18", "Tournament Inactive Title 18"] } },
+  });
+  await prisma.member.deleteMany({
+    where: { username: { in: ["t_admin_18", "t_cap_1", "t_p_1b", "t_cap_2", "t_p_2b", "t_cap_3", "t_p_3b", "t_cap_4", "t_p_4b", "t_unauth_18"] } },
+  });
+
+  // 0. Setup isolated test fixtures
+  const tGameActive = await createGame({
+    title: "Tournament Valorant Arena 18",
+    genre: "Tactical FPS",
+    publisher: "Riot Games",
+    minGpuRequired: "RTX 3060",
+    popularityRank: 10,
+    isInstalledOnPc: true,
+    isInstalledConsole: false,
+    tags: ["FPS", "Tournament"],
+  });
+
+  const tGameInactive = await createGame({
+    title: "Tournament Inactive Title 18",
+    genre: "Battle Royale",
+    publisher: "Demo Pub",
+    minGpuRequired: "GTX 1650",
+    popularityRank: 99,
+    isInstalledOnPc: true,
+    isInstalledConsole: false,
+    tags: ["Inactive"],
+  });
+  await prisma.game.update({
+    where: { id: tGameInactive.id },
+    data: { isActive: false },
+  });
+
+  const tCreator = await createMember({
+    fullName: "Tournament Admin 18",
+    username: "t_admin_18",
+    email: "tadmin18@dreamcafe.id",
+    tier: "PRO",
+  });
+
+  const tOwner1 = await createMember({
+    fullName: "Tournament Captain 1",
+    username: "t_cap_1",
+    email: "tcap1@dreamcafe.id",
+    tier: "VIP",
+  });
+  const tMember1b = await createMember({
+    fullName: "Tournament Player 1B",
+    username: "t_p_1b",
+    email: "tp1b@dreamcafe.id",
+  });
+
+  const tOwner2 = await createMember({
+    fullName: "Tournament Captain 2",
+    username: "t_cap_2",
+    email: "tcap2@dreamcafe.id",
+    tier: "VIP",
+  });
+  const tMember2b = await createMember({
+    fullName: "Tournament Player 2B",
+    username: "t_p_2b",
+    email: "tp2b@dreamcafe.id",
+  });
+
+  const tOwner3 = await createMember({
+    fullName: "Tournament Captain 3",
+    username: "t_cap_3",
+    email: "tcap3@dreamcafe.id",
+    tier: "VIP",
+  });
+  const tMember3b = await createMember({
+    fullName: "Tournament Player 3B",
+    username: "t_p_3b",
+    email: "tp3b@dreamcafe.id",
+  });
+
+  const tOwner4 = await createMember({
+    fullName: "Tournament Captain 4",
+    username: "t_cap_4",
+    email: "tcap4@dreamcafe.id",
+    tier: "VIP",
+  });
+  const tMember4b = await createMember({
+    fullName: "Tournament Player 4B",
+    username: "t_p_4b",
+    email: "tp4b@dreamcafe.id",
+  });
+
+  const tUnauthorizedActor = await createMember({
+    fullName: "Unauthorized Actor 18",
+    username: "t_unauth_18",
+    email: "tunauth18@dreamcafe.id",
+  });
+
+  const tTeam1 = await createTeam({
+    name: "Tournament Phoenix 18",
+    tag: "TPH1",
+    ownerId: tOwner1.id,
+    description: "Phoenix Clan for Tournaments",
+  });
+  await addTeamMember(tTeam1.id, { memberId: tMember1b.id, role: "MEMBER" });
+
+  const tTeam2 = await createTeam({
+    name: "Tournament Vanguard 18",
+    tag: "TVG2",
+    ownerId: tOwner2.id,
+    description: "Vanguard Clan for Tournaments",
+  });
+  await addTeamMember(tTeam2.id, { memberId: tMember2b.id, role: "MEMBER" });
+
+  const tTeam3 = await createTeam({
+    name: "Tournament Gladiators 18",
+    tag: "TGL3",
+    ownerId: tOwner3.id,
+    description: "Gladiators Clan for Tournaments",
+  });
+  await addTeamMember(tTeam3.id, { memberId: tMember3b.id, role: "MEMBER" });
+
+  const tTeam4 = await createTeam({
+    name: "Tournament Cyber 18",
+    tag: "TCB4",
+    ownerId: tOwner4.id,
+    description: "Cyber Clan for Tournaments",
+  });
+  await addTeamMember(tTeam4.id, { memberId: tMember4b.id, role: "MEMBER" });
+
+  const tTeamEmpty = await createTeam({
+    name: "Tournament Ghost Team 18",
+    tag: "TGST",
+    ownerId: tOwner1.id,
+    description: "Team with empty roster",
+  });
+  // Delete all members to simulate empty roster
+  await prisma.teamMember.deleteMany({ where: { teamId: tTeamEmpty.id } });
+
+  // Baseline DREAMRANK state for safety verification
+  const baselineMember1 = await prisma.member.findUniqueOrThrow({ where: { id: tOwner1.id } });
+  const baselineMember2 = await prisma.member.findUniqueOrThrow({ where: { id: tOwner2.id } });
+  const baselineRankHistoryCount = await prisma.dreamRankHistory.count({
+    where: { memberId: { in: [tOwner1.id, tOwner2.id, tOwner3.id, tOwner4.id] } },
+  });
+  const baselineRatingAppCount = await prisma.competitiveRatingApplication.count({
+    where: { memberId: { in: [tOwner1.id, tOwner2.id, tOwner3.id, tOwner4.id] } },
+  });
+
+  const nowTime = new Date();
+  const regStartTime = new Date(nowTime.getTime() - 3600 * 1000); // 1 hour ago
+  const regEndTime = new Date(nowTime.getTime() + 3600 * 1000 * 24); // 24 hours from now
+  const tourStartTime = new Date(nowTime.getTime() + 3600 * 1000 * 48); // 48 hours from now
+  const tourEndTime = new Date(nowTime.getTime() + 3600 * 1000 * 72); // 72 hours from now
+
+  // Test 1: create valid tournament
+  const validTour1 = await createTournament({
+    name: "DREAMCAFE Masters S18",
+    slug: "dreamcafe-masters-s18",
+    description: "Turnamen resmi bergengsi season 18",
+    gameId: tGameActive.id,
+    createdById: tCreator.id,
+    minTeams: 2,
+    maxTeams: 8,
+    bestOf: 3,
+    registrationStart: regStartTime,
+    registrationEnd: regEndTime,
+    startAt: tourStartTime,
+    endAt: tourEndTime,
+    prizePool: 10000000,
+    entryFee: 150000,
+  });
+  assert(
+    validTour1.id !== undefined &&
+      validTour1.status === "DRAFT" &&
+      validTour1.name === "DREAMCAFE Masters S18" &&
+      validTour1.slug === "dreamcafe-masters-s18" &&
+      validTour1.bestOf === 3,
+    "Test 1: create valid tournament creates draft tournament with correct data"
+  );
+
+  // Test 2: reject invalid name
+  let errTest2 = false;
+  try {
+    await createTournament({
+      name: "A", // too short
+      gameId: tGameActive.id,
+      createdById: tCreator.id,
+      registrationStart: regStartTime,
+      registrationEnd: regEndTime,
+      startAt: tourStartTime,
+    });
+  } catch {
+    errTest2 = true;
+  }
+  assert(errTest2, "Test 2: reject invalid name (less than 2 characters)");
+
+  // Test 3: reject invalid game
+  let errTest3 = false;
+  try {
+    await createTournament({
+      name: "Tournament With Fake Game",
+      gameId: "nonexistent-game-id-999",
+      createdById: tCreator.id,
+      registrationStart: regStartTime,
+      registrationEnd: regEndTime,
+      startAt: tourStartTime,
+    });
+  } catch {
+    errTest3 = true;
+  }
+  assert(errTest3, "Test 3: reject invalid game (nonexistent game ID)");
+
+  // Test 4: reject inactive game
+  let errTest4 = false;
+  try {
+    await createTournament({
+      name: "Tournament With Inactive Game",
+      gameId: tGameInactive.id,
+      createdById: tCreator.id,
+      registrationStart: regStartTime,
+      registrationEnd: regEndTime,
+      startAt: tourStartTime,
+    });
+  } catch {
+    errTest4 = true;
+  }
+  assert(errTest4, "Test 4: reject inactive game");
+
+  // Test 5: reject minTeams < 2
+  let errTest5 = false;
+  try {
+    await createTournament({
+      name: "Tournament With 1 Min Team",
+      gameId: tGameActive.id,
+      createdById: tCreator.id,
+      minTeams: 1,
+      maxTeams: 8,
+      registrationStart: regStartTime,
+      registrationEnd: regEndTime,
+      startAt: tourStartTime,
+    });
+  } catch {
+    errTest5 = true;
+  }
+  assert(errTest5, "Test 5: reject minTeams < 2");
+
+  // Test 6: reject maxTeams < minTeams
+  let errTest6 = false;
+  try {
+    await createTournament({
+      name: "Tournament With maxTeams < minTeams",
+      gameId: tGameActive.id,
+      createdById: tCreator.id,
+      minTeams: 8,
+      maxTeams: 4,
+      registrationStart: regStartTime,
+      registrationEnd: regEndTime,
+      startAt: tourStartTime,
+    });
+  } catch {
+    errTest6 = true;
+  }
+  assert(errTest6, "Test 6: reject maxTeams < minTeams");
+
+  // Test 7: reject invalid bestOf
+  let errTest7 = false;
+  try {
+    await createTournament({
+      name: "Tournament With Invalid BO",
+      gameId: tGameActive.id,
+      createdById: tCreator.id,
+      bestOf: 2, // only 1, 3, 5 allowed
+      registrationStart: regStartTime,
+      registrationEnd: regEndTime,
+      startAt: tourStartTime,
+    });
+  } catch {
+    errTest7 = true;
+  }
+  assert(errTest7, "Test 7: reject invalid bestOf (not 1, 3, or 5)");
+
+  // Test 8: reject invalid registration dates
+  let errTest8 = false;
+  try {
+    await createTournament({
+      name: "Tournament Invalid Dates",
+      gameId: tGameActive.id,
+      createdById: tCreator.id,
+      registrationStart: tourStartTime, // regStart after regEnd
+      registrationEnd: regStartTime,
+      startAt: tourStartTime,
+    });
+  } catch {
+    errTest8 = true;
+  }
+  assert(errTest8, "Test 8: reject invalid registration dates (registrationStart >= registrationEnd)");
+
+  // Test 9: reject duplicate slug
+  let errTest9 = false;
+  try {
+    await createTournament({
+      name: "Tournament Duplicate Slug",
+      slug: "dreamcafe-masters-s18", // already used in Test 1
+      gameId: tGameActive.id,
+      createdById: tCreator.id,
+      registrationStart: regStartTime,
+      registrationEnd: regEndTime,
+      startAt: tourStartTime,
+    });
+  } catch {
+    errTest9 = true;
+  }
+  assert(errTest9, "Test 9: reject duplicate slug");
+
+  // Test 10: open registration
+  const openedTour = await openRegistration(validTour1.id, tCreator.id);
+  assert(openedTour.status === "REGISTRATION_OPEN", "Test 10: open registration transitions tournament to REGISTRATION_OPEN");
+
+  // Test 11: registration status changes correctly
+  const fetchedTour1 = await getTournamentById(validTour1.id);
+  assert(
+    fetchedTour1?.status === "REGISTRATION_OPEN" && fetchedTour1.isRegistrationOpen === true,
+    "Test 11: registration status changes correctly and is reflected in database query"
+  );
+
+  // Test 12: register valid team
+  const regTeam1 = await registerTeam(validTour1.id, {
+    teamId: tTeam1.id,
+    actorMemberId: tOwner1.id,
+  });
+  assert(
+    regTeam1.id !== undefined &&
+      regTeam1.status === "CONFIRMED" &&
+      regTeam1.teamId === tTeam1.id &&
+      regTeam1.registeredById === tOwner1.id,
+    "Test 12: register valid team creates confirmed registration"
+  );
+
+  // Test 13: reject nonexistent team
+  let errTest13 = false;
+  try {
+    await registerTeam(validTour1.id, {
+      teamId: "nonexistent-team-id-999",
+      actorMemberId: tOwner1.id,
+    });
+  } catch {
+    errTest13 = true;
+  }
+  assert(errTest13, "Test 13: reject nonexistent team registration");
+
+  // Test 14: reject empty roster
+  let errTest14 = false;
+  try {
+    await registerTeam(validTour1.id, {
+      teamId: tTeamEmpty.id,
+      actorMemberId: tOwner1.id,
+    });
+  } catch {
+    errTest14 = true;
+  }
+  assert(errTest14, "Test 14: reject empty roster team registration");
+
+  // Test 15: reject duplicate registration
+  let errTest15 = false;
+  try {
+    await registerTeam(validTour1.id, {
+      teamId: tTeam1.id, // already registered
+      actorMemberId: tOwner1.id,
+    });
+  } catch {
+    errTest15 = true;
+  }
+  assert(errTest15, "Test 15: reject duplicate team registration");
+
+  // Test 16: reject registration when closed
+  const closedDraftTour = await createTournament({
+    name: "Tournament Draft State 18",
+    gameId: tGameActive.id,
+    createdById: tCreator.id,
+    registrationStart: regStartTime,
+    registrationEnd: regEndTime,
+    startAt: tourStartTime,
+  });
+  let errTest16 = false;
+  try {
+    await registerTeam(closedDraftTour.id, {
+      teamId: tTeam2.id,
+      actorMemberId: tOwner2.id,
+    });
+  } catch {
+    errTest16 = true;
+  }
+  assert(errTest16, "Test 16: reject registration when tournament is not in REGISTRATION_OPEN");
+
+  // Test 17: reject registration before registrationStart
+  const futureRegTour = await createTournament({
+    name: "Tournament Future Reg 18",
+    gameId: tGameActive.id,
+    createdById: tCreator.id,
+    registrationStart: new Date(nowTime.getTime() + 3600 * 1000 * 10), // in future
+    registrationEnd: new Date(nowTime.getTime() + 3600 * 1000 * 20),
+    startAt: new Date(nowTime.getTime() + 3600 * 1000 * 30),
+  });
+  await openRegistration(futureRegTour.id, tCreator.id);
+  let errTest17 = false;
+  try {
+    await registerTeam(futureRegTour.id, {
+      teamId: tTeam2.id,
+      actorMemberId: tOwner2.id,
+    });
+  } catch {
+    errTest17 = true;
+  }
+  assert(errTest17, "Test 17: reject registration before registrationStart");
+
+  // Test 18: reject registration after registrationEnd
+  const pastRegTour = await createTournament({
+    name: "Tournament Past Reg 18",
+    gameId: tGameActive.id,
+    createdById: tCreator.id,
+    registrationStart: new Date(nowTime.getTime() - 3600 * 1000 * 10),
+    registrationEnd: new Date(nowTime.getTime() - 3600 * 1000 * 1), // in past
+    startAt: new Date(nowTime.getTime() + 3600 * 1000 * 10),
+  });
+  await openRegistration(pastRegTour.id, tCreator.id);
+  let errTest18 = false;
+  try {
+    await registerTeam(pastRegTour.id, {
+      teamId: tTeam2.id,
+      actorMemberId: tOwner2.id,
+    });
+  } catch {
+    errTest18 = true;
+  }
+  assert(errTest18, "Test 18: reject registration after registrationEnd");
+
+  // Test 19: reject registration when capacity reached
+  const capTour = await createTournament({
+    name: "Tournament Small Cap 18",
+    gameId: tGameActive.id,
+    createdById: tCreator.id,
+    minTeams: 2,
+    maxTeams: 2, // only 2 slots
+    registrationStart: regStartTime,
+    registrationEnd: regEndTime,
+    startAt: tourStartTime,
+  });
+  await openRegistration(capTour.id, tCreator.id);
+  await registerTeam(capTour.id, { teamId: tTeam1.id, actorMemberId: tOwner1.id });
+  await registerTeam(capTour.id, { teamId: tTeam2.id, actorMemberId: tOwner2.id });
+  let errTest19 = false;
+  try {
+    await registerTeam(capTour.id, { teamId: tTeam3.id, actorMemberId: tOwner3.id });
+  } catch {
+    errTest19 = true;
+  }
+  assert(errTest19, "Test 19: reject registration when maxTeams capacity reached");
+
+  // Test 20: only authorized team actor can register
+  let errTest20 = false;
+  try {
+    await registerTeam(validTour1.id, {
+      teamId: tTeam2.id,
+      actorMemberId: tUnauthorizedActor.id, // not owner of tTeam2
+    });
+  } catch {
+    errTest20 = true;
+  }
+  assert(errTest20, "Test 20: only authorized team owner can register team");
+
+  // Test 21: withdraw registration
+  const withdrawnReg = await withdrawTeam(validTour1.id, {
+    teamId: tTeam1.id,
+    actorMemberId: tOwner1.id,
+  });
+  assert(
+    withdrawnReg.status === "WITHDRAWN",
+    "Test 21: withdraw registration changes status to WITHDRAWN"
+  );
+
+  // Test 22: preserve withdrawn registration history
+  const dbWithdrawnRow = await prisma.tournamentRegistration.findUnique({
+    where: { tournamentId_teamId: { tournamentId: validTour1.id, teamId: tTeam1.id } },
+  });
+  assert(
+    dbWithdrawnRow !== null && dbWithdrawnRow.status === "WITHDRAWN",
+    "Test 22: withdrawn registration row is preserved in database and not hard-deleted"
+  );
+
+  // Test 23: reject withdrawal after registration closes
+  const withdrawClosedTour = await createTournament({
+    name: "Tournament Withdraw Closed Test",
+    gameId: tGameActive.id,
+    createdById: tCreator.id,
+    minTeams: 2,
+    maxTeams: 8,
+    registrationStart: regStartTime,
+    registrationEnd: regEndTime,
+    startAt: tourStartTime,
+  });
+  await openRegistration(withdrawClosedTour.id, tCreator.id);
+  await registerTeam(withdrawClosedTour.id, { teamId: tTeam2.id, actorMemberId: tOwner2.id });
+  await closeRegistration(withdrawClosedTour.id, tCreator.id);
+  let errTest23 = false;
+  try {
+    await withdrawTeam(withdrawClosedTour.id, { teamId: tTeam2.id, actorMemberId: tOwner2.id });
+  } catch {
+    errTest23 = true;
+  }
+  assert(errTest23, "Test 23: reject team withdrawal after registration closes");
+
+  // Test 24: close registration
+  // Re-register tTeam1 and register tTeam2 on validTour1
+  await registerTeam(validTour1.id, { teamId: tTeam1.id, actorMemberId: tOwner1.id });
+  await registerTeam(validTour1.id, { teamId: tTeam2.id, actorMemberId: tOwner2.id });
+  const closedTour1 = await closeRegistration(validTour1.id, tCreator.id);
+  assert(closedTour1.status === "REGISTRATION_CLOSED", "Test 24: close registration transitions tournament to REGISTRATION_CLOSED");
+
+  // Test 25: prevent invalid lifecycle transition
+  let errTest25 = false;
+  try {
+    // Cannot open registration from REGISTRATION_CLOSED directly
+    await openRegistration(validTour1.id, tCreator.id);
+  } catch {
+    errTest25 = true;
+  }
+  assert(errTest25, "Test 25: prevent invalid backward lifecycle transition (REGISTRATION_CLOSED -> REGISTRATION_OPEN)");
+
+  // Test 26: start tournament
+  const startedTour1 = await startTournament(validTour1.id, tCreator.id);
+  assert(startedTour1.status === "IN_PROGRESS", "Test 26: start tournament transitions tournament to IN_PROGRESS");
+
+  // Test 27: prevent starting without enough confirmed teams
+  const notEnoughTeamsTour = await createTournament({
+    name: "Tournament Not Enough Teams",
+    gameId: tGameActive.id,
+    createdById: tCreator.id,
+    minTeams: 4, // requires 4 teams
+    maxTeams: 8,
+    registrationStart: regStartTime,
+    registrationEnd: regEndTime,
+    startAt: tourStartTime,
+  });
+  await openRegistration(notEnoughTeamsTour.id, tCreator.id);
+  await registerTeam(notEnoughTeamsTour.id, { teamId: tTeam1.id, actorMemberId: tOwner1.id }); // only 1 team
+  await closeRegistration(notEnoughTeamsTour.id, tCreator.id);
+  let errTest27 = false;
+  try {
+    await startTournament(notEnoughTeamsTour.id, tCreator.id);
+  } catch {
+    errTest27 = true;
+  }
+  assert(errTest27, "Test 27: prevent starting tournament without enough confirmed teams (< minTeams)");
+
+  // Test 28: complete tournament
+  const completedTour1 = await completeTournament(validTour1.id, tCreator.id);
+  assert(completedTour1.status === "COMPLETED", "Test 28: complete tournament transitions tournament to COMPLETED");
+
+  // Test 29: cancel tournament
+  const cancelTour = await createTournament({
+    name: "Tournament To Cancel 18",
+    gameId: tGameActive.id,
+    createdById: tCreator.id,
+    registrationStart: regStartTime,
+    registrationEnd: regEndTime,
+    startAt: tourStartTime,
+  });
+  const cancelledTour = await cancelTournament(cancelTour.id, tCreator.id, "Testing cancellation flow");
+  assert(cancelledTour.status === "CANCELLED", "Test 29: cancel tournament transitions tournament to CANCELLED");
+
+  // Test 30: prevent modification after completion
+  let errTest30 = false;
+  try {
+    await updateTournament(validTour1.id, {
+      name: "Renamed Completed Tournament",
+      actorMemberId: tCreator.id,
+    });
+  } catch {
+    errTest30 = true;
+  }
+  assert(errTest30, "Test 30: prevent modification of tournament after completion");
+
+  // Test 31: prevent modification after cancellation
+  let errTest31 = false;
+  try {
+    await updateTournament(cancelTour.id, {
+      name: "Renamed Cancelled Tournament",
+      actorMemberId: tCreator.id,
+    });
+  } catch {
+    errTest31 = true;
+  }
+  assert(errTest31, "Test 31: prevent modification of tournament after cancellation");
+
+  // Test 32: tournament list returns real data
+  const realTourList = await listTournaments({ q: "Masters S18" });
+  assert(
+    realTourList.length >= 1 && realTourList[0].name === "DREAMCAFE Masters S18",
+    "Test 32: tournament list returns real database data"
+  );
+
+  // Test 33: tournament detail returns real registrations
+  const realDetail = await getTournamentById(validTour1.id);
+  assert(
+    realDetail !== null &&
+      realDetail.registrations.length >= 2 &&
+      realDetail.registrations.some((r) => r.teamTag === "TPH1") &&
+      realDetail.registrations.some((r) => r.teamTag === "TVG2"),
+    "Test 33: tournament detail returns real registered teams"
+  );
+
+  // Test 34: tournament filters work
+  const completedList = await listTournaments({ status: "COMPLETED" });
+  assert(
+    completedList.every((t) => t.status === "COMPLETED"),
+    "Test 34a: tournament status filter returns only matching status"
+  );
+  const gameFilteredList = await listTournaments({ gameId: tGameActive.id });
+  assert(
+    gameFilteredList.every((t) => t.gameId === tGameActive.id),
+    "Test 34b: tournament game filter returns only matching game"
+  );
+
+  // Test 35: no duplicate registrations under concurrent requests
+  const tConcur = await createTournament({
+    name: "Tournament Concurrency Test 18",
+    gameId: tGameActive.id,
+    createdById: tCreator.id,
+    minTeams: 2,
+    maxTeams: 8,
+    registrationStart: regStartTime,
+    registrationEnd: regEndTime,
+    startAt: tourStartTime,
+  });
+  await openRegistration(tConcur.id, tCreator.id);
+  // Fire concurrent registration of same team
+  await Promise.allSettled([
+    registerTeam(tConcur.id, { teamId: tTeam3.id, actorMemberId: tOwner3.id }),
+    registerTeam(tConcur.id, { teamId: tTeam3.id, actorMemberId: tOwner3.id }),
+  ]);
+  const concurTeamCount = await prisma.tournamentRegistration.count({
+    where: { tournamentId: tConcur.id, teamId: tTeam3.id },
+  });
+  assert(
+    concurTeamCount === 1,
+    "Test 35: no duplicate registrations under concurrent requests for same team"
+  );
+
+  // Test 36: capacity race condition protected
+  const tRaceCap = await createTournament({
+    name: "Tournament Race Condition Cap 18",
+    gameId: tGameActive.id,
+    createdById: tCreator.id,
+    minTeams: 2,
+    maxTeams: 2, // exactly 2 slots
+    registrationStart: regStartTime,
+    registrationEnd: regEndTime,
+    startAt: tourStartTime,
+  });
+  await openRegistration(tRaceCap.id, tCreator.id);
+  // Slot 1 filled
+  await registerTeam(tRaceCap.id, { teamId: tTeam1.id, actorMemberId: tOwner1.id });
+  // Slot 2 contested concurrently by tTeam2 and tTeam4
+  const raceResults = await Promise.allSettled([
+    registerTeam(tRaceCap.id, { teamId: tTeam2.id, actorMemberId: tOwner2.id }),
+    registerTeam(tRaceCap.id, { teamId: tTeam4.id, actorMemberId: tOwner4.id }),
+  ]);
+  const confirmedRaceCount = await prisma.tournamentRegistration.count({
+    where: { tournamentId: tRaceCap.id, status: "CONFIRMED" },
+  });
+  const fulfilledCount = raceResults.filter((r) => r.status === "fulfilled").length;
+  const rejectedCount = raceResults.filter((r) => r.status === "rejected").length;
+  assert(
+    confirmedRaceCount === 2 && fulfilledCount === 1 && rejectedCount === 1,
+    "Test 36: capacity race condition protected, never exceeds maxTeams under concurrent slot requests"
+  );
+
+  // Test 37: tournament does not modify DREAMRANK
+  const afterMember1 = await prisma.member.findUniqueOrThrow({ where: { id: tOwner1.id } });
+  const afterMember2 = await prisma.member.findUniqueOrThrow({ where: { id: tOwner2.id } });
+  assert(
+    afterMember1.dreamRating === baselineMember1.dreamRating &&
+      afterMember1.dreamRank === baselineMember1.dreamRank &&
+      afterMember2.dreamRating === baselineMember2.dreamRating &&
+      afterMember2.dreamRank === baselineMember2.dreamRank,
+    "Test 37: tournament actions do NOT modify Member dreamRating or dreamRank"
+  );
+
+  // Test 38: tournament does not create DreamRankHistory
+  const afterRankHistoryCount = await prisma.dreamRankHistory.count({
+    where: { memberId: { in: [tOwner1.id, tOwner2.id, tOwner3.id, tOwner4.id] } },
+  });
+  assert(
+    afterRankHistoryCount === baselineRankHistoryCount,
+    "Test 38: tournament actions do NOT create any DreamRankHistory records"
+  );
+
+  // Test 39: tournament does not create CompetitiveRatingApplication
+  const afterRatingAppCount = await prisma.competitiveRatingApplication.count({
+    where: { memberId: { in: [tOwner1.id, tOwner2.id, tOwner3.id, tOwner4.id] } },
+  });
+  assert(
+    afterRatingAppCount === baselineRatingAppCount,
+    "Test 39: tournament actions do NOT create any CompetitiveRatingApplication records"
+  );
+
+  // Test 40: existing CompetitiveMatch system remains functional and supports tournamentId
+  const compMatchWithTour = await createCompetitiveMatch({
+    teamAId: tTeam1.id,
+    teamBId: tTeam2.id,
+    gameId: tGameActive.id,
+    scheduledAt: tourStartTime.toISOString(),
+    bestOf: 3,
+    actorMemberId: tOwner1.id,
+  });
+  // Link tournament foundation field
+  const tourLinkedMatch = await prisma.competitiveMatch.update({
+    where: { id: compMatchWithTour.id },
+    data: {
+      tournamentId: validTour1.id,
+      tournamentRound: 1,
+      tournamentMatchNumber: 1,
+    },
+    include: {
+      tournament: { select: { id: true, name: true } },
+    },
+  });
+  assert(
+    tourLinkedMatch.status === "PENDING" &&
+      tourLinkedMatch.tournamentId === validTour1.id &&
+      tourLinkedMatch.tournament?.name === "DREAMCAFE Masters S18" &&
+      tourLinkedMatch.tournamentRound === 1 &&
+      tourLinkedMatch.tournamentMatchNumber === 1,
+    "Test 40: existing CompetitiveMatch system remains functional with tournament foundation link"
+  );
+
+  // Test 41: matchmaking remains functional
+  const mmTourQueue = await joinMatchmakingQueue({
+    teamId: tTeam1.id,
+    gameId: tGameActive.id,
+    minRating: 0,
+    maxRating: 3000,
+    actorMemberId: tOwner1.id,
+  });
+  assert(
+    mmTourQueue.status === "QUEUED" && mmTourQueue.teamId === tTeam1.id,
+    "Test 41: matchmaking system remains functional and independent of tournaments"
+  );
+  await leaveMatchmakingQueue(mmTourQueue.id, tOwner1.id);
+
+  // Cleanup Test Group 18 fixtures cleanly
+  await prisma.competitiveMatch.deleteMany({
+    where: {
+      OR: [
+        { teamAId: { in: [tTeam1.id, tTeam2.id, tTeam3.id, tTeam4.id, tTeamEmpty.id] } },
+        { teamBId: { in: [tTeam1.id, tTeam2.id, tTeam3.id, tTeam4.id, tTeamEmpty.id] } },
+      ],
+    },
+  });
+  await prisma.tournamentRegistration.deleteMany({
+    where: {
+      teamId: { in: [tTeam1.id, tTeam2.id, tTeam3.id, tTeam4.id, tTeamEmpty.id] },
+    },
+  });
+  await prisma.tournament.deleteMany({
+    where: {
+      id: { in: [validTour1.id, closedDraftTour.id, futureRegTour.id, pastRegTour.id, capTour.id, withdrawClosedTour.id, notEnoughTeamsTour.id, cancelTour.id, tConcur.id, tRaceCap.id] },
+    },
+  });
+  await deleteTeam(tTeam1.id);
+  await deleteTeam(tTeam2.id);
+  await deleteTeam(tTeam3.id);
+  await deleteTeam(tTeam4.id);
+  await deleteTeam(tTeamEmpty.id);
+  await deleteGame(tGameActive.id);
+  await deleteGame(tGameInactive.id);
+  await deleteMember(tCreator.id);
+  await deleteMember(tOwner1.id);
+  await deleteMember(tMember1b.id);
+  await deleteMember(tOwner2.id);
+  await deleteMember(tMember2b.id);
+  await deleteMember(tOwner3.id);
+  await deleteMember(tMember3b.id);
+  await deleteMember(tOwner4.id);
+  await deleteMember(tMember4b.id);
+  await deleteMember(tUnauthorizedActor.id);
+  assert(true, "Test 42: isolated Test Group 18 test fixtures cleaned up and all regression tests passed");
+  console.log("  ✓ Test 42: Isolated Tournament Phase 1 test fixtures cleaned up cleanly.\n");
+
   console.log(`SUMMARY: ${passedCount} PASSED, ${failedCount} FAILED`);
   console.log("==================================================");
 }

@@ -9,8 +9,9 @@ export type PaymentMethod = "CASH";
 export type BookingStatus = "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
 export type MemberTier = "REGULAR" | "VIP" | "PRO";
 export type DreamRank = "UNRANKED" | "BRONZE" | "SILVER" | "GOLD" | "PLATINUM" | "DIAMOND" | "MASTER" | "GRANDMASTER";
+import type { TournamentStatus, TournamentRegistrationStatus } from "@prisma/client";
+export type { TournamentStatus, TournamentRegistrationStatus };
 export type InventoryAction = "STOCK_IN" | "STOCK_OUT" | "ADJUSTMENT";
-export type TournamentStatus = "UPCOMING" | "ONGOING" | "COMPLETED" | "CANCELLED";
 export type MaintenanceStatus = "SCHEDULED" | "IN_PROGRESS" | "RESOLVED";
 export type TeamMemberRole = "OWNER" | "MEMBER";
 export type TeamInvitationStatus = "PENDING" | "ACCEPTED" | "REJECTED" | "CANCELLED";
@@ -730,6 +731,9 @@ export interface CompetitiveMatchItem {
   participantsCount: number;
   submissionsCount: number;
   isDisputed: boolean;
+  tournamentId?: string | null;
+  tournamentRound?: number | null;
+  tournamentMatchNumber?: number | null;
   createdAt: string;
   updatedAt: string;
   startedAt?: string | null;
@@ -846,3 +850,71 @@ export interface TeamMatchmakingStateDTO {
   activeQueue?: MatchmakingQueueDTO | null;
   activeOffer?: MatchmakingOfferDTO | null;
 }
+
+// ==========================================
+// TOURNAMENT SYSTEM PHASE 1 DTO & TYPES
+// ==========================================
+
+export interface TournamentRegistrationDTO {
+  id: string;
+  tournamentId: string;
+  teamId: string;
+  teamName: string;
+  teamTag: string;
+  teamLogoUrl?: string | null;
+  ownerId: string;
+  ownerName: string;
+  registeredById: string;
+  registeredByName: string;
+  status: import("@prisma/client").TournamentRegistrationStatus;
+  createdAt: string;
+  updatedAt: string;
+  memberCount: number;
+}
+
+export interface TournamentItemDTO {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  gameId: string;
+  gameTitle: string;
+  gameGenre: string;
+  gameIconUrl?: string | null;
+  status: import("@prisma/client").TournamentStatus;
+  createdById: string;
+  createdByName: string;
+  maxTeams: number;
+  minTeams: number;
+  bestOf: number;
+  registrationStart: string;
+  registrationEnd: string;
+  startAt: string;
+  endAt?: string | null;
+  rules?: string | null;
+  prizePool?: number | null;
+  entryFee?: number | null;
+  format?: string | null;
+  confirmedTeamCount: number;
+  isRegistrationOpen: boolean;
+  isCapacityFull: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TournamentMatchSummaryDTO {
+  id: string;
+  tournamentRound?: number | null;
+  tournamentMatchNumber?: number | null;
+  status: string;
+  scheduledAt: string;
+  teamA: { id: string; name: string; tag: string };
+  teamB: { id: string; name: string; tag: string };
+  winnerTeamId?: string | null;
+}
+
+export interface TournamentDetailDTO extends TournamentItemDTO {
+  registrations: TournamentRegistrationDTO[];
+  matches: TournamentMatchSummaryDTO[];
+}
+
